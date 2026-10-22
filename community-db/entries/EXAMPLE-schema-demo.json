@@ -1,0 +1,11 @@
+{
+  "id": "example-schema-demo",
+  "vehicle": { "make": "Ford", "model": "F-150", "years": [2017], "notes": "SCHEMA DEMONSTRATION ONLY — not a real feature" },
+  "module": "BCM",
+  "address": "726-01-01",
+  "description": "PLACEHOLDER entry showing the file format. Mask/value are dummy and must not be written to a vehicle.",
+  "change": { "byteIndex": 0, "mask": "00", "value": "00" },
+  "verification": "placeholder",
+  "sources": [],
+  "risk": "low"
+}

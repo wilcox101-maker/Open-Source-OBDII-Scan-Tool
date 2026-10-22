@@ -1,0 +1,212 @@
+[
+ {
+  "code": "P0100",
+  "description": "Mass or Volume Air Flow Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0101",
+  "description": "Mass or Volume Air Flow Circuit Range/Performance Problem",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0110",
+  "description": "Intake Air Temperature Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0115",
+  "description": "Engine Coolant Temperature Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0120",
+  "description": "Throttle/Pedal Position Sensor/Switch A Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0128",
+  "description": "Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0130",
+  "description": "O2 Sensor Circuit Malfunction (Bank 1 Sensor 1)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0135",
+  "description": "O2 Sensor Heater Circuit Malfunction (Bank 1 Sensor 1)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0171",
+  "description": "System Too Lean (Bank 1)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0172",
+  "description": "System Too Rich (Bank 1)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0174",
+  "description": "System Too Lean (Bank 2)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0175",
+  "description": "System Too Rich (Bank 2)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0300",
+  "description": "Random/Multiple Cylinder Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0301",
+  "description": "Cylinder 1 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0302",
+  "description": "Cylinder 2 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0303",
+  "description": "Cylinder 3 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0304",
+  "description": "Cylinder 4 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0305",
+  "description": "Cylinder 5 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0306",
+  "description": "Cylinder 6 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0307",
+  "description": "Cylinder 7 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0308",
+  "description": "Cylinder 8 Misfire Detected",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0325",
+  "description": "Knock Sensor 1 Circuit Malfunction (Bank 1 or Single Sensor)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0335",
+  "description": "Crankshaft Position Sensor A Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0340",
+  "description": "Camshaft Position Sensor Circuit Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0400",
+  "description": "Exhaust Gas Recirculation Flow Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0420",
+  "description": "Catalyst System Efficiency Below Threshold (Bank 1)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0430",
+  "description": "Catalyst System Efficiency Below Threshold (Bank 2)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0440",
+  "description": "Evaporative Emission Control System Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0442",
+  "description": "Evaporative Emission Control System Leak Detected (small leak)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0455",
+  "description": "Evaporative Emission Control System Leak Detected (gross leak)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0456",
+  "description": "Evaporative Emission Control System Leak Detected (very small leak)",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0500",
+  "description": "Vehicle Speed Sensor Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0505",
+  "description": "Idle Control System Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0562",
+  "description": "System Voltage Low",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0563",
+  "description": "System Voltage High",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0600",
+  "description": "Serial Communication Link Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "P0700",
+  "description": "Transmission Control System Malfunction",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "U0100",
+  "description": "Lost Communication With ECM/PCM 'A'",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "U0101",
+  "description": "Lost Communication With TCM",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "U0121",
+  "description": "Lost Communication With Anti-Lock Brake System (ABS) Control Module",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "U0140",
+  "description": "Lost Communication With Body Control Module",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ },
+ {
+  "code": "U0155",
+  "description": "Lost Communication With Instrument Panel Cluster (IPC) Control Module",
+  "source": "SAE J2012 generic code title (public listings, e.g. https://en.wikipedia.org/wiki/OBD-II_PIDs#Diagnostic_trouble_codes / obd-codes.com); verify wording against J2012"
+ }
+]

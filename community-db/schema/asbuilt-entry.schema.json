@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/obdlink-app/asbuilt-entry.schema.json",
+  "title": "Community As-Built / configuration entry",
+  "type": "object",
+  "required": ["id", "vehicle", "module", "address", "description", "change", "verification", "sources"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "vehicle": {
+      "type": "object", "required": ["make", "model", "years"],
+      "properties": { "make": {"type": "string"}, "model": {"type": "string"}, "years": {"type": "array", "items": {"type": "integer"}}, "notes": {"type": "string"} }
+    },
+    "module": { "type": "string", "description": "Acronym, e.g. BCM" },
+    "address": { "type": "string", "pattern": "^[0-9A-F]{3}-[0-9A-F]{2}-[0-9A-F]{2}$" },
+    "description": { "type": "string" },
+    "change": {
+      "type": "object",
+      "description": "Bit-level edit relative to the vehicle's own data. Never a full line copied from another VIN.",
+      "required": ["byteIndex", "mask", "value"],
+      "properties": { "byteIndex": {"type": "integer", "minimum": 0}, "mask": {"type": "string", "pattern": "^[0-9A-F]{2}$"}, "value": {"type": ["string", "null"], "pattern": "^[0-9A-F]{2}$"} }
+    },
+    "verification": { "enum": ["placeholder", "unverified", "community-reported", "verified-on-vehicle"] },
+    "verifiedBy": { "type": "array", "items": { "type": "object", "properties": { "vinPrefix": {"type": "string", "maxLength": 11}, "date": {"type": "string", "format": "date"}, "notes": {"type": "string"} } } },
+    "sources": { "type": "array", "items": { "type": "string" } },
+    "risk": { "enum": ["low", "medium", "high"] }
+  }
+}

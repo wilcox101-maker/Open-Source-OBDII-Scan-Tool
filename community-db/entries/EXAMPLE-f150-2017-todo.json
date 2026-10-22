@@ -1,0 +1,11 @@
+{
+  "id": "example-f150-2017-todo",
+  "vehicle": { "make": "Ford", "model": "F-150", "years": [2017] },
+  "module": "IPC",
+  "address": "720-01-01",
+  "description": "TODO: contributor to fill in from their own before/after As-Built comparison. No bit position is claimed here.",
+  "change": { "byteIndex": 0, "mask": "00", "value": null },
+  "verification": "unverified",
+  "sources": ["(add forum thread / own capture URL)"],
+  "risk": "medium"
+}

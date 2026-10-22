@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ObdLink.App/ObdLink.App.csproj" />
+    <Project Path="src/ObdLink.Core/ObdLink.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ObdLink.Core.Tests/ObdLink.Core.Tests.csproj" />
+  </Folder>
+</Solution>

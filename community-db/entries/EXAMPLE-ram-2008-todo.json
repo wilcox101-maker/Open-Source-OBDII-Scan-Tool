@@ -1,0 +1,11 @@
+{
+  "id": "example-ram-2008-todo",
+  "vehicle": { "make": "Dodge", "model": "Ram 1500", "years": [2008], "notes": "Ram 2008 body config is not Ford As-Built; address field kept only for schema validity. Format for Chrysler PCI modules is an open question." },
+  "module": "PCM",
+  "address": "7E0-01-01",
+  "description": "PLACEHOLDER: Chrysler configuration format not yet modelled.",
+  "change": { "byteIndex": 0, "mask": "00", "value": null },
+  "verification": "placeholder",
+  "sources": [],
+  "risk": "high"
+}
