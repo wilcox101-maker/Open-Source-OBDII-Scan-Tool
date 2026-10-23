@@ -90,7 +90,7 @@ public class ForscanLogTests
         var res = await new ModuleScanner(s, ch).ScanAsync(FordF150_2017.Modules);
         Assert.True(res.Single(r => r.Module.Acronym == "BCM").Responded);
         Assert.False(res.Single(r => r.Module.Acronym == "PAM").Responded);
-        Assert.Contains("skipped", res.Single(r => r.Module.Acronym == "PBM").Detail);
+        Assert.True(res.Single(r => r.Module.Acronym == "PBM").Responded); // PBM now has address 0x756 (identified via .ab + profile)
 
         await s.SelectProtocolAsync(StnProtocol.HsCan11_500);
         var dtcs = await new UdsClient(ch, 0x726).ReadDtcsByStatusAsync();

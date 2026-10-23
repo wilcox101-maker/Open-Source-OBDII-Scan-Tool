@@ -16,6 +16,7 @@ public class AdapterProfileTests
 
     [Theory]
     [InlineData(null, "STN2231 v5.10.3", "OBDLink EX r2.2.1", AdapterKind.ObdLinkEx)]      // Dale's real EX (from log)
+    [InlineData(null, "STN2231 v5.13.0", "OBDLink EX r2.2.1", AdapterKind.ObdLinkEx)]      // Dale's EX after firmware update (2026-10 FORScan session)
     [InlineData(null, "STN2232 v5.13.0", null, AdapterKind.ObdLinkEx)]
     [InlineData(null, "STN2255 v5.10.3", "OBDLink MX+ r1.0", AdapterKind.ObdLinkMxPlus)]
     [InlineData(null, "STN2256 v5.x", null, AdapterKind.ObdLinkMxPlus)]

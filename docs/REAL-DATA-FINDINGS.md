@@ -28,3 +28,25 @@
 - We need a FORScan debug log or a raw STN capture to verify buses, CAN IDs and timing.
 - We need a FORScan `.abt` backup of Dale's modules to verify DID mapping and bytes per line on his truck.
 - Every As-Built value remains CommunityReported.
+
+## Session 2 (2026-10, five files from Dale)
+Originals are in `samples/real-logs/` (git-ignored). Redacted fixtures are `Fixtures/forscan/s2-*`.
+
+| File | What it is |
+|---|---|
+| d51e… .txt | FORScan connect + module scan (normal log, **not** a debug log) |
+| 6499… .profile | FORScan vehicle profile: key=value, `MODNS<key>` = `;`-separated module IDs, `PIDS*`/`MODPD*` = opaque hashes |
+| 88f2… .txt | OBD-II Mode 6 results (all monitors Complete) |
+| 4bb2… .txt | FORScan DTC report with freeze frames |
+| 77e6… .txt | FORScan configuration/module-info report |
+
+**Newly verified**
+- Adapter string (FORScan composite): `OBDLink EX r2.2.1 STN2231 v5.13.0 (ELM327 v1.4b)`. The firmware went from v5.10.3 to v5.13.0. COM4, FTDI, 2,000,000 bps, min delay 15 ms.
+- **PBM = 0x756, OCS = 0x765.** The profile/config-report part number and serial match the .ab NODEIDs. All 19 profile modules map 1:1 onto .ab node IDs (`ForscanProfile.MapToAb`).
+- Profile field indices → DIDs (inferred by matching against the .ab): 0=F113, 1=F188, 2=F124, 3=F18C, 9=F125, 13=F10A, 14–18=F16B..F17D, 20=VIN, 21=F111. The meanings of indices 5/6 and 23 are unknown.
+- **Current vs factory software:** the only difference is PCM strategy F188. The factory record has HL3A-14C204-**BDC**, the truck has **BDB**. The factory record is newer than the truck, which possibly means a reflash at the dealer was planned but not done [interpretation UNVERIFIED].
+- FORScan shows "latest known" calibrations for BCM, FCIM, FCDIM, OCS, TCCM, PDM and DDM. Updates exist; none are applied.
+- DTCs: PCM P0722 (output shaft speed sensor, previously set; the freeze frame shows OSS 0 rpm at 47 mph), FCIM B1081, PBM C2005:77 (present, MIL on), PSCM U3003, SCCM B1380 and U2101. The PBM C1034/U0415 and PSCM U0415 codes from session 1 are gone.
+- Odometer 187,537 mi. FORScan labels SYNC as "SYNC 1.1", although the APIM strategy is E1BT-14D205 (open question).
+
+**Still not provided:** FORScan *debug* log (raw CAN IDs, bus, STP/AT commands, timing), the .abt As-Built backup (so there is no current-vs-factory As-Built **data** comparison yet), any 2008 Ram data, raw MX+ ATI/STI/STDI replies, and a real spec.

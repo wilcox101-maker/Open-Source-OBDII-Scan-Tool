@@ -1,5 +1,15 @@
+using ObdLink.Core.Logs;
 using ObdLink.Core.AsBuilt;
 // Usage: AbTool redact <in.ab> <out.ab> | AbTool summary <in.ab> | AbTool decode <in.ab> <features.json>
+// AbTool redact-profile <in.profile> <out> | AbTool profile-vs-ab <in.profile> <in.ab>
+if (args[0] == "redact-profile") { File.WriteAllText(args[2], ForscanProfile.Redact(File.ReadAllText(args[1]))); return; }
+if (args[0] == "profile-vs-ab")
+{
+    var pr = ForscanProfile.Parse(File.ReadAllText(args[1])); var ab = FordAbFile.Load(args[2]);
+    foreach (var (k, id) in pr.MapToAb(ab)) Console.WriteLine($"map {k} -> {id:X3} {pr.Modules.First(m => m.Key == k).PartNumber}");
+    foreach (var d in pr.CompareSoftware(ab)) Console.WriteLine($"diff {d.Module:X3} {d.Did} factory={d.Factory} current={d.Current}");
+    return;
+}
 var f = FordAbFile.Load(args[1]);
 switch (args[0])
 {

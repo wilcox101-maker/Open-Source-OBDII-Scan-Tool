@@ -9,7 +9,7 @@ public enum SimProfile { MxPlus, Ex, GenericElm }
 public sealed class SimulatedAdapter
 {
     /// <summary>
-    /// Which adapter to imitate. The EX ID strings are copied from Dale's FORScan log ("OBDLink EX r2.2.1 STN2231 v5.10.3").
+    /// Which adapter to imitate. The EX ID strings are copied from Dale's FORScan log ("OBDLink EX r2.2.1 STN2231 v5.10.3", later "v5.13.0" in the 2026-10 session). FORScan prints a composite string; the raw STI/STDI replies are NOT captured, so the split into STI and STDI is [UNVERIFIED].
     /// The MX+ strings are SYNTHETIC; the exact STDI text of a real MX+ is [UNVERIFIED].
     /// </summary>
     public SimProfile Profile { get; set; } = SimProfile.MxPlus;
@@ -39,7 +39,7 @@ public sealed class SimulatedAdapter
         if (c is "ATE0" or "ATL0" or "ATS0" or "ATH1" or "ATCRA" or "STPO" or "STPC") return "OK";
         if (c == "ATI") return "ELM327 v1.4b";
         if (Profile == SimProfile.GenericElm && (c.StartsWith("ST"))) return "?";
-        if (c == "STI") return Profile == SimProfile.Ex ? "STN2231 v5.10.3" : "STN2255 v5.10.3 (SIMULATED)";
+        if (c == "STI") return Profile == SimProfile.Ex ? "STN2231 v5.13.0" : "STN2255 v5.10.3 (SIMULATED)";
         if (c == "STDI") return Profile == SimProfile.Ex ? "OBDLink EX r2.2.1" : "OBDLink MX+ (SIMULATED)";
         if (c == "ATRV") return $"{Voltage:0.0}V".Replace(',', '.');
         if (c.StartsWith("STP")) { Protocol = c[3..]; return "OK"; }

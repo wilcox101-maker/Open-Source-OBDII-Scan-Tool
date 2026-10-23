@@ -1,0 +1,30 @@
+(WARN) [14:44:02.907] Checking COM4...
+(OK) [14:44:03.826] Connection to adapter has been established: COM4
+(OK) [14:44:03.828] Adapter:  OBDLink EX r2.2.1 STN2231 v5.13.0 (ELM327 v1.4b)
+(OK) [14:44:04.084] Connection to vehicle has been established
+(OK) [14:44:10.842] Vehicle: Ford F-150 TiVCT 3.5L 2017 ( 2017 MY ), VIN: 1FT*********25268
+(OK) [14:44:11.754] Found module:  OBD2_PCM - On Board Diagnostic II (PCM)
+(OK) [14:44:11.912] Found module:  PCM - Powertrain Control Module
+(WARN) [14:44:12.823] DTCs in PCM: P0722:00-68
+(OK) [14:44:12.833] Found module:  APIM - Accessory Protocol Interface Module
+(OK) [14:44:12.975] Found module:  BdyCM - Body Control Module
+(OK) [14:44:13.051] Found module:  FCIM - Front Controls Interface Module
+(WARN) [14:44:13.242] DTCs in FCIM: B1081:07-48
+(OK) [14:44:13.253] Found module:  FCDIM - Front Control/Display Interface Module
+(OK) [14:44:13.317] Found module:  OCS - Occupant Classification System Module
+(OK) [14:44:13.390] Found module:  TCCM - Transfer Case Control Module
+(OK) [14:44:13.508] Found module:  ABS - Antilock braking system
+(OK) [14:44:13.590] Found module:  PBM - Park Brake Control Module
+(WARN) [14:44:13.814] DTCs in PBM: C2005:77-AB
+(OK) [14:44:13.819] Found module:  RTM - Radio Transceiver Module
+(OK) [14:44:13.909] Found module:  PDM - Passengers Door Control Unit
+(OK) [14:44:13.973] Found module:  DDM - Drivers Door Module
+(OK) [14:44:14.035] Found module:  RCM - Restraint Control Module
+(OK) [14:44:14.115] Found module:  PSCM - Power Steering Control Module
+(WARN) [14:44:14.319] DTCs in PSCM: U3003:16-48
+(OK) [14:44:14.329] Found module:  ACM - Audio Control Module
+(OK) [14:44:14.390] Found module:  SCCM - Steering Column Control Module
+(WARN) [14:44:14.546] DTCs in SCCM: B1380:09-08, U2101:00-08
+(OK) [14:44:14.586] Found module:  IPC - Instrument Panel Control Module
+(OK) [14:44:14.649] Found module:  GWM - Gateway Module A
+(OK) [14:44:14.712] Found module:  GPSM - Global Positioning System Module

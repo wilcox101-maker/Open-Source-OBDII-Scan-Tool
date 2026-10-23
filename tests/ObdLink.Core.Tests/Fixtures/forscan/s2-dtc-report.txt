@@ -1,0 +1,253 @@
+===OBD2_PCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: On Board Diagnostic II (PCM)
+
+===END OBD2_PCM DTC None===
+
+===PCM DTC P0722:00-68===
+Code: P0722 - Output Shaft Speed Sensor Circuit No Signal
+
+Status (-68):
+ - Previously Set DTC - Not Present at Time of Request
+ - Malfunction Indicator Lamp is Off for this DTC
+ - Test not complete
+
+Module: Powertrain Control Module
+
+ Freeze Frame  #1:
+
+ Freeze Frame  #2:
+-EVENT_TIME: 292957980 s (Tue Oct 20 11:19:11 2026) - Event time
+-TOTAL_DISTANCE: 187490 miles - Total Distance
+-FUELSYS: Closed Loop  - Fuel System Status (Open/Closed Loop)
+-LOAD: 96.86 % - Calculated Load Value
+-ECT: 190 °F - Engine coolant temperature
+-SHRTFT1: -1.56 % - Short term fuel trim 1
+-LONGFT1: 1.56 % - Long term fuel trim 1
+-SHRTFT2: 1.56 % - Short term fuel trim 2
+-LONGFT2: 4.69 % - Long term fuel trim 2
+-MAP: 14.2 psi - Manifold absolute pressure sensor
+-RPM: 1749 1/min - Engine Revolutions Per Minute
+-VSS: 47.2 mph - Vehicle Speed
+-SPARKADV: 8.50 ° - Spark Advance
+-IAT: 73 °F - Intake Air Temperature
+-RUNTM: 271 s - Time Since Engine Start
+-EVAP_PCT: 30.20 % - Commanded Evaporative Purge
+-FLI: 66.67 % - Fuel Level
+-BARO: 14.4 psi - Barometric pressure
+-VPWR: 13.86 V - Control Module Voltage
+-TP_REL: 46.27 % - Relative Throttle Position
+-TAC_PCT: 72.16 % - Commanded Throttle Actuator Control
+-RPMDSD: 550 1/min - Desired Idle Speed RPM
+-O2S12: 0.69 V - Heated Exhaust Gas Oxygen Sensor (bank 1, sensor 2)
+-O2S22: 0.69 V - Heated Exhaust Gas Oxygen Sensor (bank 2, sensor 2)
+-TQ_CNTRL: None Requested  - Torque Control Requested
+-ENGOFF_TIMER: 589 s - Timer since Engine Off
+-APP_FLT: No Fault  - Accelerator Pedal Position Sensor Status
+-CHT_F: No Fault  - Cylinder Head Temperature Sensor Status
+-MISFIRE: No  - Engine Misfire currently detected
+-IAT_F: No Fault  - Inlet Air Temperature Sensor Status
+-ETC_TRIM_LRN: Yes  - Throttle Angle Offset has Learned
+-TP_F: No Fault  - Throttle Position Sensor Status
+-FF_LRND: No  - Inferred Flex Fuel Learned
+-MP_LRN: Yes  - Misfire Profile Correction Learned
+-MAF_F: No Fault  - Mass Air Flow Sensor Status
+-MAP_F: No Fault  - Manifold Absolute Pressure Sensor Status
+-OTS_STAT: Enabled  - One-Touch Start Status
+-SMC_MON: Off  - Starter Motor Control Output Detected
+-STRT_RLY: Disabled  - Starter Motor Relay Enable
+-APP1: 2.10 V - Accelerator pedal position sensor 1
+-APP2: 1.05 V - Accelerator pedal position sensor 2
+-TP1: 2.07 V - Throttle Position Sensor 1
+-TP2: 4.43 V - Throttle Position Sensor 2
+-GEAR: 5  - Gear Commanded
+-GEAR_OSC: 5  - Gear Command by Output State Control
+-TSS_SRC: 1665 1/min - Actual Turbine Shaft Speed
+-OSS_SRC: 0 1/min - Actual Output Shaft Speed
+-TFT: 126 °F - Transmission Fluid Temperature
+-TR: Drive/OverDrive  - Transmission range
+-PROG_FLOWTRACE1: 0   - Program Flow Trace Information - 1
+-PROG_FLOWTRACE2: 0   - Program Flow Trace Information - 2
+===END PCM DTC P0722:00-68===
+
+===APIM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Accessory Protocol Interface Module
+
+===END APIM DTC None===
+
+===BdyCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Body Control Module
+
+===END BdyCM DTC None===
+
+===FCIM DTC B1081:07-48===
+Code: B1081 - Left Temperature Damper Motor
+
+Additional Fault Symptom (:07):
+ - Mechanical Failures
+
+Status (-48):
+ - Previously Set DTC - Not Present at Time of Request
+ - Malfunction Indicator Lamp is Off for this DTC
+ - Test not complete
+
+Module: Front Controls Interface Module
+
+===END FCIM DTC B1081:07-48===
+
+===FCDIM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Front Control/Display Interface Module
+
+===END FCDIM DTC None===
+
+===OCS DTC None===
+Successful DTC reading, no error codes found
+
+Module: Occupant Classification System Module
+
+===END OCS DTC None===
+
+===TCCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Transfer Case Control Module
+
+===END TCCM DTC None===
+
+===ABS DTC None===
+Successful DTC reading, no error codes found
+
+Module: Antilock braking system
+
+===END ABS DTC None===
+
+===PBM DTC C2005:77-AB===
+Code: C2005 - Right Actuator
+
+Additional Fault Symptom (:77):
+ - Commanded Position Not Reachable
+
+Status (-AB):
+ - DTC Present at Time of Request
+ - Malfunction Indicator Lamp is On for this DTC
+
+Module: Park Brake Control Module
+
+===END PBM DTC C2005:77-AB===
+
+===RTM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Radio Transceiver Module
+
+===END RTM DTC None===
+
+===PDM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Passengers Door Control Unit
+
+===END PDM DTC None===
+
+===DDM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Drivers Door Module
+
+===END DDM DTC None===
+
+===RCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Restraint Control Module
+
+===END RCM DTC None===
+
+===PSCM DTC U3003:16-48===
+Code: U3003 - Battery Voltage
+
+Additional Fault Symptom (:16):
+ - Circuit Voltage Below Threshold
+
+Status (-48):
+ - Previously Set DTC - Not Present at Time of Request
+ - Malfunction Indicator Lamp is Off for this DTC
+ - Test not complete
+
+Module: Power Steering Control Module
+
+ Freeze Frame  #1:
+-STEER_FEEL: Normal  - Steering Personalization Status
+-STRWHL_POS_CAL: No  - Steering Wheel Position Sensor Calibration
+-SW_RAW: 0.00 ° - Steering Wheel Angle - Raw
+-SW_ANGLE: -212.00 ° - Steering Wheel Angle
+-SSHFT_TQ_S2: 0.1 ft·lb - Steering Shaft Torque Sensor #2
+-SW_ALIGN_OFSET: 211.70 ° - Steering Wheel Angle Alignment Offset
+-TOTAL_DISTANCE: 187014 miles - Total Distance
+-EVENT_TIME: 291678494 s (Mon Oct 05 15:54:25 2026) - Event time
+-ECU_POWER_SUPPLY: 10.1 V - ECU Power Supply Voltage
+-ECU_INTERNAL_TEMPERATURE: 62 °F - ECU Internal Temperature
+-EPAS_MOTOR_CUR: 0.10 A - EPAS Motor Current
+-VSS: 0.0 mph - Vehicle Speed
+===END PSCM DTC U3003:16-48===
+
+===ACM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Audio Control Module
+
+===END ACM DTC None===
+
+===SCCM DTC B1380:09-08===
+Code: B1380 - Steering Wheel Right Switch Pack
+
+Additional Fault Symptom (:09):
+ - Component Failures
+
+Status (-08):
+ - Previously Set DTC - Not Present at Time of Request
+ - Malfunction Indicator Lamp is Off for this DTC
+
+Module: Steering Column Control Module
+
+===END SCCM DTC B1380:09-08===
+
+===SCCM DTC U2101:00-08===
+Code: U2101 - Control Module Configuration Incompatible
+
+Status (-08):
+ - Previously Set DTC - Not Present at Time of Request
+ - Malfunction Indicator Lamp is Off for this DTC
+
+Module: Steering Column Control Module
+
+===END SCCM DTC U2101:00-08===
+
+===IPC DTC None===
+Successful DTC reading, no error codes found
+
+Module: Instrument Panel Control Module
+
+===END IPC DTC None===
+
+===GWM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Gateway Module A
+
+===END GWM DTC None===
+
+===GPSM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Global Positioning System Module
+
+===END GPSM DTC None===
+

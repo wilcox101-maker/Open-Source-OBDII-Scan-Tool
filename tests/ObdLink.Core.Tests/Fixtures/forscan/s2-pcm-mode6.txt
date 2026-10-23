@@ -1,0 +1,448 @@
+(OK) [14:48:16.022] Mode 6 - Test Results for Specific Monitored Systems has been started
+(OK) [14:48:16.137] Misfire monitoring: Complete
+(OK) [14:48:16.139] Fuel system monitoring: Complete
+(OK) [14:48:16.141] Comprehensive component monitoring: Complete
+(OK) [14:48:16.144] Catalyst monitoring : Complete
+(OK) [14:48:16.146] Evaporative system monitoring: Complete
+(OK) [14:48:16.149] Oxygen sensor monitoring: Complete
+(OK) [14:48:16.151] Oxygen sensor heater monitoring: Complete
+(OK) [14:48:16.152] EGR system monitoring: Complete
+(OK) [14:48:19.047] Test completed successfully, no errors found
+
+===OBDII Mode 6 Results====
+
+[Oxygen Sensor Bank 1 Sensor 1]
+
+Rich to Lean Response Time
+MID: 1
+TID: 87
+Value: 31 ms
+Min: 0 ms
+Max: 400 ms
+
+Lean to Rich Response Time
+MID: 1
+TID: 88
+Value: 86 ms
+Min: 0 ms
+Max: 400 ms
+
+[Oxygen Sensor Bank 1 Sensor 2]
+
+Fuel Shut-off Rich to Lean Response Rate
+MID: 2
+TID: 85
+Value: -4.506 V/s
+Min: -30.000 V/s
+Max: 0.070 V/s
+
+Fuel Shut-off Rich to Lean Response Time
+MID: 2
+TID: 86
+Value: 1049 ms
+Min: 0 ms
+Max: 10000 ms
+
+[Oxygen Sensor Bank 2 Sensor 1]
+
+Rich to Lean Response Time
+MID: 5
+TID: 87
+Value: 50 ms
+Min: 0 ms
+Max: 400 ms
+
+Lean to Rich Response Time
+MID: 5
+TID: 88
+Value: 74 ms
+Min: 0 ms
+Max: 400 ms
+
+[Oxygen Sensor Bank 2 Sensor 2]
+
+Fuel Shut-off Rich to Lean Response Rate
+MID: 6
+TID: 85
+Value: -6.004 V/s
+Min: -30.000 V/s
+Max: 0.070 V/s
+
+Fuel Shut-off Rich to Lean Response Time
+MID: 6
+TID: 86
+Value: 969 ms
+Min: 0 ms
+Max: 10000 ms
+
+[Catalyst Bank 1]
+
+Oxygen Storage Capacity
+MID: 21
+TID: 81
+Value: 0.359 :1
+Min: 0.000 :1
+Max: 0.848 :1
+
+[Catalyst Bank 2]
+
+Oxygen Storage Capacity
+MID: 22
+TID: 81
+Value: 0.363 :1
+Min: 0.000 :1
+Max: 0.844 :1
+
+[Variable Cam Timing Bank 1]
+
+Intake Camshaft Advanced Position Error
+MID: 35
+TID: 82
+Value: 0.00 °
+Min: 0.00 °
+Max: 19.87 °
+
+Intake Camshaft Retarded Position Error
+MID: 35
+TID: 83
+Value: 0.00 °
+Min: 0.00 °
+Max: 16.12 °
+
+Exhaust Camshaft Advanced Position Error
+MID: 35
+TID: 84
+Value: 0.00 °
+Min: 0.00 °
+Max: 26.45 °
+
+Exhaust Camshaft Retarded Position Error
+MID: 35
+TID: 85
+Value: 0.09 °
+Min: 0.00 °
+Max: 20.00 °
+
+[Variable Cam Timing Bank 2]
+
+Intake Camshaft Advanced Position Error
+MID: 36
+TID: 82
+Value: 0.01 °
+Min: 0.00 °
+Max: 19.87 °
+
+Intake Camshaft Retarded Position Error
+MID: 36
+TID: 83
+Value: 0.00 °
+Min: 0.00 °
+Max: 16.12 °
+
+Exhaust Camshaft Advanced Position Error
+MID: 36
+TID: 84
+Value: 0.00 °
+Min: 0.00 °
+Max: 26.45 °
+
+Exhaust Camshaft Retarded Position Error
+MID: 36
+TID: 85
+Value: 0.21 °
+Min: 0.00 °
+Max: 20.00 °
+
+[EVAP (0.090")]
+
+Phase 0 Excessive Vacuum Limit
+MID: 3A
+TID: 80
+Value: 0.0318 kPa
+Min: -0.7472 kPa
+Max: 8.1918 kPa
+
+Phase 0 Gross Leak Limit
+MID: 3A
+TID: 82
+Value: -1.9925 kPa
+Min: -8.1920 kPa
+Max: -1.9925 kPa
+
+[EVAP (0.040")]
+
+EVAP monitor 0.040 inch leak check
+MID: 3B
+TID: 80
+Value: 0.4203 kPa
+Min: -8.1920 kPa
+Max: 0.8433 kPa
+
+[EVAP (0.020")]
+
+Natural Vacuum 0.020 inch Leak Test Positive Pressure Build Limit
+MID: 3C
+TID: 81
+Value: Not ready
+Min:  - 
+Max:  - 
+
+Natural Vacuum 0.020 inch Leak Test Positive Pressure Build Limit
+MID: 3C
+TID: 82
+Value: -0.1010 kPa
+Min: -8.1920 kPa
+Max: -0.0278 kPa
+
+Natural Vacuum 0.020 inch Leak Test Fault Filter Limit
+MID: 3C
+TID: 83
+Value: 0.00
+Min: 0.00
+Max: 0.72
+
+[Purge Flow]
+
+Blocked Evap System Line - Screening Test
+MID: 3D
+TID: 80
+Value: -237 Pa/s
+Min: -2491 Pa/s
+Max: 8192 Pa/s
+
+Blocked Evap System Line - Fault Confirmation Test
+MID: 3D
+TID: 81
+Value: Not ready
+Min:  - 
+Max:  - 
+
+Vapor Blocking Valve Performance
+MID: 3D
+TID: 82
+Value: Not ready
+Min:  - 
+Max:  - 
+
+[Fuel System Bank 1]
+
+Relative Cylinder Air/Fuel Ratio Imbalance
+MID: 81
+TID: 80
+Value: 0.000 :1
+Min: 0.000 :1
+Max: 0.699 :1
+
+[Fuel System Bank 2]
+
+Relative Cylinder Air/Fuel Ratio Imbalance
+MID: 82
+TID: 80
+Value: 0.000 :1
+Min: 0.000 :1
+Max: 0.699 :1
+
+[Misfire General Data]
+
+Total Engine Misfire and Catalyst Damage Misfire Rate
+MID: A1
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Total Engine Misfire and Emission Threshold Misfire Rate
+MID: A1
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+Inferred Catalyst Mid-Bed Temperature
+MID: A1
+TID: 84
+Value: 413.8 °C
+Min: 0.0 °C
+Max: 836.6 °C
+
+[Misfire Cylinder 1 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A2
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A2
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 1 and Catalyst Damage Misfire Rate
+MID: A2
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 1 and Emission Threshold Misfire Rate
+MID: A2
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+[Misfire Cylinder 2 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A3
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A3
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 2 and Catalyst Damage Misfire Rate
+MID: A3
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 2 and Emission Threshold Misfire Rate
+MID: A3
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+[Misfire Cylinder 3 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A4
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A4
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 3 and Catalyst Damage Misfire Rate
+MID: A4
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 3 and Emission Threshold Misfire Rate
+MID: A4
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+[Misfire Cylinder 4 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A5
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A5
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 4 and Catalyst Damage Misfire Rate
+MID: A5
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 4 and Emission Threshold Misfire Rate
+MID: A5
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+[Misfire Cylinder 5 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A6
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A6
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 5 and Catalyst Damage Misfire Rate
+MID: A6
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 5 and Emission Threshold Misfire Rate
+MID: A6
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+
+[Misfire Cylinder 6 Data]
+
+EWMA misfire counts for last 10 drive cycles
+MID: A7
+TID: B
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Misfire counts for last/current driving cycle (calculated)
+MID: A7
+TID: C
+Value: 0 Counts
+Min: 0 Counts
+Max: 65535 Counts
+
+Cylinder 6 and Catalyst Damage Misfire Rate
+MID: A7
+TID: 80
+Value: 0.00 %
+Min: 0.00 %
+Max: 30.00 %
+
+Cylinder 6 and Emission Threshold Misfire Rate
+MID: A7
+TID: 81
+Value: 0.00 %
+Min: 0.00 %
+Max: 0.95 %
+===END OBDII Mode 6 Results====
+
