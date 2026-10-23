@@ -57,6 +57,13 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ModuleRow> Modules { get; } = new();
     public ObservableCollection<DtcRow> Dtcs { get; } = new();
     public ObservableCollection<AsBuiltRow> AsBuiltRows { get; } = new();
+    /// <summary>Factory reference baseline (Ford motorcraftservice.com .ab). Read-only reference. It is never written to a module automatically.</summary>
+    private FordAbFile? _factory;
+    private string _factoryInfo = "No factory .ab loaded"; public string FactoryInfo { get => _factoryInfo; set => Set(ref _factoryInfo, value); }
+    public ObservableCollection<AsBuiltDiff> FactoryDiff { get; } = new();
+    public AsyncCommand ImportFactoryAbCommand { get; }
+    public AsyncCommand ExportFactoryAbCommand { get; }
+    public AsyncCommand CompareToFactoryCommand { get; }
     public ObservableCollection<string> LogLines { get; } = new();
 
     private PortInfo? _port; public PortInfo? SelectedPort { get => _port; set => Set(ref _port, value); }
@@ -121,6 +128,35 @@ public sealed class MainViewModel : ObservableObject
         {
             var dlg = new OpenFileDialog { Filter = "As-Built backup|*.asbuilt.json", InitialDirectory = Path.Combine(_dataDir, "backups") };
             if (dlg.ShowDialog() == true) await AsBuilt.RestoreAsync(dlg.FileName);
+        });
+        ImportFactoryAbCommand = C(() =>
+        {
+            var dlg = new OpenFileDialog { Filter = "Ford As-Built|*.ab|All files|*.*" };
+            if (dlg.ShowDialog() != true) return Task.CompletedTask;
+            _factory = FordAbFile.Load(dlg.FileName);
+            var bad = _factory.Lines.Count(l => !l.ChecksumValid);
+            FactoryInfo = $"Factory .ab: VIN …{(_factory.Vin.Length >= 6 ? _factory.Vin[^6..] : _factory.Vin)}, {_factory.AsBuiltModules.Count()} modules, {_factory.Lines.Count} lines, {bad} bad checksums";
+            return Task.CompletedTask;
+        });
+        ExportFactoryAbCommand = C(() =>
+        {
+            if (_factory is null) throw new InvalidOperationException("Import a factory .ab first");
+            var dlg = new SaveFileDialog { Filter = "Ford As-Built|*.ab", FileName = "factory-redacted.ab" };
+            if (dlg.ShowDialog() == true)
+            {
+                var redact = MessageBox.Show("Redact VIN (keep last 6) and module serials?", "Export", MessageBoxButton.YesNo) == MessageBoxResult.Yes;
+                File.WriteAllText(dlg.FileName, (redact ? _factory.Redacted() : _factory).ToXml());
+            }
+            return Task.CompletedTask;
+        });
+        CompareToFactoryCommand = C(async () =>
+        {
+            if (_factory is null) throw new InvalidOperationException("Import a factory .ab first");
+            var current = new List<AsBuiltLine>();
+            foreach (var b in _factory.Blocks(Module))
+                current.AddRange(_factory.SplitLike(Module, b, (await AsBuilt.ReadBlockAsync(Module, b)).Data));
+            FactoryDiff.Clear();
+            foreach (var d in AsBuiltDiff.Compare(_factory.Lines, current, Module)) FactoryDiff.Add(d);
         });
         ConsoleSendCommand = C(async () =>
         {

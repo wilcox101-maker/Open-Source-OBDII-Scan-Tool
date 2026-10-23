@@ -57,7 +57,19 @@
               <Button Content="Backup" Command="{Binding BackupAsBuiltCommand}"/>
               <Button Content="Write + verify…" Command="{Binding WriteAsBuiltCommand}"/>
               <Button Content="Restore from backup…" Command="{Binding RestoreAsBuiltCommand}"/>
+              <Button Content="Import factory .ab…" Command="{Binding ImportFactoryAbCommand}" Margin="12,0,0,0"/>
+              <Button Content="Export .ab…" Command="{Binding ExportFactoryAbCommand}"/>
+              <Button Content="Compare to factory" Command="{Binding CompareToFactoryCommand}"/>
             </StackPanel>
+            <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding FactoryInfo}"/>
+            <DataGrid DockPanel.Dock="Bottom" Height="180" ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Address" Binding="{Binding Address}"/>
+                <DataGridTextColumn Header="Factory (.ab)" Binding="{Binding Factory}" Width="*"/>
+                <DataGridTextColumn Header="Current (module)" Binding="{Binding Current}" Width="*"/>
+                <DataGridTextColumn Header="Diff" Binding="{Binding Kind}"/>
+              </DataGrid.Columns>
+            </DataGrid>
             <TextBlock DockPanel.Dock="Bottom" Margin="3" TextWrapping="Wrap" Foreground="#E0B050"
                        Text="Edit the Data column (hex, without checksum). Checksums are recomputed. Block→DID mapping (DE00+n-1) is UNVERIFIED community convention."/>
             <DataGrid ItemsSource="{Binding AsBuiltRows}" AutoGenerateColumns="False" CanUserAddRows="False">
