@@ -125,3 +125,5 @@ Originals are in `samples/real-logs/*.abt` (git-ignored). Redacted fixtures are 
 - **726-18-02 digit 10, 1→0:** "OneTwo Stage Unlock" two stage → one stage, from the BCM (BdyCM)-old tab.
 
 **Redaction fix.** The BCM stores the VIN split across blocks 09/10/11. The earlier per-block redaction missed it, so the committed .ab fixture contained it. `FordAbFile.Redacted` now scans per module, and the fixture has been regenerated.
+
+**Provenance of the differences (owner statement, 2026-10-23).** Dale confirms he made no As-Built changes. The BCM one-stage unlock (726-18-02) and the APIM 7D0-01-01 differences (digit 1 0→8, digit 5 VHR enabled) predate his ownership. Possible sources are a previous owner, a dealer, or a module replacement or update. The cause is unknown.
