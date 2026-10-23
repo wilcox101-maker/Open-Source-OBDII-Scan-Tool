@@ -1,3 +1,4 @@
+using ObdLink.Core.Adapters;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -43,23 +44,28 @@ public sealed record DtcRow(string Source, string Code, string Status, string De
 
 public sealed class MainViewModel : ObservableObject
 {
-    private const string DemoPort = "DEMO (simulated)";
+    private static readonly PortInfo DemoMx = new("DEMO-MX+", "Simulated OBDLink MX+", PortKind.Virtual);
+    private static readonly PortInfo DemoEx = new("DEMO-EX", "Simulated OBDLink EX", PortKind.Virtual);
     private readonly IConfirmationProvider _confirm;
     private readonly DtcDatabase _dtcDb = DtcDatabase.LoadEmbedded();
     private readonly string _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OBDLinkDiag");
     private AdapterSession? _session; private ElmDiagChannel? _ch; private RawConsoleService? _console; private AsBuiltService? _asBuilt;
     private string _vin = "UNKNOWNVIN";
 
-    public ObservableCollection<string> Ports { get; } = new();
+    public ObservableCollection<PortInfo> Ports { get; } = new();
     public ObservableCollection<string> Vehicles { get; } = new() { "2017 Ford F-150", "2008 Dodge Ram 1500" };
     public ObservableCollection<ModuleRow> Modules { get; } = new();
     public ObservableCollection<DtcRow> Dtcs { get; } = new();
     public ObservableCollection<AsBuiltRow> AsBuiltRows { get; } = new();
     public ObservableCollection<string> LogLines { get; } = new();
 
-    private string? _port; public string? SelectedPort { get => _port; set => Set(ref _port, value); }
+    private PortInfo? _port; public PortInfo? SelectedPort { get => _port; set => Set(ref _port, value); }
     private string _vehicle = "2017 Ford F-150"; public string SelectedVehicle { get => _vehicle; set { Set(ref _vehicle, value); LoadModules(); } }
     private ModuleRow? _mod; public ModuleRow? SelectedModule { get => _mod; set => Set(ref _mod, value); }
+    private string _adapterName = "—"; public string AdapterName { get => _adapterName; set => Set(ref _adapterName, value); }
+    private string _caps = ""; public string Capabilities { get => _caps; set => Set(ref _caps, value); }
+    private string _baud = ""; public string Baud { get => _baud; set => Set(ref _baud, value); }
+    private bool _ms; public bool MsCanAvailable { get => _ms; set => Set(ref _ms, value); }
     private string _status = "Disconnected"; public string Status { get => _status; set => Set(ref _status, value); }
     private string _voltage = "-"; public string Voltage { get => _voltage; set => Set(ref _voltage, value); }
     private string _blk = "1"; public string AsBuiltBlockNo { get => _blk; set => Set(ref _blk, value); }
@@ -91,7 +97,7 @@ public sealed class MainViewModel : ObservableObject
         }));
         void Err(Exception ex) { Log.Error(ex, "Operation failed"); MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error); }
         AsyncCommand C(Func<Task> f) => new(f, Err);
-        RefreshPortsCommand = C(() => { Ports.Clear(); Ports.Add(DemoPort); foreach (var p in SerialPortTransport.ListPorts()) Ports.Add(p); SelectedPort ??= Ports[0]; return Task.CompletedTask; });
+        RefreshPortsCommand = C(() => { Ports.Clear(); Ports.Add(DemoMx); Ports.Add(DemoEx); foreach (var p in PortEnumerator.List()) Ports.Add(p); SelectedPort ??= Ports[0]; return Task.CompletedTask; });
         ConnectCommand = C(ConnectAsync);
         DisconnectCommand = C(async () => { if (_session != null) await _session.Link.DisposeAsync(); _session = null; Status = "Disconnected"; });
         ScanCommand = C(ScanAsync);
@@ -142,14 +148,28 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task ConnectAsync()
     {
-        ITransport t = SelectedPort == DemoPort || SelectedPort is null ? new SimulatedAdapter().CreateTransport() : new SerialPortTransport(SelectedPort);
+        var sel = SelectedPort ?? DemoMx;
+        ITransport t;
+        if (sel.Kind == PortKind.Virtual) t = new SimulatedAdapter { Profile = sel == DemoEx ? SimProfile.Ex : SimProfile.MxPlus }.CreateTransport();
+        else
+        {
+            var guess = AdapterProfiles.ForPort(sel.Kind);
+            Status = $"Probing {sel.Name}…";
+            var found = await BaudProber.ProbeAsync(b => new SerialPortTransport(sel.Name, b), guess.BaudCandidates, TimeSpan.FromSeconds(sel.Kind == PortKind.Bluetooth ? 5 : 1))
+                        ?? throw new InvalidOperationException($"No ELM327/STN adapter answered on {sel.Name}");
+            t = found.Transport;
+            Baud = sel.Kind == PortKind.Bluetooth ? "n/a (BT SPP)" : $"{found.Baud} bps";
+        }
         var link = new ElmLink(t);
         link.Traffic += (d, s) => Log.Debug("{Dir} {Text}", d, s);
-        _session = new AdapterSession(link);
+        _session = new AdapterSession(link, initial: AdapterProfiles.ForPort(sel.Kind));
         Status = "Initializing…";
         var info = await _session.InitializeAsync();
         Voltage = info.BatteryVolts is double v ? $"{v:0.0} V" : "?";
         Status = $"{info.DeviceId ?? info.ElmId} | {info.StnId ?? "not STN"}";
+        AdapterName = _session.Profile.DisplayName;
+        Capabilities = _session.Profile.CapabilityText;
+        MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
         _ch = new ElmDiagChannel(_session);
         _console = new RawConsoleService(link) { AllowWrites = ConsoleAllowWrites };
         _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Path.Combine(_dataDir, "backups"));

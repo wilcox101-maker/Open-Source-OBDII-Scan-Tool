@@ -4,8 +4,17 @@ namespace ObdLink.Core.Transport;
 /// Scripted STN-like adapter + fake ECUs for tests and the UI "Demo" connection.
 /// All ECU data here is SYNTHETIC test data, not captured from a real vehicle.
 /// </summary>
+public enum SimProfile { MxPlus, Ex, GenericElm }
+
 public sealed class SimulatedAdapter
 {
+    /// <summary>
+    /// Which adapter to imitate. The EX ID strings are copied from Dale's FORScan log ("OBDLink EX r2.2.1 STN2231 v5.10.3").
+    /// The MX+ strings are SYNTHETIC; the exact STDI text of a real MX+ is [UNVERIFIED].
+    /// </summary>
+    public SimProfile Profile { get; set; } = SimProfile.MxPlus;
+    /// <summary>Host baud the simulated UART accepts (EX only; Bluetooth ignores it). Used by CreateTransportAtBaud.</summary>
+    public int UartBaud { get; set; } = 115200;
     public double Voltage { get; set; } = 12.6;
     public string Vin { get; set; } = "TESTVIN0000000001"; // synthetic
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
@@ -20,14 +29,18 @@ public sealed class SimulatedAdapter
 
     public MockTransport CreateTransport() => new(Respond);
 
+    /// <summary>Imitates opening the UART at a given baud. A mismatched rate produces garbage, like a real wrong-baud link.</summary>
+    public MockTransport CreateTransportAtBaud(int baud) => new(cmd => Profile == SimProfile.MxPlus || baud == UartBaud ? Respond(cmd) : "\u00ff\u00fe?");
+
     public string? Respond(string cmd)
     {
         var c = cmd.Replace(" ", "").ToUpperInvariant();
         if (c == "ATZ") return "ELM327 v1.4b";
         if (c is "ATE0" or "ATL0" or "ATS0" or "ATH1" or "ATCRA" or "STPO" or "STPC") return "OK";
         if (c == "ATI") return "ELM327 v1.4b";
-        if (c == "STI") return "STN2255 v5.10.3 (SIMULATED)";
-        if (c == "STDI") return "OBDLink MX+ (SIMULATED)";
+        if (Profile == SimProfile.GenericElm && (c.StartsWith("ST"))) return "?";
+        if (c == "STI") return Profile == SimProfile.Ex ? "STN2231 v5.10.3" : "STN2255 v5.10.3 (SIMULATED)";
+        if (c == "STDI") return Profile == SimProfile.Ex ? "OBDLink EX r2.2.1" : "OBDLink MX+ (SIMULATED)";
         if (c == "ATRV") return $"{Voltage:0.0}V".Replace(',', '.');
         if (c.StartsWith("STP")) { Protocol = c[3..]; return "OK"; }
         if (c.StartsWith("ATSH")) { _header = Convert.ToUInt32(c[4..], 16); return "OK"; }

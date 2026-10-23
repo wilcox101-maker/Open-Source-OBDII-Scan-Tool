@@ -1,4 +1,5 @@
 using System.Globalization;
+using ObdLink.Core.Adapters;
 using Serilog;
 
 namespace ObdLink.Core.Elm;
@@ -12,16 +13,18 @@ public sealed class AdapterSession
     private readonly ILogger _log;
     public AdapterInfo? Info { get; private set; }
     public bool IsStn => Info?.StnId is not null;
+    /// <summary>Profile detected from the ATI/STI/STDI replies (set by InitializeAsync).</summary>
+    public AdapterProfile Profile { get; private set; }
     public StnProtocol? CurrentProtocol { get; private set; }
     private string? _header;
 
-    public AdapterSession(ElmLink link, ILogger? log = null) { _link = link; _log = (log ?? Log.Logger).ForContext<AdapterSession>(); }
+    public AdapterSession(ElmLink link, ILogger? log = null, AdapterProfile? initial = null) { _link = link; Profile = initial ?? AdapterProfiles.OtherStn; _link.DefaultTimeout = Profile.CommandTimeout; _log = (log ?? Log.Logger).ForContext<AdapterSession>(); }
     public ElmLink Link => _link;
 
     /// <summary>ATZ, ATE0, ATL0, ATS0, ATH1, then identification (ATI, STI, STDI) and ATRV.</summary>
     public async Task<AdapterInfo> InitializeAsync(CancellationToken ct = default)
     {
-        var z = await _link.SendAsync("ATZ", TimeSpan.FromSeconds(5), ct);
+        var z = await _link.SendAsync("ATZ", Profile.ResetTimeout, ct);
         string elmId = z.Lines.LastOrDefault() ?? "";
         foreach (var c in new[] { "ATE0", "ATL0", "ATS0", "ATH1" })
             await Expect(c, ct);
@@ -36,6 +39,9 @@ public sealed class AdapterSession
         }
         var v = await ReadBatteryVoltageAsync(ct);
         Info = new AdapterInfo(elmId, stnId, devId, v);
+        Profile = AdapterProfiles.Detect(Info);
+        _link.DefaultTimeout = Profile.CommandTimeout;
+        _log.Information("Profile {P}: {Caps}", Profile.DisplayName, Profile.CapabilityText);
         _log.Information("Adapter: {Elm} / {Stn} / {Dev}, {V} V", elmId, stnId, devId, v);
         return Info;
     }
@@ -65,6 +71,9 @@ public sealed class AdapterSession
     public async Task SelectProtocolAsync(StnProtocol p, CancellationToken ct = default)
     {
         if (!IsStn) throw new NotSupportedException("STP requires an STN-based adapter (e.g. OBDLink MX+)");
+        bool ms = (int)p is >= 51 and <= 54, sw = (int)p is >= 61 and <= 64;
+        if (ms && !Profile.Has(AdapterCapabilities.MsCan)) throw new NotSupportedException($"{Profile.DisplayName} does not support MS-CAN");
+        if (sw && !Profile.Has(AdapterCapabilities.SwCan)) throw new NotSupportedException($"{Profile.DisplayName} does not support SW-CAN");
         await _link.SendAsync("STPC", ct: ct); // close current; may error if none open - ignored
         await Expect($"STP {(int)p}", ct);
         await Expect("STPO", ct);
