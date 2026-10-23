@@ -92,8 +92,8 @@ public sealed class FordAbFile
     {
         var res = new List<AsBuiltLine>(); int o = 0; byte n = 1;
         foreach (var l in Lines.Where(l => l.Address.Module == module && l.Address.Block == block).OrderBy(l => l.Address.Line))
-        { if (o >= data.Length) break; var len = Math.Min(l.Data.Length, data.Length - o); res.Add(AsBuiltLine.Create(l.Address, data[o..(o + len)])); o += len; n = (byte)(l.Address.Line + 1); }
-        for (; o < data.Length; o += 5, n++) res.Add(AsBuiltLine.Create(new AsBuiltAddress(module, block, n), data[o..Math.Min(data.Length, o + 5)]));
+        { if (o >= data.Length) break; var len = Math.Min(l.Data.Length, data.Length - o); res.Add(AsBuiltLine.Create(l.Address, data[o..(o + len)])); o += len; n = (byte)(AsBuiltAddress.FromBcd(l.Address.Line) + 1); }
+        for (; o < data.Length; o += 5, n++) res.Add(AsBuiltLine.Create(new AsBuiltAddress(module, block, AsBuiltAddress.ToBcd(n)), data[o..Math.Min(data.Length, o + 5)]));
         return res;
     }
 
@@ -110,9 +110,10 @@ public sealed class FordAbFile
         r.PcmLines.AddRange(PcmLines); r.Errors.AddRange(Errors);
         foreach (var (id, d) in Nodes) r.Nodes[id] = new(d.ToDictionary(kv => kv.Key, kv => SerialDids.Contains(kv.Key) ? "REDACTED" : kv.Value));
         var from = Encoding.ASCII.GetBytes(Vin); var to = Encoding.ASCII.GetBytes(red);
-        foreach (var g in Lines.GroupBy(l => (l.Address.Module, l.Address.Block)))
+        // Per module, not per block: the BCM (726) stores the VIN split across blocks 09/10/11.
+        foreach (var g in Lines.GroupBy(l => l.Address.Module))
         {
-            var ls = g.OrderBy(l => l.Address.Line).ToList(); var all = ls.SelectMany(l => l.Data).ToArray();
+            var ls = g.OrderBy(l => l.Address.Block).ThenBy(l => l.Address.Line).ToList(); var all = ls.SelectMany(l => l.Data).ToArray();
             if (from.Length > 0) for (int i = 0; i + from.Length <= all.Length; i++) if (all.AsSpan(i, from.Length).SequenceEqual(from)) to.CopyTo(all, i);
             int o = 0; foreach (var l in ls) { r.Lines.Add(AsBuiltLine.Create(l.Address, all[o..(o + l.Data.Length)])); o += l.Data.Length; }
         }

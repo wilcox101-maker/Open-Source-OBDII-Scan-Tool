@@ -64,6 +64,8 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand ImportFactoryAbCommand { get; }
     public AsyncCommand ExportFactoryAbCommand { get; }
     public AsyncCommand CompareToFactoryCommand { get; }
+    public AsyncCommand ImportAbtCommand { get; }
+    public AsyncCommand ExportAbtCommand { get; }
     public ObservableCollection<string> LogLines { get; } = new();
 
     private PortInfo? _port; public PortInfo? SelectedPort { get => _port; set => Set(ref _port, value); }
@@ -147,6 +149,36 @@ public sealed class MainViewModel : ObservableObject
                 var redact = MessageBox.Show("Redact VIN (keep last 6) and module serials?", "Export", MessageBoxButton.YesNo) == MessageBoxResult.Yes;
                 File.WriteAllText(dlg.FileName, (redact ? _factory.Redacted() : _factory).ToXml());
             }
+            return Task.CompletedTask;
+        });
+        ImportAbtCommand = C(() =>
+        {
+            var dlg = new OpenFileDialog { Filter = "FORScan As-Built backup|*.abt|All files|*.*" };
+            if (dlg.ShowDialog() != true) return Task.CompletedTask;
+            var abt = ForscanAbtFile.Load(dlg.FileName);
+            AsBuiltRows.Clear();
+            foreach (var l in abt.Lines) AsBuiltRows.Add(new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) });
+            var bad = abt.Lines.Count(l => !l.ChecksumValid);
+            FactoryDiff.Clear();
+            var info = $".abt: {string.Join(",", abt.Modules.Select(m => m.ToString("X3")))}, {abt.Lines.Count} lines, {bad} bad checksums";
+            if (_factory is not null)
+            {
+                foreach (var m in abt.Modules) foreach (var d in AsBuiltDiff.Compare(_factory.Lines, abt.Lines, m)) FactoryDiff.Add(d);
+                info += " | vs factory: " + string.Join(", ", FactoryDiff.GroupBy(d => d.Kind).Select(g => $"{g.Key}={g.Count()}"));
+            }
+            FactoryInfo = info;
+            return Task.CompletedTask;
+        });
+        ExportAbtCommand = C(() =>
+        {
+            if (AsBuiltRows.Count == 0) throw new InvalidOperationException("Read or import As-Built rows first");
+            var lines = AsBuiltRows.Select(r => AsBuiltLine.Create(r.Addr, Convert.FromHexString(r.Data.Replace(" ", "")))).ToList();
+            var dlg = new SaveFileDialog { Filter = "FORScan As-Built backup|*.abt", FileName = $"{lines[0].Address.Module:X3}.abt" };
+            if (dlg.ShowDialog() != true) return Task.CompletedTask;
+            var abt = ForscanAbtFile.Parse(ForscanAbtFile.Format(lines));
+            if (_factory is { Vin.Length: 17 } && MessageBox.Show("Redact VIN (keep last 6) in block data?", "Export", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                abt = abt.Redacted(_factory.Vin);
+            File.WriteAllText(dlg.FileName, abt.ToText());
             return Task.CompletedTask;
         });
         CompareToFactoryCommand = C(async () =>

@@ -9,6 +9,15 @@ namespace ObdLink.Core.AsBuilt;
 public readonly record struct AsBuiltAddress(ushort Module, byte Block, byte Line)
 {
     public override string ToString() => $"{Module:X3}-{Block:X2}-{Line:X2}";
+
+    /// <summary>
+    /// Block and line bytes are BCD-coded ordinals: the 10th line is 0x10, not 0x0A.
+    /// Evidence: (1) the Ford .ab labels jump 09→10 and only validate as 0x10; (2) Dale's PCM .abt has 26–52 lines per block coded sequentially (G1…GF,H0…), and all 101 checksums validate only when line n contributes BCD(n) to the sum.
+    /// Inferred from real files; not a published Ford spec.
+    /// </summary>
+    public static byte ToBcd(int ordinal) => ordinal is >= 0 and <= 99 ? (byte)((ordinal / 10 << 4) | ordinal % 10) : throw new ArgumentOutOfRangeException(nameof(ordinal), "BCD block/line ordinal must be 0..99");
+    public static bool IsBcd(byte b) => (b >> 4) <= 9 && (b & 0xF) <= 9;
+    public static int FromBcd(byte b) => IsBcd(b) ? (b >> 4) * 10 + (b & 0xF) : throw new FormatException($"0x{b:X2} is not a BCD ordinal");
     public static AsBuiltAddress Parse(string s)
     {
         var p = s.Trim().Split('-');
@@ -70,15 +79,17 @@ public sealed class AsBuiltBlock
     /// <summary>
     /// [UNVERIFIED] Community convention: block N is read/written via UDS DID 0xDE00 + (N-1)
     /// (so block 01 = DE00). Not from a Ford-published spec; confirm with a capture before writing.
+    /// N is the block ORDINAL. Block bytes are BCD (see AsBuiltAddress.ToBcd), so block "10" is the 10th block, giving DE09, not DE0F.
+    /// That correction follows from the BCD finding; the DID convention itself is still unverified.
     /// </summary>
-    public static ushort DidForBlock(byte block) => (ushort)(0xDE00 + block - 1);
+    public static ushort DidForBlock(byte block) => (ushort)(0xDE00 + AsBuiltAddress.FromBcd(block) - 1);
     public ushort Did => DidForBlock(Block);
 
     public IEnumerable<AsBuiltLine> Lines()
     {
-        byte n = 1;
+        int n = 1;
         for (int i = 0; i < Data.Length; i += BytesPerLine, n++)
-            yield return AsBuiltLine.Create(new AsBuiltAddress(Module, Block, n), Data[i..Math.Min(Data.Length, i + BytesPerLine)]);
+            yield return AsBuiltLine.Create(new AsBuiltAddress(Module, Block, AsBuiltAddress.ToBcd(n)), Data[i..Math.Min(Data.Length, i + BytesPerLine)]);
     }
 
     public static AsBuiltBlock FromLines(IEnumerable<AsBuiltLine> lines)

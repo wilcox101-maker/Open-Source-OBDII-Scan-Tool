@@ -60,6 +60,8 @@
               <Button Content="Import factory .ab…" Command="{Binding ImportFactoryAbCommand}" Margin="12,0,0,0"/>
               <Button Content="Export .ab…" Command="{Binding ExportFactoryAbCommand}"/>
               <Button Content="Compare to factory" Command="{Binding CompareToFactoryCommand}"/>
+              <Button Content="Import .abt…" Command="{Binding ImportAbtCommand}" Margin="12,0,0,0"/>
+              <Button Content="Export .abt…" Command="{Binding ExportAbtCommand}"/>
             </StackPanel>
             <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding FactoryInfo}"/>
             <DataGrid DockPanel.Dock="Bottom" Height="180" ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True">

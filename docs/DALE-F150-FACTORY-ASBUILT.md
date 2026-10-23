@@ -96,3 +96,31 @@ Lighting:
 - Feature meanings are community-reported. Verify before writing anything.
 - The .ab is a *factory baseline*. Dealer reprogramming since build would show up as `Changed` in **Compare to factory**.
 - Compare to factory only reads; it never writes. Use Write + verify / Restore for changes, through SafetyGuard.
+
+## FORScan .abt backups (session 3, six modules)
+
+Originals are in `samples/real-logs/*.abt` (git-ignored). Redacted fixtures are in `tests/ObdLink.Core.Tests/Fixtures/abt/`. The parser is `ForscanAbtFile`.
+
+**Format (reverse-read from these files, not from a spec).** Each line is `MMM` + block code + line code + data + checksum. A code is 2 chars: 'G'+ordinal/16, then ordinal%16 in hex (G1…G9, GA=10, GF=15, H0=16, J4=52). The `;Block n` comments are a running count. The RCM shows ";Block 7" above block code G8, because its block 7 doesn't exist.
+
+**Finding: block and line bytes are BCD ordinals.** All 278 lines validate with the standard sum (modHi+modLo+block+line+Σdata) only when the 10th line counts as 0x10 rather than 0x0A. The PCM has 26/52/18/5 lines per block, which exercises this up to 0x52. This matches the .ab labels jumping 09→10. Code changes:
+- `AsBuiltBlock.Lines()` and `FordAbFile.SplitLike` now number lines in BCD.
+- `DidForBlock` uses the ordinal, so block "10" maps to DE09. The DE00+n−1 DID convention itself is still **UNVERIFIED**.
+
+**Bytes per line.** Every module's line layout is identical to the factory .ab: 5 data bytes per line, a short last line, and short lines at block ends. The one exception is RCM blocks 08/09, which have 1 byte each and aren't in the .ab.
+
+| Module | Lines | Bad cks | vs factory .ab |
+|---|---|---|---|
+| 737 RCM | 12 | 0 | 10 same; 737-08-01 `00`, 737-09-01 `00` not in factory |
+| 7D0 APIM | 5 | 0 | 1 changed: 7D0-01-01 `0C25 9800 04` → `8C25 D800 04` |
+| 726 BCM | 148 | 0 | 147 same; 726-18-02 `0101 0101 01` → `0101 0101 00` |
+| 7A5 FCDIM | 4 | 0 | all same |
+| 7A7 FCIM | 8 | 0 | all same |
+| 7E0 PCM | 101 | 0 | not comparable: the .ab has PCM only as unaddressed "PCM 1..9" rows |
+
+**Decoded changes (community-db, unverified community data):**
+- **7D0-01-01 digit 1, 0→8:** Sync 3 tabs read this as Smart DSP Disabled → Enabled.
+- **7D0-01-01 digit 5, 9→D:** the Sync 3 tab reads climate strategy CGEA → C1MCA; the Sync 1 tab reads VHR Disabled → Enabled. The tabs disagree, so this one is ambiguous.
+- **726-18-02 digit 10, 1→0:** "OneTwo Stage Unlock" two stage → one stage, from the BCM (BdyCM)-old tab.
+
+**Redaction fix.** The BCM stores the VIN split across blocks 09/10/11. The earlier per-block redaction missed it, so the committed .ab fixture contained it. `FordAbFile.Redacted` now scans per module, and the fixture has been regenerated.
