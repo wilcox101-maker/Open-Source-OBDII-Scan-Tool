@@ -1,5 +1,6 @@
 using ObdLink.Core.AsBuilt;
 using Xunit;
+using System.Linq;
 namespace ObdLink.Core.Tests;
 
 public class AbtTests
@@ -104,5 +105,27 @@ public class AbtTests
         var s = System.Text.Encoding.ASCII.GetString(data);
         Assert.Contains("XXXXXXXXXXXE25268", s);
         Assert.DoesNotContain("1FTEX", s);
+    }
+
+    [Fact]
+    public void Sync1_profile_decodes_apim()
+    {
+        var json = File.ReadAllText(Fx("community", "features.json"));
+        var pr = DecodeProfile.DaleF150_2017;
+        List<DecodedFeature> D(IEnumerable<AsBuiltLine> l) => pr.Filter(FeatureDecoder.Decode(l.Where(x => x.Address.Module == 0x7D0), json)).ToList();
+        var fac = D(Ab().Lines); var cur = D(Abt("7d0-apim").Lines);
+        Assert.All(fac, d => Assert.Equal("APIM Sync 1", d.Tab));
+        DecodedFeature At(List<DecodedFeature> l, string a, string p) => l.Single(x => x.Address == a && x.Pattern == p);
+        Assert.Equal("ECALL Enabled, VHR Disabled, SS Disabled, TBT Enabled", At(fac, "7D0-01-01", "xxxx*xxxxx--").Meaning);
+        Assert.Equal("ECALL Enabled, VHR Enabled, SS Disabled, TBT Enabled", At(cur, "7D0-01-01", "xxxx*xxxxx--").Meaning);
+        // Digit 1: the Sync 1 tab lists Brand/ICAN values 0..5 only. 0 = Ford, ICAN Off; 8 is not listed.
+        Assert.Equal("0", At(fac, "7D0-01-01", "*xxxxxxxxx--").Digits);
+        Assert.Equal("8", At(cur, "7D0-01-01", "*xxxxxxxxx--").Digits);
+        Assert.Null(At(cur, "7D0-01-01", "*xxxxxxxxx--").Meaning);
+        Assert.Equal("MMS CGEA 1.3, SDLC Present, ECALL NA", At(fac, "7D0-01-01", "x*xxxxxxxx--").Meaning);
+        Assert.Equal("USB2 Available, GPSM Not Available", At(fac, "7D0-01-01", "xx*xxxxxxx--").Meaning);
+        Assert.Equal("MA Enabled, CID Non-CID", At(fac, "7D0-01-01", "xxxxx*xxxx--").Meaning);
+        Assert.Equal("VDA", At(fac, "7D0-02-01", "x*xxxxxxxx--").Meaning);
+        Assert.DoesNotContain(fac, d => (d.Meaning ?? "").Contains("FWD"));
     }
 }

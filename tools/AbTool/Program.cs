@@ -23,7 +23,7 @@ if (args[0] == "abt")
         var diffs = AsBuiltDiff.Compare(fac, t.Lines, m);
         Console.WriteLine("   " + string.Join(" ", diffs.GroupBy(d => d.Kind).Select(g => $"{g.Key}={g.Count()}")));
         foreach (var d in diffs.Where(d => d.Kind != DiffKind.Same)) Console.WriteLine($"   {d.Kind} {d.Address} F={d.Factory} C={d.Current}");
-        var cur = FeatureDecoder.Decode(t.Lines, feats); var f0 = FeatureDecoder.Decode(fac, feats);
+        var pr = DecodeProfile.DaleF150_2017; var cur = pr.Filter(FeatureDecoder.Decode(t.Lines, feats)).ToList(); var f0 = pr.Filter(FeatureDecoder.Decode(fac, feats)).ToList();
         foreach (var c in cur)
         {
             var o = f0.FirstOrDefault(x => x.Address == c.Address && x.Tab == c.Tab && x.Pattern == c.Pattern);

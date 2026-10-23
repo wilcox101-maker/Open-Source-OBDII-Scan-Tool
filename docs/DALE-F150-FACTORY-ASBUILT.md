@@ -87,10 +87,11 @@ Lighting:
 - Internal SDARS enabled (U.S.), no data services
 - HD Radio disabled, EQ #3
 
-**APIM (7D0)**
-- Best match is the Sync 3 tab, but it is **uncertain**.
-- Navigation disabled, heated steering wheel available, SD slot present, country 5553 (U.S.)
-- "Drive type = FWD" is very likely a tab/layout mismatch, so treat this module's decode as low-confidence.
+**APIM (7D0): SYNC 1** (owner-confirmed 2026-10-23; `DecodeProfile.DaleF150_2017` uses the "APIM Sync 1" tab)
+- 7D0-01-01: Ford, ICAN Off; MMS CGEA 1.3, SDLC present, ECALL NA; USB2 available, GPSM not available; ECALL enabled, VHR disabled, SYNC Services disabled, TBT enabled; Mobile Apps enabled, non-CID display; Non-CGEA type NA1
+- 7D0-02-01: microphone VDA, country 5553 (U.S.)
+- 7D0-03-01: not used. The Sync 1 tab doesn't define 7D0-01-02 or 7D0-02-02.
+- Correction: the earlier "Drive type = FWD", "Navigation disabled", "heated steering wheel" and "SD slot" readings came from the Sync 3 tab, which is the wrong layout for this truck. They're withdrawn.
 
 ## Caveats
 - Feature meanings are community-reported. Verify before writing anything.
@@ -119,8 +120,8 @@ Originals are in `samples/real-logs/*.abt` (git-ignored). Redacted fixtures are 
 | 7E0 PCM | 101 | 0 | not comparable: the .ab has PCM only as unaddressed "PCM 1..9" rows |
 
 **Decoded changes (community-db, unverified community data):**
-- **7D0-01-01 digit 1, 0→8:** Sync 3 tabs read this as Smart DSP Disabled → Enabled.
-- **7D0-01-01 digit 5, 9→D:** the Sync 3 tab reads climate strategy CGEA → C1MCA; the Sync 1 tab reads VHR Disabled → Enabled. The tabs disagree, so this one is ambiguous.
+- **7D0-01-01 digit 5, 9→D:** resolved with the Sync 1 tab. Vehicle Health Report went from disabled to enabled; ECALL, TBT and SYNC Services are unchanged. Sets bit 0x4.
+- **7D0-01-01 digit 1, 0→8:** the Sync 1 tab defines this digit as Brand/ICAN, with only 0–5 listed (0 = Ford, ICAN Off). **8 is not a documented value.** Bit 0x8 is set while the low bits stay 0 (Ford, ICAN Off). The earlier "Smart DSP enabled" reading came from the Sync 3 tab and doesn't apply. Meaning unknown/unverified; consider reverting to 0 if no reason is known.
 - **726-18-02 digit 10, 1→0:** "OneTwo Stage Unlock" two stage → one stage, from the BCM (BdyCM)-old tab.
 
 **Redaction fix.** The BCM stores the VIN split across blocks 09/10/11. The earlier per-block redaction missed it, so the committed .ab fixture contained it. `FordAbFile.Redacted` now scans per module, and the fixture has been regenerated.
