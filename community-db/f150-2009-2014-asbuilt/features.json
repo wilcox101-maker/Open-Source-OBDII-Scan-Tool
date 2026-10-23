@@ -1,0 +1,1327 @@
+{
+ "source": "jdunk54nl's 2009-2014 F-150 FORScan/As-Built spreadsheet (f150forum thread f38/forscan-applications-349018); module table credited to EpicCowlick's 2017 Super Duty sheet",
+ "source_url": "https://docs.google.com/spreadsheets/d/15MQ8CEh7eSXUJYjPg-J8uUqpLwP_xyqbfQHB0rAnXNs/edit#gid=1741285730",
+ "confidence": "CommunityReported",
+ "skipped_tabs": [
+  "VINs"
+ ],
+ "entries": [
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Internal SDARS (IS) & APIM Type (AT) & EFP & APIM [log/don't log messages]",
+   "values": [
+    "APIM don't log messages also enables Aux jack and APIM log messages also disables Aux jack",
+    "0=IS on, AT Gen2, EFP CAN based, APIM don't log",
+    "8=IS off, AT Gen2, EFP CAN based, APIM don't log",
+    "1=IS on, AT Gen2, EFP CAN based, APIM log",
+    "9=IS off, AT Gen2, EFP CAN based, APIM log",
+    "2=IS on, AT Gen2, EFP LIN based, APIM don't log",
+    "A=IS off, AT Gen2, EFP LIN based, APIM don't log",
+    "3=IS on, AT Gen2, EFP LIN based, APIM log",
+    "B=IS off, AT Gen2, EFP LIN based, APIM log",
+    "4=IS on, AT Gen1, EFP CAN based, APIM don't log",
+    "C=IS off, AT Gen1, EFP CAN based, APIM don't log",
+    "5=IS on, AT Gen1, EFP CAN based, APIM log",
+    "D=IS off, AT Gen1, EFP CAN based, APIM log",
+    "6=IS on, AT Gen1, EFP LIN based, APIM don't log",
+    "E=IS off, AT Gen1, EFP LIN based, APIM don't log",
+    "7=IS on, AT Gen1, EFP LIN based, APIM log",
+    "F=IS off, AT Gen1, EFP LIN based, APIM log"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "HD Radio (HDR) & DAB Tuner (DAB) & SWC Audio [set/don't set missing messages] (SWCA) & Shaker System (SS)",
+   "values": [
+    "0=HDR avail, DAB unavailable, SWCA don't set, SS non-Shaker",
+    "8=HDR unavail, DAB unavailable, SWCA don't set, SS non-Shaker",
+    "1=HDR avail, DAB unavailable, SWCA don't set, SS Shaker",
+    "9=HDR unavail, DAB unavailable, SWCA don't set, SS Shaker",
+    "2=HDR avail, DAB unavailable, SWCA set, SS non-shaker",
+    "A=HDR unavail, DAB unavailable, SWCA set, SS non-shaker",
+    "3=HDR avail, DAB unavailable, SWCA set, SS Shaker",
+    "B=HDR unavail, DAB unavailable, SWCA set, SS Shaker",
+    "4=HDR avail, DAB available, SWCA don't set, SS non-Shaker",
+    "C=HDR unavail, DAB available, SWCA don't set, SS non-Shaker",
+    "5=HDR avail, DAB available, SWCA don't set, SS Shaker",
+    "D=HDR unavail, DAB available, SWCA don't set, SS Shaker",
+    "6=HDR avail, DAB available, SWCA set, SS non-Shaker",
+    "E=HDR unavail, DAB available, SWCA set, SS non-Shaker",
+    "7=HDR avail, DAB available, SWCA set, SS Shaker",
+    "F=HDR unavail, DAB available, SWCA set, SS Shaker"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Front Satellite Speakers (FSS) & Rear Satellite Speakers (RSS)",
+   "values": [
+    "External Variable=Vref1",
+    "0=FSS Internal Amplifier, RSS Internal Amplifer",
+    "8=FSS Fixed L/L (smart Amp), RSS Internal Amplifier",
+    "1=FSS Internal Amplifier, RSS External Variable 4 volts",
+    "9=FSS Fixed L/L (smart Amp), RSS External Variable 4 volts",
+    "2=FSS Internal Amplifier, RSS Fixed L/L (smart Amp)",
+    "A=FSS Fixed L/L (smart Amp), RSS Fixed L/L (smart Amp)",
+    "3=FSS Internal Amplifier, RSS not used",
+    "B=FSS Fixed L/L (smart Amp), RSS not used",
+    "4=FSS External Variable 4 volts, RSS Internal Amplifier",
+    "C=Reserved, RSS Internal Amplifier",
+    "5=FSS External Variable 4 volts, RSS External Variable 4volts",
+    "D=Reserved, RSS External Variable 4volts",
+    "6=FSS External Variable 4 volts, RSS Fixed L/L (smart Amp)",
+    "E=Reserved, RSS Fixed L/L (smart Amp)",
+    "7=FSS External Variable 4 volts, RSS not used",
+    "F=Reserved, RSS not used"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Aux1 & Aux2",
+   "values": [
+    "0=Aux1 not used, Aux2 not used",
+    "8=Aux1 External Sub, Aux2 not used",
+    "Ext Sub & Ext Speaker=Vref1 - 4volt",
+    "1=Aux1 not used, Aux2 Internal Amplifier",
+    "9=Aux1 External Sub, Aux2 Internal Amplifier",
+    "2=Aux1 not used, Aux2 External Sub",
+    "A=Aux1 External Sub, Aux2 External Sub",
+    "3=Aux1 not used, Aux2 External Speaker",
+    "B=Aux1 External Sub, Aux2 External Speaker",
+    "4=Aux1 Internal Amplifier, Aux2 not used",
+    "C=Aux1 External Speaker, Aux2 not used",
+    "5=Aux1 Internal Amplifier, Aux2 Internal Amplifier",
+    "D=Aux1 External Speaker, Aux2 Internal Amplifier",
+    "6=Aux1 Internal Amplifier, Aux2 External Sub",
+    "E=Aux1 External Speaker, Aux2 External Sub",
+    "7=Aux1 Internal Amplifier, Aux2 External Speaker",
+    "F=Aux1 External Speaker, Aux2 External Speaker"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "description": "Front Speaker Detection (FSD) & Rear Speaker Detection (RSD) & Antenna Type (AT) & Number of Presets (NOP)",
+   "values": [
+    "0=FSD enabled, RSD enabled, AT Mast, NOP Ten",
+    "8=FSD disabled, RSD enabled, AT Mast, NOP Ten",
+    "1=FSD enabled, RSD enabled, AT Mast, NOP Six",
+    "9=FSD disabled, RSD enabled, AT Mast, NOP Six",
+    "2=FSD enabled, RSD enabled, AT Active, NOP Ten",
+    "A=FSD disabled, RSD enabled, AT Active, NOP Ten",
+    "3=FSD enabled, RSD enabled, AT Active, NOP Six",
+    "B=FSD disabled, RSD enabled, AT Active, NOP Six",
+    "4=FSD enabled, RSD disabled, AT Mast, NOP Ten",
+    "C=FSD disabled, RSD disabled, AT Mast, NOP Ten",
+    "5=FSD enabled, RSD disabled, AT Mast, NOP Six",
+    "D=FSD disabled, RSD disabled, AT Mast, NOP Six",
+    "6=FSD enabled, RSD disabled, AT Active, NOP Ten",
+    "E=FSD disabled, RSD disabled, AT Active, NOP Ten",
+    "7=FSD enabled, RSD disabled, AT Active, NOP Six",
+    "F=FSD disabled, RSD disabled, AT Active, NOP Six"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "description": "Front Tweeters (FT) & Chimes Strategy (CS) & ANC",
+   "values": [
+    "0=FT none, CS North American, ANC not present",
+    "8=FT present, CS North American, ANC not present",
+    "2=FT none, CS North American, ANC present",
+    "A=FT present, CS North American, ANC present",
+    "4=FT none, CS CIMCA, ANC not present",
+    "C=FT present, CS CIMCA, ANC not present",
+    "6=FT none, CS CIMCA, ANC present",
+    "E=FT present, CS CIMCA, ANC present"
+   ]
+  },
+  {
+   "tab": "ACM (201314)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xxxx"
+   ],
+   "description": "Aux1 Channel Location for Balance/Fade (Aux1) & Aux2 Channel Location for Balance/Fade (Aux2) \n& MP3 CD Text conversion (MP3)",
+   "values": [
+    "Conversion=folder, file, track names are replaced by their numbers",
+    "00=Aux1 mono sub, Aux2 mono sub, MP3 no conversion",
+    "80=Aux1 Right Rear, Aux2 mono sub, MP3 no conversion",
+    "01=Aux1 mono sub, Aux2 mono sub, MP3 conversion",
+    "81=Aux1 Right Rear, Aux2 mono sub, MP3 conversion",
+    "04=Aux1 mono sub, Aux2 Left Front, MP3 no conversion",
+    "84=Aux1 Right Rear, Aux2 Left Front, MP3 no conversion",
+    "05=Aux1 mono sub, Aux2 Left Front, MP3 conversion",
+    "85=Aux1 Right Rear, Aux2 Left Front, MP3 conversion",
+    "08=Aux1 mono sub, Aux2 center front, MP3 no conversion",
+    "88=Aux1 Right Rear, Aux2 center front, MP3 no conversion",
+    "09=Aux1 mono sub, Aux2 center front, MP3 conversion",
+    "89=Aux1 Right Rear, Aux2 center front, MP3 conversion",
+    "0C=Aux1 mono sub, Aux2 right front, MP3 no conversion",
+    "8C=Aux1 Right Rear, Aux2 right front, MP3 no conversion",
+    "0D=Aux1 mono sub, Aux2 right front, MP3 conversion",
+    "8D=Aux1 Right Rear, Aux2 right front, MP3 conversion",
+    "10=Aux1 mono sub, Aux2 right rear, MP3 no conversion",
+    "90=Aux1 Right Rear, Aux2 right rear, MP3 no conversion",
+    "11=Aux1 mono sub, Aux2 right rear, MP3 conversion",
+    "91=Aux1 Right Rear, Aux2 right rear, MP3 conversion",
+    "14=Aux1 mono sub, Aux2 center rear, MP3 no conversion",
+    "94=Aux1 Right Rear, Aux2 center rear, MP3 no conversion",
+    "15=Aux1 mono sub, Aux2 center rear, MP3 conversion",
+    "95=Aux1 Right Rear, Aux2 center rear, MP3 conversion",
+    "18=Aux1 mono sub, Aux2 left rear, MP3 no conversion",
+    "98=Aux1 Right Rear, Aux2 left rear, MP3 no conversion",
+    "19=Aux1 mono sub, Aux2 left rear, MP3 conversion",
+    "99=Aux1 Right Rear, Aux2 left rear, MP3 conversion",
+    "1C=Aux1 mono sub, Aux2 left sub, MP3 no conversion",
+    "9C=Aux1 Right Rear, Aux2 left sub, MP3 no conversion",
+    "1D=Aux1 mono sub, Aux2 left sub, MP3 conversion",
+    "9D=Aux1 Right Rear, Aux2 left sub, MP3 conversion",
+    "20=Aux1 Left Front, Aux2 mono sub, MP3 no conversion",
+    "A0=Aux1 Center Rear, Aux2 mono sub, MP3 no conversion",
+    "21=Aux1 Left Front, Aux2 mono sub, MP3 conversion",
+    "A1=Aux1 Center Rear, Aux2 mono sub, MP3 conversion",
+    "24=Aux1 Left Front, Aux2 Left Front, MP3 no conversion",
+    "A4=Aux1 Center Rear, Aux2 Left Front, MP3 no conversion",
+    "25=Aux1 Left Front, Aux2 Left Front, MP3 conversion",
+    "A5=Aux1 Center Rear, Aux2 Left Front, MP3 conversion",
+    "28=Aux1 Left Front, Aux2 center front, MP3 no conversion",
+    "A8=Aux1 Center Rear, Aux2 center front, MP3 no conversion",
+    "29=Aux1 Left Front, Aux2 center front, MP3 conversion",
+    "A9=Aux1 Center Rear, Aux2 center front, MP3 conversion",
+    "2C=Aux1 Left Front, Aux2 right front, MP3 no conversion",
+    "AC=Aux1 Center Rear, Aux2 right front, MP3 no conversion",
+    "2D=Aux1 Left Front, Aux2 right front, MP3 conversion",
+    "AD=Aux1 Center Rear, Aux2 right front, MP3 conversion",
+    "30=Aux1 Left Front, Aux2 right rear, MP3 no conversion",
+    "B0=Aux1 Center Rear, Aux2 right rear, MP3 no conversion",
+    "31=Aux1 Left Front, Aux2 right rear, MP3 conversion",
+    "B1=Aux1 Center Rear, Aux2 right rear, MP3 conversion",
+    "34=Aux1 Left Front, Aux2 center rear, MP3 no conversion",
+    "B4=Aux1 Center Rear, Aux2 center rear, MP3 no conversion",
+    "35=Aux1 Left Front, Aux2 center rear, MP3 conversion",
+    "B5=Aux1 Center Rear, Aux2 center rear, MP3 conversion",
+    "38=Aux1 Left Front, Aux2 left rear, MP3 no conversion",
+    "B8=Aux1 Center Rear, Aux2 left rear, MP3 no conversion",
+    "39=Aux1 Left Front, Aux2 left rear, MP3 conversion",
+    "B9=Aux1 Center Rear, Aux2 left rear, MP3 conversion",
+    "3C=Aux1 Left Front, Aux2 left sub, MP3 no conversion",
+    "BC=Aux1 Center Rear, Aux2 left sub, MP3 no conversion",
+    "3D=Aux1 Left Front, Aux2 left sub, MP3 conversion",
+    "BD=Aux1 Center Rear, Aux2 left sub, MP3 conversion",
+    "40=Aux1 Center Front, Aux2 mono sub, MP3 no conversion",
+    "C0=Aux1 Left Rear, Aux2 mono sub, MP3 no conversion",
+    "41=Aux1 Center Front, Aux2 mono sub, MP3 conversion",
+    "C1=Aux1 Left Rear, Aux2 mono sub, MP3 conversion",
+    "44=Aux1 Center Front, Aux2 Left Front, MP3 no conversion",
+    "C4=Aux1 Left Rear, Aux2 Left Front, MP3 no conversion",
+    "45=Aux1 Center Front, Aux2 Left Front, MP3 conversion",
+    "C5=Aux1 Left Rear, Aux2 Left Front, MP3 conversion",
+    "48=Aux1 Center Front, Aux2 center front, MP3 no conversion",
+    "C8=Aux1 Left Rear, Aux2 center front, MP3 no conversion",
+    "49=Aux1 Center Front, Aux2 center front, MP3 conversion",
+    "C9=Aux1 Left Rear, Aux2 center front, MP3 conversion",
+    "4C=Aux1 Center Front, Aux2 right front, MP3 no conversion",
+    "CC=Aux1 Left Rear, Aux2 right front, MP3 no conversion",
+    "4D=Aux1 Center Front, Aux2 right front, MP3 conversion",
+    "CD=Aux1 Left Rear, Aux2 right front, MP3 conversion",
+    "50=Aux1 Center Front, Aux2 right rear, MP3 no conversion",
+    "D0=Aux1 Left Rear, Aux2 right rear, MP3 no conversion",
+    "51=Aux1 Center Front, Aux2 right rear, MP3 conversion",
+    "D1=Aux1 Left Rear, Aux2 right rear, MP3 conversion",
+    "54=Aux1 Center Front, Aux2 center rear, MP3 no conversion",
+    "D4=Aux1 Left Rear, Aux2 center rear, MP3 no conversion",
+    "55=Aux1 Center Front, Aux2 center rear, MP3 conversion",
+    "D5=Aux1 Left Rear, Aux2 center rear, MP3 conversion",
+    "58=Aux1 Center Front, Aux2 left rear, MP3 no conversion",
+    "D8=Aux1 Left Rear, Aux2 left rear, MP3 no conversion",
+    "59=Aux1 Center Front, Aux2 left rear, MP3 conversion",
+    "D9=Aux1 Left Rear, Aux2 left rear, MP3 conversion",
+    "5C=Aux1 Center Front, Aux2 left sub, MP3 no conversion",
+    "DC=Aux1 Left Rear, Aux2 left sub, MP3 no conversion",
+    "5D=Aux1 Center Front, Aux2 left sub, MP3 conversion",
+    "DD=Aux1 Left Rear, Aux2 left sub, MP3 conversion",
+    "60=Aux1 Right Front, Aux2 mono sub, MP3 no conversion",
+    "E0=Aux1 Right Sub, Aux2 mono sub, MP3 no conversion",
+    "61=Aux1 Right Front, Aux2 mono sub, MP3 conversion",
+    "E1=Aux1 Right Sub, Aux2 mono sub, MP3 conversion",
+    "64=Aux1 Right Front, Aux2 Left Front, MP3 no conversion",
+    "E4=Aux1 Right Sub, Aux2 Left Front, MP3 no conversion",
+    "65=Aux1 Right Front, Aux2 Left Front, MP3 conversion",
+    "E5=Aux1 Right Sub, Aux2 Left Front, MP3 conversion",
+    "68=Aux1 Right Front, Aux2 center front, MP3 no conversion",
+    "E8=Aux1 Right Sub, Aux2 center front, MP3 no conversion",
+    "69=Aux1 Right Front, Aux2 center front, MP3 conversion",
+    "E9=Aux1 Right Sub, Aux2 center front, MP3 conversion",
+    "6C=Aux1 Right Front, Aux2 right front, MP3 no conversion",
+    "EC=Aux1 Right Sub, Aux2 right front, MP3 no conversion",
+    "6D=Aux1 Right Front, Aux2 right front, MP3 conversion",
+    "ED=Aux1 Right Sub, Aux2 right front, MP3 conversion",
+    "70=Aux1 Right Front, Aux2 right rear, MP3 no conversion",
+    "F0=Aux1 Right Sub, Aux2 right rear, MP3 no conversion",
+    "71=Aux1 Right Front, Aux2 right rear, MP3 conversion",
+    "F1=Aux1 Right Sub, Aux2 right rear, MP3 conversion",
+    "74=Aux1 Right Front, Aux2 center rear, MP3 no conversion",
+    "F4=Aux1 Right Sub, Aux2 center rear, MP3 no conversion",
+    "75=Aux1 Right Front, Aux2 center rear, MP3 conversion",
+    "F5=Aux1 Right Sub, Aux2 center rear, MP3 conversion",
+    "78=Aux1 Right Front, Aux2 left rear, MP3 no conversion",
+    "F8=Aux1 Right Sub, Aux2 left rear, MP3 no conversion",
+    "79=Aux1 Right Front, Aux2 left rear, MP3 conversion",
+    "F9=Aux1 Right Sub, Aux2 left rear, MP3 conversion",
+    "7C=Aux1 Right Front, Aux2 left sub, MP3 no conversion",
+    "FC=Aux1 Right Sub, Aux2 left sub, MP3 no conversion",
+    "7D=Aux1 Right Front, Aux2 left sub, MP3 conversion",
+    "FD=Aux1 Right Sub, Aux2 left sub, MP3 conversion"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Messaging (Mess) & Internal SDARS (ISDARS) & CPM & External SDARS (ESDARS)",
+   "values": [
+    "0=Mess non-CGEA, ISDARS don't log, CPM don't log, ESDARS don't log",
+    "8=Mess CGEA, ISDARS don't log, CPM don't log, ESDARS don't log",
+    "1=Mess non-CGEA, ISDARS don't log, CPM don't log, ESDARS log",
+    "9=Mess CGEA, ISDARS don't log, CPM don't log, ESDARS log",
+    "2=Mess non-CGEA, ISDARS don't log, CPM log, ESDARS don't log",
+    "A=Mess CGEA, ISDARS don't log, CPM log, ESDARS don't log",
+    "3=Mess non-CGEA, ISDARS don't log, CPM log, ESDARS log",
+    "B=Mess CGEA, ISDARS don't log, CPM log, ESDARS log",
+    "4=Mess non-CGEA, ISDARS log, CPM don't log, ESDARS don't log",
+    "C=Mess CGEA, ISDARS log, CPM don't log, ESDARS don't log",
+    "5=Mess non-CGEA, ISDARS log, CPM don't log, ESDARS log",
+    "D=Mess CGEA, ISDARS log, CPM don't log, ESDARS log",
+    "6=Mess non-CGEA, ISDARS log, CPM log, ESDARS don't log",
+    "E=Mess CGEA, ISDARS log, CPM log, ESDARS don't log",
+    "7=Mess non-CGEA, ISDARS log, CPM log, ESDARS log",
+    "F=Mess CGEA, ISDARS log, CPM log, ESDARS log"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "RSEM & Shaker System (SS) & FES & Smart DSP (SDSP)",
+   "values": [
+    "0=RSEM don't log, SS no Shaker 1000, FES don't log, SDSP don't log",
+    "8=RSEM log, SS no Shaker 1000, FES don't log, SDSP don't log",
+    "1=RSEM don't log, SS no Shaker 1000, FES don't log, SDSP log",
+    "9=RSEM log, SS no Shaker 1000, FES don't log, SDSP log",
+    "2=RSEM don't log, SS no Shaker 1000, FES log, SDSP don't log",
+    "A=RSEM log, SS no Shaker 1000, FES log, SDSP don't log",
+    "3=RSEM don't log, SS no Shaker 1000, FES log, SDSP log",
+    "B=RSEM log, SS no Shaker 1000, FES log, SDSP log",
+    "4=RSEM don't log, SS Shaker 1000, FES don't log, SDSP don't log",
+    "C=RSEM log, SS Shaker 1000, FES don't log, SDSP don't log",
+    "5=RSEM don't log, SS Shaker 1000, FES don't log, SDSP log",
+    "D=RSEM log, SS Shaker 1000, FES don't log, SDSP log",
+    "6=RSEM don't log, SS Shaker 1000, FES log, SDSP don't log",
+    "E=RSEM log, SS Shaker 1000, FES log, SDSP don't log",
+    "7=RSEM don't log, SS Shaker 1000, FES log, SDSP log",
+    "F=RSEM log, SS Shaker 1000, FES log, SDSP log"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Center Image (CI) & Convertible [display1/display2] (CON) & Compression (COM) & Subwoofer (SUB)",
+   "values": [
+    "display1=all seats, drivers seat, rear seat",
+    "0=CI default, CON display1, COM not enabled, SUB no subwoofer",
+    "8=CI not defined, CON display1, COM not enabled, SUB no subwoofer",
+    "display2=all seats, drivers seat, convertible",
+    "1=CI default, CON display1, COM not enabled, SUB ext sub on ACM",
+    "9=CI not defined, CON display1, COM not enabled, SUB ext sub on ACM",
+    "2=CI default, CON display1, COM enabled, SUB no subwoofer",
+    "A=CI not defined, CON display1, COM enabled, SUB no subwoofer",
+    "3=CI default, CON display1, COM enabled, SUB ext sub on ACM",
+    "B=CI not defined, CON display1, COM enabled, SUB ext sub on ACM",
+    "4=CI default, CON display2, COM not enabled, SUB no subwoofer",
+    "C=CI not defined, CON display2, COM not enabled, SUB no subwoofer",
+    "5=CI default, CON display2, COM not enabled, SUB ext sub on ACM",
+    "D=CI not defined, CON display2, COM not enabled, SUB ext sub on ACM",
+    "6=CI default, CON display2, COM enabled, SUB no subwoofer",
+    "E=CI not defined, CON display2, COM enabled, SUB no subwoofer",
+    "7=CI default, CON display2, COM enabled, SUB ext sub on ACM",
+    "F=CI not defined, CON display2, COM enabled, SUB ext sub on ACM"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "External 4 Speaker Amp (E4SA) & 5.1 DSP (DSP) & Aux Jack (AJ) & Subwoofer II (S2)",
+   "values": [
+    "0=E4SA default, DSP default, AJ no aux jack, S2 default",
+    "4=E4SA default, DSP DTC E10100, AJ no aux jack, S2 default",
+    "2=E4SA default, DSP default, AJ aux jack, S2 default",
+    "6=E4SA default, DSP DTC E10100, AJ aux jack, S2 default"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "description": "Subwoofer II voltage (S2V) & Subwoofer voltage (SV) & Crossover Rear Speakers Detection (CRSD) & \nCrossover Front Speakers Detection (CFSD)",
+   "values": [
+    "0=S2V 2 volt, SV 2 volt, CRSD enabled, CFSD enabled",
+    "8=S2V 4 volt, SV 2 volt, CRSD enabled, CFSD enabled",
+    "1=S2V 2 volt, SV 2 volt, CRSD enabled, CFSD disabled",
+    "9=S2V 4 volt, SV 2 volt, CRSD enabled, CFSD disabled",
+    "2=S2V 2 volt, SV 2 volt, CRSD disabled, CFSD enabled",
+    "A=S2V 4 volt, SV 2 volt, CRSD disabled, CFSD enabled",
+    "3=S2V 2 volt, SV 2 volt, CRSD disabled, CFSD disabled",
+    "B=S2V 4 volt, SV 2 volt, CRSD disabled, CFSD disabled",
+    "4=S2V 2 volt, SV 4 volt, CRSD enabled, CFSD enabled",
+    "C=S2V 4 volt, SV 4 volt, CRSD enabled, CFSD enabled",
+    "5=S2V 2 volt, SV 4 volt, CRSD enabled, CFSD disabled",
+    "D=S2V 4 volt, SV 4 volt, CRSD enabled, CFSD disabled",
+    "6=S2V 2 volt, SV 4 volt, CRSD disabled, CFSD enabled",
+    "E=S2V 4 volt, SV 4 volt, CRSD disabled, CFSD enabled",
+    "7=S2V 2 volt, SV 4 volt, CRSD disabled, CFSD disabled",
+    "F=S2V 4 volt, SV 4 volt, CRSD disabled, CFSD disabled"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "description": "Brand & SWC Pod Type (SPT)",
+   "values": [
+    "0=Brand will default to Ford *, SPT will not function *",
+    "8=Brand Reserved *, SPT will not function *",
+    "* DTC E10100",
+    "1=Brand will default to Ford *, SPT will function with 6 position SWC",
+    "9=Brand Reserved *, SPT will function with 6 position SWC",
+    "2=Brand will default to Ford *, SPT will function with 5 position SWC",
+    "A=Brand Reserved *, SPT will function with 5 position SWC",
+    "3=Brand will default to Ford *, SPT will not function",
+    "B=Brand Reserved *, SPT will not function",
+    "4=Brand Ford functionality, SPT will not function *",
+    "C=Brand Lincoln, SPT will not function *",
+    "5=Brand Ford functionality, SPT will function with 6 position SWC",
+    "D=Brand Lincoln, SPT will function with 6 position SWC",
+    "6=Brand Ford functionality, SPT will function with 5 position SWC",
+    "E=Brand Lincoln, SPT will function with 5 position SWC",
+    "7=Brand Ford functionality, SPT will not function",
+    "F=Brand Lincoln, SPT will not function"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xxxx"
+   ],
+   "description": "Reverse Park Aid (RPA) & Vehicle Speed (VS)",
+   "values": [
+    "0=RPA signals ignored *, VSS ignored - menu pick off *",
+    "8=RPA monitored by MS-CAN only, VSS ignored - menu pick off *",
+    "* DTC E10100",
+    "1=RPA signals ignored *, VSS hard-wired [MS-CAN ignored - menu pick avail]",
+    "9=RPA monitored by MS-CAN only, VSS hard-wired [MS-CAN ignored - menu pick avail]",
+    "2=RPA signals ignored *, VSS MS-CAN [HW ignored - menu pick avail]",
+    "A=RPA monitored by MS-CAN only, VSS MS-CAN [HW ignored - menu pick avail]",
+    "3=RPA signals ignored *, VSS ignored [menu pick set to off]",
+    "B=RPA monitored by MS-CAN only, VSS ignored [menu pick set to off]",
+    "4=RPA monitored by HW only, VSS ignored - menu pick off *",
+    "C=RPA signals ignored, VSS ignored - menu pick off *",
+    "5=RPA monitored by HW only, VSS hard-wired [MS-CAN ignored - menu pick avail]",
+    "D=RPA signals ignored, VSS hard-wired [MS-CAN ignored - menu pick avail]",
+    "6=RPA monitored by HW only, VSS MS-CAN [HW ignored - menu pick avail]",
+    "E=RPA signals ignored, VSS MS-CAN [HW ignored - menu pick avail]",
+    "7=RPA monitored by HW only, VSS ignored [menu pick set to off]",
+    "F=RPA signals ignored, VSS ignored [menu pick set to off]"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxx*",
+    "xxxx"
+   ],
+   "description": "RUN/ACC: 0=determined by discrete or MS-CAN, 1=will revert to Hardwired, 2=will revert to MS-CAN, 3=determined by discrete or MS-CAN *",
+   "values": [
+    "* DTC E10100"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "*xxx"
+   ],
+   "description": "CADS Audio Mute (CAM) & MyKey (MK) & Canadian SDARS Content (CSC)",
+   "values": [
+    "0=CAM turn off, MK don't log missing messages, CSC set to NA channel content",
+    "1=CAM turn off, MK don't log missing messages, CSC set to Canadian channel content",
+    "2=CAM turn off, MK log missing messages, CSC set to NA channel content",
+    "3=CAM turn off, MK log missing messages, CSC set to Canadian channel content",
+    "4=CAM turn on, MK don't log missing messages, CSC set to NA channel content",
+    "5=CAM turn on, MK don't log missing messages, CSC set to Canadian channel content",
+    "6=CAM turn on, MK log missing messages, CSC set to NA channel content",
+    "7=CAM turn on, MK log missing messages, CSC set to Canadian channel content"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "x*xx"
+   ],
+   "description": "Delayed ACC (DA) & Steering Wheel Control (SWC)",
+   "values": [
+    "0=DA ignition relies on Run/ACC only *, SWC all signals ignored *",
+    "8=DA delayed ACC controlled via MS-CAN , SWC all signals ignored *",
+    "* DTC E10100",
+    "1=DA ignition relies on Run/ACC only *, SWC monitored via HW",
+    "9=DA delayed ACC controlled via MS-CAN , SWC monitored via HW",
+    "2=DA ignition relies on Run/ACC only *, SWC monitored via MS-CAN",
+    "A=DA delayed ACC controlled via MS-CAN , SWC monitored via MS-CAN",
+    "3=DA ignition relies on Run/ACC only *, SWC all signals ignored",
+    "B=DA delayed ACC controlled via MS-CAN , SWC all signals ignored",
+    "4=DA ignition relies on Run/ACC only , SWC all signals ignored *",
+    "C=DA ignition relies on Run/ACC only , SWC all signals ignored *",
+    "5=DA ignition relies on Run/ACC only , SWC monitored via HW",
+    "D=DA ignition relies on Run/ACC only , SWC monitored via HW",
+    "6=DA ignition relies on Run/ACC only , SWC monitored via MS-CAN",
+    "E=DA ignition relies on Run/ACC only , SWC monitored via MS-CAN",
+    "7=DA ignition relies on Run/ACC only , SWC all signals ignored",
+    "F=DA ignition relies on Run/ACC only , SWC all signals ignored"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-01-02",
+   "pattern": [
+    "**xx"
+   ],
+   "description": "EQ Selection",
+   "values": [
+    "00=Flat EQ",
+    "06=Premium EQ MY10 S197 Glass Roof EQ",
+    "01=Premium EQ MY10 P415 Crew Cab EQ",
+    "07=Premium EQ MY12 P415 w/tweeter Crew Cab EQ",
+    "02=Premium EQ MY10 P415 Regular EQ",
+    "08=Premium EQ MY12 P415 w/tweeter Regular Cab EQ",
+    "03=Premium EQ MY10 P415 Super Cab EQ",
+    "09=Premium EQ MY12 P415 w/tweeter Super Cab EQ",
+    "04=Premium EQ MY10 S197 Coupe EQ",
+    "0A=reserved",
+    "05=Premium EQ MY10 S197 Convertible EQ",
+    "0B=reserved",
+    "0C=Audiophile Sets of EQ (6 EQs per selection) MY10 S197 Shaker500/1000 Coupe EQ",
+    "0D=Audiophile Sets of EQ (6 EQs per selection) MY10 S197 Shaker500/1000 Convertible EQ",
+    "0E=Audiophile Sets of EQ (6 EQs per selection) MY10 S197 Shaker500/1000 Glass Roof EQ",
+    "0F=Reserved",
+    "10=Audiophile Sets of EQ (6 EQs per selection) MY10 CD378 Shaker500",
+    "11=Audiophile Sets of EQ (6 EQs per selection) MY13 S197 TT Convertible Pioneer Premium EQ",
+    "12=Audiophile Sets of EQ (6 EQs per selection) MY13 S197 TT Convertible Pioneer Super Premium EQ",
+    "13=reserved",
+    "14-reserved"
+   ]
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-02-01",
+   "pattern": [
+    "**xx"
+   ],
+   "description": "AM Station for Antenna Test (kHz)",
+   "values": []
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-03-01",
+   "pattern": [
+    "**xx"
+   ],
+   "description": "AM Signal Strength - Acceptable Value (dBuV)",
+   "values": []
+  },
+  {
+   "tab": "ACM (2012)",
+   "address": "727-04-01",
+   "pattern": [
+    "x*xx"
+   ],
+   "description": "Tuner Region: 0=NA (default), 1=GCC, 2=Japan, 3=Europe",
+   "values": [
+    "727-05-01 thru 727-05-02",
+    "AM Presets",
+    "727-06-01 thru 727-06-02",
+    "FM1 Presets",
+    "727-07-01 thru 727-07-02",
+    "FM2 Presets",
+    "727-08-01 thru 727-08-06",
+    "SDARS Presets"
+   ]
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Brand & I-CAN Diagnostics (ICAN): 0=Ford & ICAN off, 1=Ford & ICAN on, 2=Mercury & ICAN off, 3=Mercury & ICAN on, 4=Lincoln & ICAN off, 5=Lincoln & ICAN on",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Missing Message Strategy (MMS) & SDLC & E-Call Strategy (ECALL)",
+   "values": [
+    "0=MMS non-CGEA 1.3, SDLC not present, ECALL North America",
+    "8=MMS CGEA 1.3, SDLC not present, ECALL North America",
+    "2=MMS non-CGEA 1.3, SDLC not present, ECALL FoE",
+    "A=MMS CGEA 1.3, SDLC not present, ECALL FoE",
+    "4=MMS non-CGEA 1.3, SDLC present, ECALL North America",
+    "C=MMS CGEA 1.3, SDLC present, ECALL North America",
+    "6=MMS non-CGEA 1.3, SDLC present, ECALL FoE",
+    "E=MMS CGEA 1.3, SDLC present, ECALL FoE"
+   ]
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "USB2 & GPSM: 0=USB2 not avail & GPSM not avail, 1=USB2 not avail & GPSM avail, 2=USB2 avail & GPSM not avail, 3=USB2 avail & GPSM avail",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "description": "ECall & VHR & SYNC Services (SS) & TBT",
+   "values": [
+    "0=ECall disabled, VHR disabled, SS disabled, TBT disabled",
+    "8=ECall enabled, VHR disabled, SS disabled, TBT disabled",
+    "1=ECall disabled, VHR disabled, SS disabled, TBT enabled",
+    "9=ECall enabled, VHR disabled, SS disabled, TBT enabled",
+    "2=ECall disabled, VHR disabled, SS enabled, TBT disabled",
+    "A=ECall enabled, VHR disabled, SS enabled, TBT disabled",
+    "3=ECall disabled, VHR disabled, SS enabled, TBT enabled",
+    "B=ECall enabled, VHR disabled, SS enabled, TBT enabled",
+    "4=ECall disabled, VHR enabled, SS disabled, TBT disabled",
+    "C=ECall enabled, VHR enabled, SS disabled, TBT disabled",
+    "5=ECall disabled, VHR enabled, SS disabled, TBT enabled",
+    "D=ECall enabled, VHR enabled, SS disabled, TBT enabled",
+    "6=ECall disabled, VHR enabled, SS enabled, TBT disabled",
+    "E=ECall enabled, VHR enabled, SS enabled, TBT disabled",
+    "7=ECall disabled, VHR enabled, SS enabled, TBT enabled",
+    "F=ECall enabled, VHR enabled, SS enabled, TBT enabled"
+   ]
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "description": "Mobile Apps (MA) & CID Version (CID)",
+   "values": [
+    "0=MA disabled, CID Non-CID",
+    "8=MA enabled, CID Non-CID",
+    "1=MA disabled, CID CID",
+    "9=MA enabled, CID CID",
+    "2=MA disabled, CID CID7",
+    "A=MA enabled, CID CID7",
+    "3=MA disabled, CID MFD3",
+    "B=MA enabled, CID MFD3",
+    "4=MA disabled, CID MFD4",
+    "C=MA enabled, CID MFD4",
+    "5=MA disabled, CID MFD5",
+    "D=MA enabled, CID MFD5"
+   ]
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xxxx"
+   ],
+   "description": "Non-CGEA Type: 0=NA1, 8=NA2",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xxx*",
+    "xxxx"
+   ],
+   "description": "Future Feature 8-14",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "*xxx"
+   ],
+   "description": "Future Feature 0-7",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Microphone Type: 0=Unconfigured - Operation as GENTEX, 1=GENTEX, 2=MagnaDonnelley, 3=Peiker Headliner Microphone, 4=VDA",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-01",
+   "pattern": [
+    "xx**",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "WERS Destination Code First Letter",
+   "values": [
+    "Change this line from 55 to 57 for nav in motion"
+   ]
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xxxx"
+   ],
+   "description": "WERS Destination Code Second Letter",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xxxx"
+   ],
+   "description": "Reserved for Future WERS Destination Code Third Letter",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "**xx"
+   ],
+   "description": "Reserved for Future WERS Destination Code Fourth Letter",
+   "values": []
+  },
+  {
+   "tab": "APIM Sync 1",
+   "address": "7D0-02-02",
+   "pattern": [
+    "**xx"
+   ],
+   "description": "Reserved for Future WERS Destination Code Fifth Letter",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "RW Switch Present Cfg (RWS) & IP Heated Wash Present Cfg (IPH) & Stalk Heated Wash Present Cfg (SHW)\n& Headlamp Switch Cfg (HS)",
+   "values": [
+    "OUC=On Until Cancelled manually by driver moving turn signal in opposite direction",
+    "Link for explanation on OUC",
+    "0=RWS disable, IPH disable, SHW disable, (HS) disable",
+    "8=RWS enable, IPH disable, SHW disable, (HS) disable",
+    "1=RWS disable, IPH disable, SHW disable, (HS) enable",
+    "9=RWS enable, IPH disable, SHW disable, (HS) enable",
+    "2=RWS disable, IPH disable, SHW enable, (HS) disable",
+    "A=RWS enable, IPH disable, SHW enable, (HS) disable",
+    "3=RWS disable, IPH disable, SHW enable, (HS) enable",
+    "B=RWS enable, IPH disable, SHW enable, (HS) enable",
+    "4=RWS disable, IPH enable, SHW disable, (HS) disable",
+    "C=RWS enable, IPH enable, SHW disable, (HS) disable",
+    "5=RWS disable, IPH enable, SHW disable, (HS) enable",
+    "D=RWS enable, IPH enable, SHW disable, (HS) enable",
+    "6=RWS disable, IPH enable, SHW enable, (HS) disable",
+    "E=RWS enable, IPH enable, SHW enable, (HS) disable",
+    "7=RWS disable, IPH enable, SHW enable, (HS) enable",
+    "F=RWS enable, IPH enable, SHW enable, (HS) enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Dim Switch Cfg: 0=disabled, 8=enabled",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xx"
+   ],
+   "description": "RSAS Present Cfg (RSAS) & ASAS Present Cfg (ASAS) & NO SAS Present Cfg (NSAS) \n& Power Pedal Config (PPC)",
+   "values": [
+    "0=RSAS disable, ASAS disable, NSAS disable, PPC disable",
+    "8=RSAS enable, ASAS disable, NSAS disable, PPC disable",
+    "1=RSAS disable, ASAS disable, NSAS disable, PPC enable",
+    "9=RSAS enable, ASAS disable, NSAS disable, PPC enable",
+    "2=RSAS disable, ASAS disable, NSAS enable, PPC disable",
+    "A=RSAS enable, ASAS disable, NSAS enable, PPC disable",
+    "3=RSAS disable, ASAS disable, NSAS enable, PPC enable",
+    "B=RSAS enable, ASAS disable, NSAS enable, PPC enable",
+    "4=RSAS disable, ASAS enable, NSAS disable, PPC disable",
+    "C=RSAS enable, ASAS enable, NSAS disable, PPC disable",
+    "5=RSAS disable, ASAS enable, NSAS disable, PPC enable",
+    "D=RSAS enable, ASAS enable, NSAS disable, PPC enable",
+    "6=RSAS disable, ASAS enable, NSAS enable, PPC disable",
+    "E=RSAS enable, ASAS enable, NSAS enable, PPC disable",
+    "7=RSAS disable, ASAS enable, NSAS enable, PPC enable",
+    "F=RSAS enable, ASAS enable, NSAS enable, PPC enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Tilt Config (TC) & Tele Config (TEL) & Hall Sensors Present Cfg (HSC)",
+   "values": [
+    "0=TC disable, TEL disable, HSC disable",
+    "8=TC enable, TEL disable, HSC disable",
+    "2=TC disable, TEL disable, HSC enable",
+    "A=TC enable, TEL disable, HSC enable",
+    "4=TC disable, TEL enable, HSC disable",
+    "C=TC enable, TEL enable, HSC disable",
+    "6=TC disable, TEL enable, HSC enable",
+    "E=TC enable, TEL enable, HSC enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xx"
+   ],
+   "description": "EE Tilt Enabled Cfg (ETIL) & EE Tele Enabled Cfg (ETEL) & EE Pedal Enabled Cfg (EPED)",
+   "values": [
+    "0=ETIL disable, ETEL disable, EPED disable",
+    "8=ETIL enable, ETEL disable, EPED disable",
+    "2=ETIL disable, ETEL disable, EPED enable",
+    "A=ETIL enable, ETEL disable, EPED enable",
+    "4=ETIL disable, ETEL enable, EPED disable",
+    "C=ETIL enable, ETEL enable, EPED disable",
+    "6=ETIL disable, ETEL enable, EPED enable",
+    "E=ETIL enable, ETEL enable, EPED enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xx"
+   ],
+   "description": "Electronic Turn Signal Cancel Cfg: # of Flashes & On Until Cancelled (OUC)",
+   "values": [
+    "0=1 flash & OUC false",
+    "8=4 flashes & OUC false",
+    "1=1 flash & OUC true",
+    "9=4 flashes & OUC true",
+    "2=1 flash & OUC false",
+    "A=5 flashes & OUC false",
+    "3=1 flash & OUC true",
+    "B=5 flashes & OUC true",
+    "4=2 flashes & OUC false",
+    "C=6 flashes & OUC false",
+    "5=2 flashes & OUC true",
+    "D=6 flashes & OUC true",
+    "6=3 flashes & OUC false",
+    "E=7 flashes & OUC false",
+    "7=3 flashes & OUC true",
+    "F=7 flashes & OUC true"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-01-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "description": "Cancel Yaw Rate Cfg",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "HaveBeenLIN Cfgd (HBL) & SCMSpeedDependant Enable (SD) \n& SCMNeutralDisable AutoWipe (NDAW) & SCMInit AutoWipe on Reset (AWR)",
+   "values": [
+    "0=HBL false, SD false, NDAW false, AWR false",
+    "8=HBL true, SD false, NDAW false, AWR false",
+    "1=HBL false, SD false, NDAW false, AWR true",
+    "9=HBL true, SD false, NDAW false, AWR true",
+    "2=HBL false, SD false, NDAW true, AWR false",
+    "A=HBL true, SD false, NDAW true, AWR false",
+    "3=HBL false, SD false, NDAW true, AWR true",
+    "B=HBL true, SD false, NDAW true, AWR true",
+    "4=HBL false, SD true, NDAW false, AWR false",
+    "C=HBL true, SD true, NDAW false, AWR false",
+    "5=HBL false, SD true, NDAW false, AWR true",
+    "D=HBL true, SD true, NDAW false, AWR true",
+    "6=HBL false, SD true, NDAW true, AWR false",
+    "E=HBL true, SD true, NDAW true, AWR false",
+    "7=HBL false, SD true, NDAW true, AWR true",
+    "F=HBL true, SD true, NDAW true, AWR true"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "SCMInit OffToAutoWipe (OTAW) & SCMRrWipe LiftgateAjarEnable (WLA) \n& SCMLoadShed HeatWash (LSH)& SCMLoadShedVolt HeatWash(LSV)",
+   "values": [
+    "0=OTAW false, WLA false, LSH false, LSV false",
+    "8=OTAW true, WLA false, LSH false, LSV false",
+    "1=OTAW false, WLA false, LSH false, LSV true",
+    "9=OTAW true, WLA false, LSH false, LSV true",
+    "2=OTAW false, WLA false, LSH true, LSV false",
+    "A=OTAW true, WLA false, LSH true, LSV false",
+    "3=OTAW false, WLA false, LSH true, LSV true",
+    "B=OTAW true, WLA false, LSH true, LSV true",
+    "4=OTAW false, WLA true, LSH false, LSV false",
+    "C=OTAW true, WLA true, LSH false, LSV false",
+    "5=OTAW false, WLA true, LSH false, LSV true",
+    "D=OTAW true, WLA true, LSH false, LSV true",
+    "6=OTAW false, WLA true, LSH true, LSV false",
+    "E=OTAW true, WLA true, LSH true, LSV false",
+    "7=OTAW false, WLA true, LSH true, LSV true",
+    "F=OTAW true, WLA true, LSH true, LSV true"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xx"
+   ],
+   "description": "SCMRrWipe Time Cfg: 0=1500ms, 1=1750ms, 2=2000ms, 3=2250ms, 4=2500ms, 5=2750ms, 6=3000ms, 7=3250ms, 8=3500ms, 9=3750ms, A=4000ms, B=4250ms, C=4500ms, D=4750ms, E=5000ms, F=5250ms",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xx"
+   ],
+   "description": "SCMCourtesy Wipe Time (CWT) & SCMWashBefore Wipe Time (WBWT)",
+   "values": [
+    "0=CWT 1sec, WBWT 100ms",
+    "8=CWT 3secs, WBWT 100ms",
+    "1=CWT 1sec, WBWT 250ms",
+    "9=CWT 3secs, WBWT 250ms",
+    "2=CWT 1sec, WBWT 400ms",
+    "A=CWT 3secs, WBWT 400ms",
+    "3=CWT 1sec, WBWT 550ms",
+    "B=CWT 3secs, WBWT 550ms",
+    "4=CWT 2secs, WBWT 100ms",
+    "C=CWT 4secs, WBWT 100ms",
+    "5=CWT 2secs, WBWT 250ms",
+    "D=CWT 4secs, WBWT 250ms",
+    "6=CWT 2secs, WBWT 400ms",
+    "E=CWT 4secs, WBWT 400ms",
+    "7=CWT 2secs, WBWT 550ms",
+    "F=CWT 4secs, WBWT 550ms"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xx"
+   ],
+   "description": "SFWM Present & RSM Present & HWM Present",
+   "values": [
+    "0=SFWM disable, RSM disable, HWM disable",
+    "8=SFWM enable, RSM disable, HWM disable",
+    "2=SFWM disable, RSM disable, HWM enable",
+    "A=SFWM enable, RSM disable, HWM enable",
+    "4=SFWM disable, RSM enable, HWM disable",
+    "C=SFWM enable, RSM enable, HWM disable",
+    "6=SFWM disable, RSM enable, HWM enable",
+    "E=SFWM enable, RSM enable, HWM enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xx"
+   ],
+   "description": "SCMRrWipeReverseWipe (WRW) & SCMRainSensing Enable (RS) & SCMCourtesyWipe Enable (CW)",
+   "values": [
+    "0=WRW disable, RS disable, CW disable",
+    "8=WRW enable, RS disable, CW disable",
+    "2=WRW disable, RS disable, CW enable",
+    "A=WRE enable, RS disable, CW enable",
+    "4=WRW disable, RS enable, CW disable",
+    "C=WRE enable, RS enable, CW disable",
+    "6=WRW disable, RS enable, CW enable",
+    "E=WRE enable, RS enable, CW enable"
+   ]
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-03-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Steering Wheel Switch Left Hand Cfg: 0=analog config unknown, 1=Ford High, 2=Ford Base, 3=Lincoln High, 4=Lincoln Base, 5=Legacy with OK, 6=Legacy Phone Only, 7=Legacy No MGM",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-03-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Steering Wheel Switch Right Hand Cfg: 0=analog config unknown, 1=Ford High, 2=Ford Base, 3=Lincoln High, 4=Lincoln Base, 5=Legacy with OK, 6=Legacy Phone Only, 7=Legacy No MGM",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-03-01",
+   "pattern": [
+    "xxxx",
+    "xxx*",
+    "xx"
+   ],
+   "description": "Encoder Tolerance (Count)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-04-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Motor Delay Timer Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-04-01",
+   "pattern": [
+    "xxxx",
+    "****",
+    "xx"
+   ],
+   "description": "Tilt Motor Stall Time Limit Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-05-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Tele Motor Stall Time Limit Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-05-01",
+   "pattern": [
+    "xxxx",
+    "****",
+    "xx"
+   ],
+   "description": "Pedal Motor Stall Time Limit Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-06-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Pedal Motor Stall Current Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-06-01",
+   "pattern": [
+    "xxxx",
+    "****",
+    "xx"
+   ],
+   "description": "Tilt Motor Stall Current Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-07-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "description": "Tele Motor Stall Current Cfg (ms)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-07-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 0 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-07-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 1 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-08-01",
+   "pattern": [
+    "**xx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 2 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-08-01",
+   "pattern": [
+    "xx**",
+    "xxxx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 3 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-08-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 4 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-08-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 5 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-09-01",
+   "pattern": [
+    "**xx",
+    "xxxx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 6 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-09-01",
+   "pattern": [
+    "xx**",
+    "xxxx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 7 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-09-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 8 (mask)",
+   "values": []
+  },
+  {
+   "tab": "SCCM",
+   "address": "724-09-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "description": "DTC Mask Byte 9 (mask)",
+   "values": []
+  }
+ ]
+}

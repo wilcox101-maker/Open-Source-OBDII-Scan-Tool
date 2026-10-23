@@ -1,0 +1,51 @@
+{
+ "source": "jdunk54nl's 2009-2014 F-150 FORScan/As-Built spreadsheet (f150forum thread f38/forscan-applications-349018); module table credited to EpicCowlick's 2017 Super Duty sheet",
+ "source_url": "https://docs.google.com/spreadsheets/d/15MQ8CEh7eSXUJYjPg-J8uUqpLwP_xyqbfQHB0rAnXNs/edit#gid=1741285730",
+ "confidence": "CommunityReported",
+ "skipped_tabs": [
+  "VINs"
+ ],
+ "modules": {
+  "720": [
+   "IPC"
+  ],
+  "724": [
+   "SCCM"
+  ],
+  "726": [
+   "BCM"
+  ],
+  "727": [
+   "ACM (2012)",
+   "ACM (201314)"
+  ],
+  "730": [
+   "PSCM"
+  ],
+  "733": [
+   "EATC"
+  ],
+  "737": [
+   "RCM"
+  ],
+  "744": [
+   "DSM"
+  ],
+  "760": [
+   "ABS"
+  ],
+  "776": [
+   "DCCSM"
+  ],
+  "783": [
+   "DSP"
+  ],
+  "7A6": [
+   "FDIM"
+  ],
+  "7D0": [
+   "APIM Sync 1",
+   "APIM Sync 2"
+  ]
+ }
+}

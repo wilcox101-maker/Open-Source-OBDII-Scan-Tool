@@ -1,0 +1,799 @@
+{
+ "note": "Same address+nibble pattern in both sheets. Different vehicle generations (2009-2014 vs 2015-2020); neither overwrites the other. same_description=false means the meaning differs or wording differs - treat as a conflict.",
+ "conflicts": [
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Internal SDARS (IS) & APIM Type (AT) & EFP & APIM [log/don't log messages]",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Internal SDARS & APIM type (gen1/gen2) & EFP (CAN/LIN) & APIM",
+    "Internal Satellite Digital Audio Radio Service (SDARS), APIM Type, Electronic Feature Panel (EFP) (CAN/LIN), APIM",
+    "Internal Satellite Digital Audio Radio Service (SDARS), APIM Type (GEN1/GEN2), EFP (CAN/LIN), APIM"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "HD Radio (HDR) & DAB Tuner (DAB) & SWC Audio [set/don't set missing messages] (SWCA) & Shaker System (SS)",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "HD Radio (enabled/disabled) & DAB Tuner (avail/not avail) & SWC Audio:CAN-SWC (avail/not avail) & CGEA Version (1.2/1.3)",
+    "HD Radio (HDR), Digital Audio Broadcast (DAB) Tuner, Steering Wheel Controls (SWC) Audio: CAN-SWC, CGEA Version (1.2/1.3)",
+    "HD Radio (HDR), Digital Audio Broadcast (DAB) Tuner, Steering Wheel Controls (SWC) Audio: CAN-SWC, CGEA Version (1.2/1.3)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Front Satellite Speakers (FSS) & Rear Satellite Speakers (RSS)",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Front/Rear Satellite Speakers (Internal Amp, External Variable, Fixed Line Level, Not Used, Reserved)",
+    "Front/Rear Satellite Speakers",
+    "Front/Rear Satellite Speakers"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Aux1 & Aux2",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Aux 1 & Aux 2:",
+    "Aux 1, Aux 2",
+    "Aux 1, Aux 2"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Front Speaker Detection (FSD) & Rear Speaker Detection (RSD) & Antenna Type (AT) & Number of Presets (NOP)",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Front/Rear Speakers Detection enabled (if Int amp)/disabled & Antenna Type & Number of Presets",
+    "Front/Rear Speakers Detection, Antenna Type, Number of Presets",
+    "A2B, Reserved, Alternative Frequency (AF), Number of Presets (NOP)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "same_description": true,
+   "this_sheet": "Front Tweeters (FT) & Chimes Strategy (CS) & ANC",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Front Tweeters (FT) & Chime Strategy (CS) & ANC (fake engine sound) & USB",
+    "Front Tweeters (FT), Chime Strategy (CS), Active Noise Control (ANC), USB",
+    "Front Tweeters (FT), Chime Strategy (CS), Active Noise Control (ANC), USB"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Aux1 Channel Location for Balance/Fade (Aux1) & Aux2 Channel Location for Balance/Fade (Aux2) \n& MP3 CD Text conversion (MP3)",
+   "this_tab": "ACM (201314)",
+   "f150_2015_2020": [
+    "Aux 1/Aux 2 Channel Location for Balance / Fade, CD Configuration, MP3 CD Text Conversion (Folder/File/Track Name Replaced by Number)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Messaging (Mess) & Internal SDARS (ISDARS) & CPM & External SDARS (ESDARS)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Internal SDARS & APIM type (gen1/gen2) & EFP (CAN/LIN) & APIM",
+    "Internal Satellite Digital Audio Radio Service (SDARS), APIM Type, Electronic Feature Panel (EFP) (CAN/LIN), APIM",
+    "Internal Satellite Digital Audio Radio Service (SDARS), APIM Type (GEN1/GEN2), EFP (CAN/LIN), APIM"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "RSEM & Shaker System (SS) & FES & Smart DSP (SDSP)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "HD Radio (enabled/disabled) & DAB Tuner (avail/not avail) & SWC Audio:CAN-SWC (avail/not avail) & CGEA Version (1.2/1.3)",
+    "HD Radio (HDR), Digital Audio Broadcast (DAB) Tuner, Steering Wheel Controls (SWC) Audio: CAN-SWC, CGEA Version (1.2/1.3)",
+    "HD Radio (HDR), Digital Audio Broadcast (DAB) Tuner, Steering Wheel Controls (SWC) Audio: CAN-SWC, CGEA Version (1.2/1.3)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Center Image (CI) & Convertible [display1/display2] (CON) & Compression (COM) & Subwoofer (SUB)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Front/Rear Satellite Speakers (Internal Amp, External Variable, Fixed Line Level, Not Used, Reserved)",
+    "Front/Rear Satellite Speakers",
+    "Front/Rear Satellite Speakers"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "External 4 Speaker Amp (E4SA) & 5.1 DSP (DSP) & Aux Jack (AJ) & Subwoofer II (S2)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Aux 1 & Aux 2:",
+    "Aux 1, Aux 2",
+    "Aux 1, Aux 2"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Subwoofer II voltage (S2V) & Subwoofer voltage (SV) & Crossover Rear Speakers Detection (CRSD) & \nCrossover Front Speakers Detection (CFSD)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Front/Rear Speakers Detection enabled (if Int amp)/disabled & Antenna Type & Number of Presets",
+    "Front/Rear Speakers Detection, Antenna Type, Number of Presets",
+    "A2B, Reserved, Alternative Frequency (AF), Number of Presets (NOP)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Brand & SWC Pod Type (SPT)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Front Tweeters (FT) & Chime Strategy (CS) & ANC (fake engine sound) & USB",
+    "Front Tweeters (FT), Chime Strategy (CS), Active Noise Control (ANC), USB",
+    "Front Tweeters (FT), Chime Strategy (CS), Active Noise Control (ANC), USB"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Reverse Park Aid (RPA) & Vehicle Speed (VS)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Aux 1 Channel Location for Balance & Fade",
+    "Aux 2 Channel Location for Balance & Fade",
+    "Reserved, PS Field [configuration only applies to RBDS] (PS), On-Demand Lamp (ODL)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxx*",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "RUN/ACC: 0=determined by discrete or MS-CAN, 1=will revert to Hardwired, 2=will revert to MS-CAN, 3=determined by discrete or MS-CAN *",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "CD & MP3 CD Text Conversion",
+    "CD, Enable Mute Radio Configuration (MRC)",
+    "CD & Enable Mute Radio Configuration (MRC)"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "*xxx"
+   ],
+   "same_description": false,
+   "this_sheet": "CADS Audio Mute (CAM) & MyKey (MK) & Canadian SDARS Content (CSC)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Center Channel Open Detection & AAM & Convertible & Turn Signal Chimes",
+    "Center Channel Open Detection, Auxiliary Audio Module (AAM), Convertible, Turn Signal Chimes",
+    "Center Channel Open Detection, Auxiliary Audio Module (AAM), Convertible, Turn Signal Chimes"
+   ]
+  },
+  {
+   "address": "727-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "x*xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Delayed ACC (DA) & Steering Wheel Control (SWC)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "Demand Lamp & Tune Knob Acceleration",
+    "Demand Lamp, Tune Knob Acceleration",
+    "Traffic, Rear Tweeters (RT), Tune Knob Acceleration (TKA), Antenna 2\n* Traffic applies to RDS radios only, Rear Tweeters not applicable for A2B ACMs *"
+   ]
+  },
+  {
+   "address": "727-02-01",
+   "pattern": [
+    "**xx"
+   ],
+   "same_description": true,
+   "this_sheet": "AM Station for Antenna Test (kHz)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "AM Station for Antenna Test (kHz)"
+   ]
+  },
+  {
+   "address": "727-03-01",
+   "pattern": [
+    "**xx"
+   ],
+   "same_description": true,
+   "this_sheet": "AM Signal Strength - Acceptable Value (dBuV)",
+   "this_tab": "ACM (2012)",
+   "f150_2015_2020": [
+    "AM Signal Strength - Acceptable Value (dBuV)"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Brand & I-CAN Diagnostics (ICAN): 0=Ford & ICAN off, 1=Ford & ICAN on, 2=Mercury & ICAN off, 3=Mercury & ICAN on, 4=Lincoln & ICAN off, 5=Lincoln & ICAN on",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Sony Sound Processor (Smart DSP), AAM, Sirius Satellite Radio (SDARS), Rear Seat Entertainment (RSEM)",
+    "Smart DSP (DSP), FES, Satellite Digital Audio Radio Service (SDARS), Rear Seat Entertainment (RSEM)",
+    "Removes Sirius from audio sources (decrement your value where the asterisk is by 2; if you have an \"A\" make it \"8\", if you have \"2\" make it \"0\")"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Missing Message Strategy (MMS) & SDLC & E-Call Strategy (ECALL)",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "PDC HMI, Reverse View Camera (RVC 8\" screen Only), Reserved, Illumination Strategy",
+    "Parking Distance Control (PDC) HMI, Reverse View Camera (RVC 8\" screen Only), Illumination Strategy"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "ECall & VHR & SYNC Services (SS) & TBT",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Auxiliary Input, Climate Control Strategy, Chime Strategy, Type of Volume Knob Display",
+    "Auxiliary Input, Climate Control, Chime Strategy, Tow Capable Vehicle"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Mobile Apps (MA) & CID Version (CID)",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Speaker Fader in Menu, Android Audio Projection Mode (AAP) Aux Input Installed (AII), Audio Mode (AM), Ignition Type (IT)",
+    "Speaker Fader in Menu, CD Compression, Date Format, Ignition Type (IT)"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Non-CGEA Type: 0=NA1, 8=NA2",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Tuner Type [Single/Dual or Single & Data Tune] (TT) & Vehicle Driver Location (VDL) & WOW Seat (WS) & TMC",
+    "Tuner Type [Dual Tuner or Single Tuner + Data Tuner] (TT), Vehicle Driver Location (VDL), Trailer Module, TMC (Traffic Message Channel)"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xxx*",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Future Feature 8-14",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Digital Audio Broadcast (DAB), Climate Front Zones, Steering Wheel Angle Sensor (SWAS), HD Radio",
+    "Digital Audio Broadcast (DAB), Climate Front Zones, Steering Wheel Angle Sensor, HD Radio"
+   ]
+  },
+  {
+   "address": "7D0-01-01",
+   "pattern": [
+    "xxxx",
+    "xxxx",
+    "*xxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Future Feature 0-7",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "I-CAN Diagnostics (ICAN), Smart Auto - Climate (SAC), My Temp - EFP Hard Button Present (MYTEMP), \nRadio Tuner Market - Non RDS Market=NA, RDS Market=Europe, APA, SA",
+    "HDR Song Tagging, Sirius Song Tagging, My Temp EFP Hard Button Present), Radio Tuner Market: Non RDS Market (NA)/RDS Market (Europe, APA, SA)"
+   ]
+  },
+  {
+   "address": "7D0-02-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "WERS Destination Code Second Letter",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Boot Screen Animations Sync Versions 3.0 thru 3.3 (Splash Screens)",
+    "Boot Screen Animations Sync Version 2 (Splash Screens)"
+   ]
+  },
+  {
+   "address": "7D0-02-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xxxx"
+   ],
+   "same_description": false,
+   "this_sheet": "Reserved for Future WERS Destination Code Third Letter",
+   "this_tab": "APIM Sync 1",
+   "f150_2015_2020": [
+    "Vehicle Style in Camera Views",
+    "Vehicle Style in Camera Views"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "RW Switch Present Cfg (RWS) & IP Heated Wash Present Cfg (IPH) & Stalk Heated Wash Present Cfg (SHW)\n& Headlamp Switch Cfg (HS)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "RW Switch Present  (RWS) / Lane Depart Enable (LD) / Driver Side (DS)"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Dim Switch Cfg: 0=disabled, 8=enabled",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "Parklamp Feature:  0=disabled, 1=enabled, 2=reserved, 3=reserved"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "RSAS Present Cfg (RSAS) & ASAS Present Cfg (ASAS) & NO SAS Present Cfg (NSAS) \n& Power Pedal Config (PPC)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "RSAS Present Cfg (RS)/ ASAS Present Cfg (AS) / No SAS Present Cfg (NS)"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "xxx*",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Tilt Config (TC) & Tele Config (TEL) & Hall Sensors Present Cfg (HSC)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "Tilt Cfg / Tele Cfg / AFS System"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "EE Tilt Enabled Cfg (ETIL) & EE Tele Enabled Cfg (ETEL) & EE Pedal Enabled Cfg (EPED)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "Cluster Crossover Cfg: 0=disable, 8=enable (This is only for the Up,Down,Right,Left/Center buttons. Not the lower set for cruise control, voice commands, etc.)"
+   ]
+  },
+  {
+   "address": "724-01-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "Electronic Turn Signal Cancel Cfg: # of Flashes & On Until Cancelled (OUC)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "Electronic Turn Signal Cancel Cfg: # of Flashes & On Until Cancelled (OUC)"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "*xxx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "HaveBeenLIN Cfgd (HBL) & SCMSpeedDependant Enable (SD) \n& SCMNeutralDisable AutoWipe (NDAW) & SCMInit AutoWipe on Reset (AWR)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "HaveBeenLIN Cfgd (HBL) / SCMSpeedDependant Enable (SD) / SCMNeutralDisable AutoWipe (NDAW) / SCMInit AutoWipe on Reset (AWR)"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "x*xx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "SCMInit OffToAutoWipe (OTAW) & SCMRrWipe LiftgateAjarEnable (WLA) \n& SCMLoadShed HeatWash (LSH)& SCMLoadShedVolt HeatWash(LSV)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "SCMInit OffToAutoWipe (OTAW) / SCMRrWipe LiftgateAjarEnable (WLA) / SCMRrWipe Pos1 (WP1)/ SCMRrWipe Pos2 (WP2)"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "xx*x",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "SCMRrWipe Time Cfg: 0=1500ms, 1=1750ms, 2=2000ms, 3=2250ms, 4=2500ms, 5=2750ms, 6=3000ms, 7=3250ms, 8=3500ms, 9=3750ms, A=4000ms, B=4250ms, C=4500ms, D=4750ms, E=5000ms, F=5250ms",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "SCMRrWipe Time Cfg: 0=1500ms, 1=1750ms, 2=2000ms, 3=2250ms, 4=2500ms, 5=2750ms, 6=3000ms, 7=3250ms, 8=3500ms, 9=3750ms, A=4000ms, B=4250ms, C=4500ms, D=4750ms, E=5000ms, F=5250ms"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "*xxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "SCMCourtesy Wipe Time (CWT) & SCMWashBefore Wipe Time (WBWT)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "SCMCourtesy Wipe Time (CWT) / SCMWashBefore Wipe Time (WBWT)"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "x*xx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "SFWM Present & RSM Present & HWM Present",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "SFWM Present / RSM Present / SCMWindshieldType Cfg (WT)"
+   ]
+  },
+  {
+   "address": "724-02-01",
+   "pattern": [
+    "xxxx",
+    "xx*x",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "SCMRrWipeReverseWipe (WRW) & SCMRainSensing Enable (RS) & SCMCourtesyWipe Enable (CW)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "SCMRrWipeReverseWipe (WRW) / SCMRainSensing Enable (RS) / SCMCourtesyWipe Enable (CW)"
+   ]
+  },
+  {
+   "address": "724-04-01",
+   "pattern": [
+    "xxxx",
+    "****",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Tilt Motor Stall Time Limit Cfg (ms)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "LPF Cut Off Frequency (Hz)"
+   ]
+  },
+  {
+   "address": "724-06-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Pedal Motor Stall Current Cfg (ms)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "ASAS Cal ASP ABS (deg)"
+   ]
+  },
+  {
+   "address": "724-06-01",
+   "pattern": [
+    "xxxx",
+    "****",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Tilt Motor Stall Current Cfg (ms)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "ASAS Cal SteeringSpeed (deg)"
+   ]
+  },
+  {
+   "address": "724-07-01",
+   "pattern": [
+    "****",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": false,
+   "this_sheet": "Tele Motor Stall Current Cfg (ms)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "ASAS Cal VehStabilityTime (ms)"
+   ]
+  },
+  {
+   "address": "724-07-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 0 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 0 (mask)"
+   ]
+  },
+  {
+   "address": "724-07-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 1 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 1 (mask)"
+   ]
+  },
+  {
+   "address": "724-08-01",
+   "pattern": [
+    "**xx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 2 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 2 (mask)"
+   ]
+  },
+  {
+   "address": "724-08-01",
+   "pattern": [
+    "xx**",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 3 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 3 (mask)"
+   ]
+  },
+  {
+   "address": "724-08-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 4 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 4 (mask)"
+   ]
+  },
+  {
+   "address": "724-08-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 5 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 5 (mask)"
+   ]
+  },
+  {
+   "address": "724-09-01",
+   "pattern": [
+    "**xx",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 6 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 6 (mask)"
+   ]
+  },
+  {
+   "address": "724-09-01",
+   "pattern": [
+    "xx**",
+    "xxxx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 7 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 7 (mask)"
+   ]
+  },
+  {
+   "address": "724-09-01",
+   "pattern": [
+    "xxxx",
+    "**xx",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 8 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 8 (mask)"
+   ]
+  },
+  {
+   "address": "724-09-01",
+   "pattern": [
+    "xxxx",
+    "xx**",
+    "xx"
+   ],
+   "same_description": true,
+   "this_sheet": "DTC Mask Byte 9 (mask)",
+   "this_tab": "SCCM",
+   "f150_2015_2020": [
+    "DTC Mask Byte 9 (mask)"
+   ]
+  }
+ ]
+}

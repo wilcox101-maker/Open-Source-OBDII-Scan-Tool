@@ -52,10 +52,10 @@ public static class FordF150_2017
         new("SODL", "Side Obstacle Detection Left",       Bus.HsCan, 0x7C4, 0x7CC, Confidence.Unverified),
         new("SODR", "Side Obstacle Detection Right",      Bus.HsCan, 0x7C6, 0x7CE, Confidence.Unverified),
         // Modules FORScan found on Dale's 2017 F-150 that weren't in the original table. The log has no CAN IDs, so the address is 0 (unknown) and the scanner skips them.
-        new("TCCM",  "Transfer Case Control Module",            Bus.HsCan, 0, 0, Confidence.Unverified, "Address unknown", ModuleDefinition.VerifiedFromLog),
+        new("TCCM",  "Transfer Case Control Module",            Bus.HsCan, 0x761, 0x769, Confidence.Unverified, "Address 0x761 per community module table (jdunk54nl sheet, credited to EpicCowlick 2017 Super Duty); not confirmed on this truck", ModuleDefinition.VerifiedFromLog),
         new("PBM",   "Park Brake Control Module",               Bus.HsCan, 0, 0, Confidence.Unverified, "Address unknown; electric park brake", ModuleDefinition.VerifiedFromLog),
         new("OCS",   "Occupant Classification System Module",   Bus.HsCan, 0, 0, Confidence.Unverified, "Address unknown", ModuleDefinition.VerifiedFromLog),
-        new("RTM",   "Radio Transceiver Module",                Bus.HsCan, 0, 0, Confidence.Unverified, "Address unknown", ModuleDefinition.VerifiedFromLog),
+        new("RTM",   "Radio Transceiver Module",                Bus.HsCan, 0x751, 0x759, Confidence.Unverified, "Address 0x751 per community module table (jdunk54nl sheet, credited to EpicCowlick 2017 Super Duty); bus not confirmed", ModuleDefinition.VerifiedFromLog),
         new("FCDIM", "Front Control/Display Interface Module",  Bus.MsCan, 0x7A5, 0x7AD, Confidence.CommunityReported, "0x7A5 per the f150forum As-Built spreadsheet; bus [UNVERIFIED]", ModuleDefinition.VerifiedFromLog),
     };
 }
