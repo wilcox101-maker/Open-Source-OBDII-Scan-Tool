@@ -1,0 +1,182 @@
+===OBD2_PCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: On Board Diagnostic II (PCM)
+
+===END OBD2_PCM DTC None===
+
+===PCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Powertrain Control Module
+
+===END PCM DTC None===
+
+===APIM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Accessory Protocol Interface Module
+
+===END APIM DTC None===
+
+===BdyCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Body Control Module
+
+===END BdyCM DTC None===
+
+===FCIM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Front Controls Interface Module
+
+===END FCIM DTC None===
+
+===FCDIM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Front Control/Display Interface Module
+
+===END FCDIM DTC None===
+
+===OCS DTC None===
+Successful DTC reading, no error codes found
+
+Module: Occupant Classification System Module
+
+===END OCS DTC None===
+
+===TCCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Transfer Case Control Module
+
+===END TCCM DTC None===
+
+===ABS DTC None===
+Successful DTC reading, no error codes found
+
+Module: Antilock braking system
+
+===END ABS DTC None===
+
+===PBM DTC C2005:09-D0===
+Code: C2005 - Right Actuator
+
+Additional Fault Symptom (:09):
+ - Component Failures
+
+Status (-D0):
+ - Malfunction Indicator Lamp is On for this DTC
+ - Test not complete
+
+Module: Park Brake Control Module
+
+===END PBM DTC C2005:09-D0===
+
+===PBM DTC C1034:78-AB===
+Code: C1034 - Park Brake
+
+Additional Fault Symptom (:78):
+ - Alignment Or Adjustment Incorrect
+
+Status (-AB):
+ - DTC Present at Time of Request
+ - Malfunction Indicator Lamp is On for this DTC
+
+Module: Park Brake Control Module
+
+ Freeze Frame  #1:
+-EVENT_TIME: 290285119 s (Sat Sep 19 12:51:19 2026) - Event time
+-TOTAL_DISTANCE: 186219 miles - Total Distance
+
+ Freeze Frame  #2:
+-EVENT_TIME: 290285119 s (Sat Sep 19 12:51:19 2026) - Event time
+-TOTAL_DISTANCE: 186219 miles - Total Distance
+===END PBM DTC C1034:78-AB===
+
+===PBM DTC C2005:77-D0===
+Code: C2005 - Right Actuator
+
+Additional Fault Symptom (:77):
+ - Commanded Position Not Reachable
+
+Status (-D0):
+ - Malfunction Indicator Lamp is On for this DTC
+ - Test not complete
+
+Module: Park Brake Control Module
+
+===END PBM DTC C2005:77-D0===
+
+===RTM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Radio Transceiver Module
+
+===END RTM DTC None===
+
+===PDM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Passengers Door Control Unit
+
+===END PDM DTC None===
+
+===DDM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Drivers Door Module
+
+===END DDM DTC None===
+
+===RCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Restraint Control Module
+
+===END RCM DTC None===
+
+===PSCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Power Steering Control Module
+
+===END PSCM DTC None===
+
+===ACM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Audio Control Module
+
+===END ACM DTC None===
+
+===SCCM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Steering Column Control Module
+
+===END SCCM DTC None===
+
+===IPC DTC None===
+Successful DTC reading, no error codes found
+
+Module: Instrument Panel Control Module
+
+===END IPC DTC None===
+
+===GWM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Gateway Module A
+
+===END GWM DTC None===
+
+===GPSM DTC None===
+Successful DTC reading, no error codes found
+
+Module: Global Positioning System Module
+
+===END GPSM DTC None===
+

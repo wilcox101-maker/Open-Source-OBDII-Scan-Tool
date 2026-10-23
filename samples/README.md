@@ -1,0 +1,1 @@
+`real-logs/` holds Dale's unredacted FORScan logs from his 2017 F-150. It is git-ignored because the files contain the full VIN, the adapter serial and a Bluetooth MAC. Redacted copies (VIN reduced to its last 6 characters) are stored in `tests/ObdLink.Core.Tests/Fixtures/forscan/`. The `.fsl` file is a FORScan binary live-data stream; we don't parse it, and it isn't committed.

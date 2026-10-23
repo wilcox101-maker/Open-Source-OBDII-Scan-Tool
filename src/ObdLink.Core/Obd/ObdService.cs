@@ -6,6 +6,7 @@ namespace ObdLink.Core.Obd;
 public static class DtcFormat
 {
     /// <summary>SAE J2012 / J1979 two-byte DTC encoding: bits 15-14 letter (P,C,B,U), then 4 hex digits.</summary>
+    public static ushort ToTwoBytes(string code) => (ushort)("PCBU".IndexOf(char.ToUpperInvariant(code[0])) << 14 | Convert.ToUInt16(code[1..5], 16));
     public static string FromTwoBytes(ushort v) => $"{"PCBU"[v >> 14]}{(v >> 12) & 0x3:X}{v & 0x0FFF:X3}";
 }
 

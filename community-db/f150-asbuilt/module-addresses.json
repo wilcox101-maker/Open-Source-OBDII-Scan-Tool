@@ -1,0 +1,100 @@
+{
+ "source": "Dale-uploaded spreadsheet (f150forum community 2015+ F-150 As-Built database; sheet 'Common' last revised 10/29/22)",
+ "file_sha256_prefix": "dd83c69a1c25",
+ "confidence": "CommunityReported - not Ford official; not verified on Dale's truck",
+ "modules": {
+  "706": [
+   "IPMA (2015-17) - old",
+   "IPMA (2015-20)"
+  ],
+  "712": [
+   "SCMGSCMH"
+  ],
+  "714": [
+   "HSWM",
+   "HSWM - Old"
+  ],
+  "720": [
+   "IPC",
+   "IPC-Newer",
+   "IPC-old",
+   "IPC-old2"
+  ],
+  "724": [
+   "SCCM"
+  ],
+  "726": [
+   "BCM (BdyCM)-old",
+   "BCM (JU5T)",
+   "Headlights-Draft",
+   "Powerpont Timeout"
+  ],
+  "727": [
+   "ACM (2015-17)",
+   "ACM (2018+)",
+   "ACM 2015-17",
+   "ACM 2018-20"
+  ],
+  "730": [
+   "PSCM"
+  ],
+  "736": [
+   "PAM (2015-20)",
+   "PAM-old"
+  ],
+  "737": [
+   "RCM"
+  ],
+  "740": [
+   "DDMPDM"
+  ],
+  "744": [
+   "DSM"
+  ],
+  "754": [
+   "TCU-2018",
+   "TCU-J",
+   "TCU-K"
+  ],
+  "760": [
+   "ABS (2015-2017)",
+   "ABS (2018-2019)"
+  ],
+  "776": [
+   "SCME"
+  ],
+  "783": [
+   "DSP (2018+)"
+  ],
+  "791": [
+   "TRM"
+  ],
+  "7A5": [
+   "FCDIM"
+  ],
+  "7A7": [
+   "FCIM"
+  ],
+  "7B1": [
+   "IPMB",
+   "IPMB - old",
+   "IPMB-old"
+  ],
+  "7C4": [
+   "SODL SODR",
+   "SODLSODR-old"
+  ],
+  "7D0": [
+   "APIM Sync 1",
+   "APIM Sync 2",
+   "APIM Sync 3",
+   "APIM Sync 3 - 2-27-22",
+   "APIM-Backup",
+   "APIM-New",
+   "APIM-Old2",
+   "APIM-old",
+   "BVNI BAPI",
+   "BVNI BAPI (1)"
+  ]
+ }
+}

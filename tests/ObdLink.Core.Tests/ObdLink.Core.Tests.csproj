@@ -10,5 +10,6 @@
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
+  <ItemGroup><None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" /><None Include="..\..\community-db\f150-asbuilt\*.json" Link="Fixtures\community\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><ProjectReference Include="..\..\src\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
 </Project>

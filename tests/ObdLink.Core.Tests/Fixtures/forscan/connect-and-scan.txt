@@ -1,0 +1,32 @@
+(WARN) [22:19:32.993] Checking Bluetooth (XX:XX:XX:XX:XX:XX)...
+(WARN) [22:19:56.750] Checking FTDI #1:XXXXXXXXXXXX...
+(OK) [22:20:02.827] Connection to adapter has been established: FTDI #1:XXXXXXXXXXXX
+(OK) [22:20:02.828] Adapter:  OBDLink EX r2.2.1 STN2231 v5.10.3 (ELM327 v1.4b)
+(ERR) [22:20:03.579] Unable to connect to vehicle. Please make
+sure the ignition key is ON and try again
+(OK) [22:20:42.952] Connection to adapter has been established: FTDI #1:XXXXXXXXXXXX
+(OK) [22:20:42.953] Adapter:  OBDLink EX r2.2.1 STN2231 v5.10.3 (ELM327 v1.4b)
+(OK) [22:20:43.043] Connection to vehicle has been established
+(OK) [22:20:44.156] Vehicle: Ford F-150 TiVCT 3.5L 2017 ( 2017 MY ), VIN: 1FT*********25268
+(OK) [22:20:46.944] Found module:  OBD2_PCM - On Board Diagnostic II (PCM)
+(OK) [22:20:48.659] Found module:  PCM - Powertrain Control Module
+(OK) [22:20:59.492] Found module:  APIM - Accessory Protocol Interface Module
+(OK) [22:21:00.974] Found module:  BdyCM - Body Control Module
+(OK) [22:21:07.698] Found module:  FCIM - Front Controls Interface Module
+(OK) [22:21:08.454] Found module:  FCDIM - Front Control/Display Interface Module
+(OK) [22:21:10.773] Found module:  OCS - Occupant Classification System Module
+(OK) [22:21:11.757] Found module:  TCCM - Transfer Case Control Module
+(OK) [22:21:12.224] Found module:  ABS - Antilock braking system
+(OK) [22:21:13.542] Found module:  PBM - Park Brake Control Module
+(WARN) [22:21:14.116] DTCs in PBM: C1034:78-AB, U0415:86-68, C2005:77-AB
+(OK) [22:21:15.178] Found module:  RTM - Radio Transceiver Module
+(OK) [22:21:15.978] Found module:  PDM - Passengers Door Control Unit
+(OK) [22:21:16.631] Found module:  DDM - Drivers Door Module
+(OK) [22:21:17.266] Found module:  RCM - Restraint Control Module
+(OK) [22:21:18.252] Found module:  PSCM - Power Steering Control Module
+(WARN) [22:21:18.710] DTCs in PSCM: U0415:00-48, U0415:86-C8
+(OK) [22:21:19.104] Found module:  ACM - Audio Control Module
+(OK) [22:21:19.871] Found module:  SCCM - Steering Column Control Module
+(OK) [22:21:20.373] Found module:  IPC - Instrument Panel Control Module
+(OK) [22:21:21.014] Found module:  GWM - Gateway Module A
+(OK) [22:21:23.991] Found module:  GPSM - Global Positioning System Module

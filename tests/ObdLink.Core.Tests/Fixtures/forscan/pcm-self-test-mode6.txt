@@ -1,0 +1,19 @@
+(OK) [18:10:09.511] Key On Engine Running On Demand Self-Test has been started
+(WARN) [18:11:44.780] Test completed, found DTCs: P1464:00, P1703:00
+(OK) [18:12:40.062] Mode 6 - Test Results for Specific Monitored Systems has been started
+(OK) [18:12:40.175] Misfire monitoring: Complete
+(OK) [18:12:40.177] Fuel system monitoring: Complete
+(OK) [18:12:40.179] Comprehensive component monitoring: Complete
+(OK) [18:12:40.182] Catalyst monitoring : Complete
+(WARN) [18:12:40.183] Evaporative system monitoring: Incomplete
+(WARN) [18:12:40.185] Oxygen sensor monitoring: Incomplete
+(WARN) [18:12:40.187] Oxygen sensor heater monitoring: Incomplete
+(OK) [18:12:40.189] EGR system monitoring: Complete
+(OK) [18:12:43.074] Test completed successfully, no errors found
+(ERR) [18:13:26.585] Key On Engine Off On Demand Self-Test has been cancelled by operator
+(OK) [18:13:42.832] Key On Engine Off On Demand Self-Test has been started
+(WARN) [18:13:54.121] Test completed, found DTCs: P1464:00
+(OK) [18:14:09.301] Key On Engine Off On Demand Self-Test has been started
+(OK) [18:14:20.577] Test completed successfully, no errors found
+
+

@@ -1,0 +1,14 @@
+(OK) [18:10:09.511] Key On Engine Running On Demand Self-Test has been started
+(WARN) [18:11:44.780] Test completed, found DTCs: P1464:00, P1703:00
+
+===DTC P1464:00===
+Code: P1464 - A/C Demand Out Of Self Test Range
+
+Module: Powertrain Control Module===END DTC P1464:00===
+
+===DTC P1703:00===
+Code: P1703 - Brake Switch Out Of Self Test Range
+
+Module: Powertrain Control Module===END DTC P1703:00===
+
+

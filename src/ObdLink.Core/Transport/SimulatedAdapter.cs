@@ -10,6 +10,8 @@ public sealed class SimulatedAdapter
     public string Vin { get; set; } = "TESTVIN0000000001"; // synthetic
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
     public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x726, 0x720 };
+    /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>
+    public Dictionary<uint, List<(uint Dtc, byte Status)>> UdsDtcs { get; } = new();
     public bool CorruptWrites { get; set; }
     public string? Protocol { get; private set; }
     private uint _header = 0x7DF;
@@ -67,7 +69,8 @@ public sealed class SimulatedAdapter
             0x10 => new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 },
             0x11 => new byte[] { 0x51, r[1] },
             0x14 => new byte[] { 0x54 },
-            0x19 => new byte[] { 0x59, 0x02, 0xFF, 0x91, 0x23, 0x45, 0x2F },
+            0x19 => UdsDtcs.TryGetValue(tx, out var dl) ? new byte[] { 0x59, 0x02, 0xFF }.Concat(dl.SelectMany(d => new[] { (byte)(d.Dtc >> 16), (byte)(d.Dtc >> 8), (byte)d.Dtc, d.Status })).ToArray()
+                                                     : new byte[] { 0x59, 0x02, 0xFF, 0x91, 0x23, 0x45, 0x2F },
             0x27 => r[1] % 2 == 1 ? new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 } : new byte[] { 0x67, r[1] },
             0x22 => Read(tx, (ushort)(r[1] << 8 | r[2])),
             0x2E => Write(tx, (ushort)(r[1] << 8 | r[2]), r[3..]),
@@ -92,5 +95,29 @@ public sealed class SimulatedAdapter
     {
         var frames = IsoTp.IsoTpCodec.Segment(p, pad: padded ? (byte)0 : null);
         return string.Join("\r", frames.Select(f => rx.ToString("X3") + Convert.ToHexString(f)));
+    }
+
+    /// <summary>
+    /// Builds a simulator from Dale's FORScan 2017 F-150 logs: modules listed as found (only those with
+    /// a known address in the table) and their DTCs. FORScan "C1034:78-AB" is encoded as UDS DTC bytes
+    /// [J2012 2 bytes][FTB 0x78] with status 0xAB. Reading "-AB" as the UDS status byte is an assumption,
+    /// but it fits the values seen (08, 48, 68, 6C, AB, C8 are all valid status masks).
+    /// </summary>
+    public static SimulatedAdapter FromForscanLogs(string scanLog, params string[] dtcReports)
+    {
+        var sim = new SimulatedAdapter { Vin = "XXXXXXXXXXXE25268" };
+        sim.PresentModules.Clear();
+        var table = Modules.FordF150_2017.Modules;
+        uint? Addr(string ac) { var a = Modules.FordF150_2017.ForscanAlias.GetValueOrDefault(ac, ac); return table.FirstOrDefault(m => m.Acronym == a && m.HasAddress)?.TxId; }
+        foreach (var ac in Logs.ForscanLogParser.FoundModules(scanLog)) if (Addr(ac) is uint t) sim.PresentModules.Add(t);
+        foreach (var d in dtcReports.SelectMany(Logs.ForscanLogParser.ParseDtcs))
+        {
+            if (Addr(d.Module) is not uint t) continue;
+            var two = ObdLink.Core.Obd.DtcFormat.ToTwoBytes(d.Code);
+            var code = (uint)two << 8 | Convert.ToByte(d.Symptom, 16);
+            if (!sim.UdsDtcs.TryGetValue(t, out var l)) sim.UdsDtcs[t] = l = new();
+            if (!l.Any(x => x.Dtc == code)) l.Add((code, Convert.ToByte(d.Status, 16)));
+        }
+        return sim;
     }
 }

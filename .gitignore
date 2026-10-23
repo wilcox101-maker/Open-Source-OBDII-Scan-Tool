@@ -6,3 +6,5 @@ obj/
 TestResults/
 *.log
 *.asbuilt.json
+# raw user logs (contain full VIN / adapter serials); redacted copies live in tests/ObdLink.Core.Tests/Fixtures
+samples/real-logs/

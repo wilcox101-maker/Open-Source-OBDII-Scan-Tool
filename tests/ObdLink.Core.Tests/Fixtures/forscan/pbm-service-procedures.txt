@@ -1,0 +1,16 @@
+(OK) [12:46:47.802] PBM Enter Electric Parking Brake Maintenance Mode has been started
+(OK) [12:47:37.059] Service procedure completed successfully.
+(OK) [12:47:54.363] PBM Exit Electric Parking Brake Maintenance Mode has been started
+(ERR) [12:47:58.480] Service procedure failed
+(OK) [12:48:21.048] PBM Module Reboot has been started
+(OK) [12:48:27.151] Please wait...10 seconds
+(OK) [12:48:45.511] Service procedure completed successfully.
+(OK) [12:49:01.725] PBM Exit Electric Parking Brake Maintenance Mode has been started
+(ERR) [12:49:05.851] Service procedure failed
+(OK) [12:49:20.776] PBM Enter Electric Parking Brake Maintenance Mode has been started
+(ERR) [12:49:24.884] Service procedure failed
+(OK) [12:51:17.512] PBM Exit Electric Parking Brake Maintenance Mode has been started
+(ERR) [12:51:21.624] Service procedure failed
+(OK) [12:58:53.347] PBM Apply and Release calibration ('Assembly Test') has been started
+(ERR) [12:59:38.159] Service procedure failed
+
