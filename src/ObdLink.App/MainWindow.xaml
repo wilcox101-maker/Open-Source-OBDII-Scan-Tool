@@ -24,7 +24,25 @@
       <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="5"/><ColumnDefinition/></Grid.ColumnDefinitions>
       <!-- Module list -->
       <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#FFF4E5" Padding="4">
+          <StackPanel>
+            <TextBlock Text="{Binding ModeBanner}" FontWeight="Bold" Foreground="DarkRed"/>
+            <CheckBox Content="Read-only test mode (Settings)" IsChecked="{Binding ReadOnlyTestMode}"/>
+          </StackPanel>
+        </Border>
         <Button DockPanel.Dock="Top" Content="Scan modules" Command="{Binding ScanCommand}"/>
+        <Button DockPanel.Dock="Top" Content="Diagnostics capture (save zip)" FontWeight="Bold" Command="{Binding DiagnosticsCaptureCommand}"/>
+        <Expander DockPanel.Dock="Top" Header="Discovery sweep (UNVERIFIED IDs)">
+          <StackPanel Margin="4">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="From 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryStart, UpdateSourceTrigger=LostFocus}"/>
+              <TextBlock Text=" to 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryEnd, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+            <CheckBox Content="3E 00 TesterPresent" IsChecked="{Binding DiscoveryTesterPresent}"/>
+            <CheckBox Content="22 F1 90 read VIN" IsChecked="{Binding DiscoveryF190}"/>
+            <CheckBox Content="KWP 1A 87 ReadEcuId" IsChecked="{Binding DiscoveryKwp1A}"/>
+            <CheckBox Content="Include sweep in Diagnostics capture" IsChecked="{Binding CaptureIncludesDiscovery}"/>
+            <Button Content="Run discovery sweep" Command="{Binding DiscoveryCommand}"/>
+          </StackPanel>
+        </Expander>
         <DataGrid ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" AutoGenerateColumns="False" IsReadOnly="True">
           <DataGrid.Columns>
             <DataGridTextColumn Header="Mod" Binding="{Binding Acronym}"/>

@@ -64,19 +64,23 @@ public static class FordF150_2017
 }
 
 /// <summary>
-/// 2008 Dodge Ram 1500 (DR/DH). [UNVERIFIED] network layout: public sources indicate the
-/// powertrain uses CAN for OBD-II (J1979 at 7E0/7E8) on 2008 models, while most body modules
-/// use Chrysler PCI (SAE J1850 VPW). Chrysler-proprietary PCI module addressing is NOT included;
-/// J1850 VPW access is stubbed (ATSP2 / STP 12) pending public documentation.
+/// 2008 Dodge Ram 1500 (DR/DH), per docs/CHRYSLER-NETWORKS.md:
+/// - Diagnostic CAN C, 500 kbps, 11-bit, on DLC pins 6/14, through the TIPM/CGW gateway.
+///   Bus/pins are HIGH confidence; the 11-bit format is MED. STP 33 / ATSP6 is MED confidence.
+/// - CAN B is not reachable at the DLC.
+/// - PCM 0x7E0/0x7E8 is generic ISO 15765-4.
+/// Every other ID in 0x7E1-0x7EF is a SWEEP SLOT, not a known module [UNVERIFIED].
+/// Chrysler enhanced IDs (e.g. 0x620 reported for a BCM, LOW confidence) are found with <see cref="ObdLink.Core.Diagnostics.DiscoverySweep"/>.
 /// </summary>
 public static class DodgeRam1500_2008
 {
-    public static readonly IReadOnlyList<ModuleDefinition> Modules = new List<ModuleDefinition>
-    {
-        new("PCM", "Powertrain Control Module", Bus.HsCan, 0x7E0, 0x7E8, Confidence.Standard, "Generic OBD-II only; CAN vs VPW depends on build [UNVERIFIED]"),
-        new("TCM", "Transmission Control Module", Bus.HsCan, 0x7E1, 0x7E9, Confidence.Unverified),
-        new("BODY-PCI", "Body modules (TIPM/Cluster/ABS/ACM...)", Bus.J1850Vpw, 0, 0, Confidence.Unverified, "PCI J1850 VPW; addressing not implemented [STUB]"),
-    };
+    public const string ProfileNote = "Ram 2008 profile [UNVERIFIED]: diag CAN C 500k 11-bit, pins 6/14, STP 33 / ATSP6";
+    public static readonly IReadOnlyList<ModuleDefinition> Modules =
+        new[] { new ModuleDefinition("PCM", "Powertrain Control Module (OBD-II)", Bus.HsCan, 0x7E0, 0x7E8, Confidence.Standard, "ISO 15765-4 7E0/7E8; CAN C 6/14 (CHRYSLER-NETWORKS.md)") }
+        .Concat(Enumerable.Range(0x7E1, 0x7EF - 0x7E1 + 1).Select(id => new ModuleDefinition(
+            $"ID{id:X3}", $"Sweep slot 0x{id:X3}", Bus.HsCan, (uint)id, (uint)id + 8, Confidence.Unverified,
+            id <= 0x7E7 ? "ISO 15765-4 OBD slot; module identity unknown [UNVERIFIED]" : "Physical ID 0x7E8-0x7EF are normally RESPONSE IDs; probed anyway for discovery [UNVERIFIED]")))
+        .ToList();
 }
 
 public sealed record ScanResult(ModuleDefinition Module, bool Responded, string? Detail);

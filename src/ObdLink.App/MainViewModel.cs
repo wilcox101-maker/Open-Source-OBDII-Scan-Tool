@@ -1,4 +1,5 @@
 using ObdLink.Core.Adapters;
+using ObdLink.Core.Diagnostics;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -82,6 +83,35 @@ public sealed class MainViewModel : ObservableObject
     private string _co = ""; public string ConsoleOutput { get => _co; set => Set(ref _co, value); }
     private bool _allow; public bool ConsoleAllowWrites { get => _allow; set { Set(ref _allow, value); if (_console != null) _console.AllowWrites = value; } }
 
+    // ---- Settings: read-only test mode (default ON) ----
+    private string SettingsPath => Path.Combine(_dataDir, "settings.json");
+    private AppSettings _settings = new();
+    public bool ReadOnlyTestMode
+    {
+        get => _settings.ReadOnlyTestMode;
+        set
+        {
+            if (!value && _settings.ReadOnlyTestMode &&
+                MessageBox.Show("Turn OFF read-only test mode?\n\nThis re-enables As-Built writes/restores, DTC clears and console write services. These can change module configuration.",
+                    "Enable writes", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) { OnPropertyChanged(nameof(ReadOnlyTestMode)); return; }
+            _settings.ReadOnlyTestMode = value; SaveSettings();
+            if (_console != null) _console.ReadOnlyMode = value;
+            Log.Warning("Read-only test mode {State}", value ? "ON" : "OFF");
+            OnPropertyChanged(); OnPropertyChanged(nameof(ModeBanner));
+        }
+    }
+    public string ModeBanner => ReadOnlyTestMode ? "READ-ONLY TEST MODE (writes/clears disabled)" : "WRITES ENABLED";
+    public string DiscoveryStart { get => _settings.Discovery.StartId.ToString("X3"); set { _settings.Discovery.StartId = Convert.ToUInt32(value, 16); SaveSettings(); OnPropertyChanged(); } }
+    public string DiscoveryEnd { get => _settings.Discovery.EndId.ToString("X3"); set { _settings.Discovery.EndId = Convert.ToUInt32(value, 16); SaveSettings(); OnPropertyChanged(); } }
+    public bool DiscoveryTesterPresent { get => _settings.Discovery.TesterPresent; set { _settings.Discovery.TesterPresent = value; SaveSettings(); } }
+    public bool DiscoveryF190 { get => _settings.Discovery.ReadVinF190; set { _settings.Discovery.ReadVinF190 = value; SaveSettings(); } }
+    public bool DiscoveryKwp1A { get => _settings.Discovery.Kwp1A; set { _settings.Discovery.Kwp1A = value; SaveSettings(); } }
+    private bool _capDisc; public bool CaptureIncludesDiscovery { get => _capDisc; set => Set(ref _capDisc, value); }
+    private void SaveSettings() { try { _settings.Save(SettingsPath); } catch (Exception ex) { Log.Warning(ex, "Could not save settings"); } }
+    private WriteGate Gate => new(() => _settings.ReadOnlyTestMode);
+    public AsyncCommand DiagnosticsCaptureCommand { get; private set; } = null!;
+    public AsyncCommand DiscoveryCommand { get; private set; } = null!;
+
     public AsyncCommand RefreshPortsCommand { get; }
     public AsyncCommand ConnectCommand { get; }
     public AsyncCommand DisconnectCommand { get; }
@@ -110,6 +140,15 @@ public sealed class MainViewModel : ObservableObject
         ConnectCommand = C(ConnectAsync);
         DisconnectCommand = C(async () => { if (_session != null) await _session.Link.DisposeAsync(); _session = null; Status = "Disconnected"; });
         ScanCommand = C(ScanAsync);
+        _settings = AppSettings.Load(SettingsPath);
+        DiagnosticsCaptureCommand = C(CaptureAsync);
+        DiscoveryCommand = C(async () =>
+        {
+            if (_session is null) throw new InvalidOperationException("Not connected");
+            await SelectDiagProtocol();
+            var hits = await new DiscoverySweep(_session, Ch).RunAsync(_settings.Discovery, new Progress<string>(m => Log.Information("{Msg}", m)));
+            Log.Information("Discovery done: {N} responding IDs\n{Sum}", hits.Select(h => h.RequestId).Distinct().Count(), DiscoverySweep.Summarize(hits));
+        });
         ReadObdDtcsCommand = C(async () => { Dtcs.Clear(); foreach (var (ecu, code) in await new ObdService(Ch).ReadStoredDtcsAsync()) Dtcs.Add(new($"{ecu:X3}", code, "stored", _dtcDb.Describe(code))); });
         ReadModuleDtcsCommand = C(async () => { Dtcs.Clear(); foreach (var d in await Uds().ReadDtcsByStatusAsync()) Dtcs.Add(new(SelectedModule!.Acronym, d.Display, $"0x{d.Status:X2}", _dtcDb.Describe(d.Display))); });
         ClearModuleDtcsCommand = C(async () =>
@@ -204,7 +243,27 @@ public sealed class MainViewModel : ObservableObject
     private ushort Module => (ushort)(SelectedModule?.Def.TxId ?? throw new InvalidOperationException("Select a module"));
     private byte Block => Convert.ToByte(AsBuiltBlockNo, 16);
     private UdsClient Uds() => new(Ch, Module);
-    private SafetyGuard Safety() => new(_session ?? throw new InvalidOperationException("Not connected"), _confirm);
+    private SafetyGuard Safety() => new(_session ?? throw new InvalidOperationException("Not connected"), _confirm, gate: Gate);
+
+    private async Task SelectDiagProtocol()
+    {   // Both vehicles: HS-CAN / diag CAN C 500k 11-bit (STP 33, or ATSP6 on plain ELM). Ram mapping [UNVERIFIED].
+        if (_session!.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500); else await _session.SelectElmProtocolAsync('6');
+    }
+
+    private async Task CaptureAsync()
+    {
+        if (_session is null) throw new InvalidOperationException("Connect first (use a Demo port to try it without a vehicle)");
+        Status = "Capturing diagnostics...";
+        var ver = typeof(MainViewModel).Assembly.GetName().Version?.ToString() ?? "?";
+        var path = await new DiagnosticsCapture(_session, Ch).RunAsync(new(SelectedVehicle, Modules.Select(r => r.Def).ToList(), StnProtocol.HsCan11_500, '6',
+            CaptureIncludesDiscovery ? _settings.Discovery : null, ver, $"Port: {SelectedPort?.Name}; read-only mode: {ReadOnlyTestMode}"),
+            Path.Combine(_dataDir, "captures"), new Progress<string>(m => Log.Information("{Msg}", m)));
+        await SelectDiagProtocol();
+        Status = "Capture saved";
+        Log.Information("Capture saved: {Path}", path);
+        try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); } catch { }
+        MessageBox.Show($"Capture saved:\n{path}\n\nSend this zip back. (It is NOT redacted: it may include your VIN and adapter serial.)", "Diagnostics capture");
+    }
     private AsBuiltService AsBuilt => _asBuilt ?? throw new InvalidOperationException("Not connected");
 
     private void LoadModules()
@@ -239,7 +298,7 @@ public sealed class MainViewModel : ObservableObject
         Capabilities = _session.Profile.CapabilityText;
         MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
         _ch = new ElmDiagChannel(_session);
-        _console = new RawConsoleService(link) { AllowWrites = ConsoleAllowWrites };
+        _console = new RawConsoleService(link) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
         _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Path.Combine(_dataDir, "backups"));
         if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
     }

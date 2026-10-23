@@ -16,7 +16,7 @@ public sealed class AutoConfirm(bool answer) : IConfirmationProvider
     public Task<bool> ConfirmAsync(ConfirmationStep s, CancellationToken ct = default) { Asked.Add(s); return Task.FromResult(answer); }
 }
 
-public sealed class SafetyException(string m) : Exception(m);
+public class SafetyException(string m) : Exception(m);
 
 public sealed class SafetyOptions
 {
@@ -30,10 +30,12 @@ public sealed class SafetyGuard
     private readonly AdapterSession _session;
     private readonly IConfirmationProvider _confirm;
     public SafetyOptions Options { get; }
-    public SafetyGuard(AdapterSession s, IConfirmationProvider c, SafetyOptions? o = null) { _session = s; _confirm = c; Options = o ?? new(); }
+    public WriteGate Gate { get; }
+    public SafetyGuard(AdapterSession s, IConfirmationProvider c, SafetyOptions? o = null, WriteGate? gate = null) { _session = s; _confirm = c; Options = o ?? new(); Gate = gate ?? WriteGate.AlwaysAllow; }
 
     public async Task EnsureVoltageAsync(CancellationToken ct = default)
     {
+        Gate.Require("write (voltage pre-check)");
         var v = await _session.ReadBatteryVoltageAsync(ct) ?? throw new SafetyException("Could not read battery voltage (ATRV)");
         if (v < Options.MinWriteVoltage) throw new SafetyException($"Battery {v:0.0} V below minimum {Options.MinWriteVoltage:0.0} V");
         if (v > Options.MaxVoltage) throw new SafetyException($"Battery {v:0.0} V above maximum {Options.MaxVoltage:0.0} V");
@@ -41,6 +43,10 @@ public sealed class SafetyGuard
 
     public async Task RequireAsync(IEnumerable<ConfirmationStep> steps, CancellationToken ct = default)
     {
+        // Every risky operation goes through RequireAsync, so read-only mode is enforced here first.
+        var list = steps.ToList();
+        Gate.Require(list.FirstOrDefault()?.Title ?? "write");
+        steps = list;
         foreach (var s in steps)
             if (!await _confirm.ConfirmAsync(s, ct)) throw new SafetyException($"User declined: {s.Title}");
     }

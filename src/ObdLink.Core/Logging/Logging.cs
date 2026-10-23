@@ -25,6 +25,8 @@ public sealed class RawConsoleService
     private readonly ElmLink _link;
     public List<string> History { get; } = new();
     public bool AllowWrites { get; set; }
+    /// <summary>When true (read-only test mode), state-changing services are blocked even if AllowWrites is set.</summary>
+    public bool ReadOnlyMode { get; set; }
     public RawConsoleService(ElmLink link) => _link = link;
 
     // UDS services that change ECU state; blocked unless AllowWrites (0x2E write DID, 0x31 routine, 0x34-0x37 download, 0x11 reset, 0x14 clear, 0x27 security, 0x3B/0x2F IO).
@@ -35,6 +37,8 @@ public sealed class RawConsoleService
         var cmd = input.Trim();
         History.Add(cmd);
         var compact = cmd.Replace(" ", "").ToUpperInvariant();
+        if (ReadOnlyMode && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))
+            return "BLOCKED: read-only test mode is ON (Settings) - state-changing services disabled";
         if (!AllowWrites && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))
             return "BLOCKED: state-changing service; enable writes in console settings first";
         var r = await _link.SendAsync(cmd, ct: ct);

@@ -42,6 +42,8 @@ public sealed class SimulatedAdapter
         if (c == "STI") return Profile == SimProfile.Ex ? "STN2231 v5.13.0" : "STN2255 v5.10.3 (SIMULATED)";
         if (c == "STDI") return Profile == SimProfile.Ex ? "OBDLink EX r2.2.1" : "OBDLink MX+ (SIMULATED)";
         if (c == "ATRV") return $"{Voltage:0.0}V".Replace(',', '.');
+        if (c.StartsWith("ATSP")) { Protocol = "ATSP" + c[4..]; return "OK"; }
+        if (c == "ATDP") return Protocol == "ATSP2" ? "SAE J1850 VPW" : "ISO 15765-4 (CAN 11/500)";
         if (c.StartsWith("STP")) { Protocol = c[3..]; return "OK"; }
         if (c.StartsWith("ATSH")) { _header = Convert.ToUInt32(c[4..], 16); return "OK"; }
         if (c.StartsWith("ATCRA")) return "OK";
@@ -58,6 +60,7 @@ public sealed class SimulatedAdapter
             if (msg is null) return "NO DATA";
             return Uds(_header, msg, padded: true);
         }
+        if (Protocol == "ATSP2") return "NO DATA"; // simulated vehicle has no J1850 bus
         return _header == 0x7DF ? Obd(req) : Uds(_header, req);
     }
 
@@ -85,6 +88,7 @@ public sealed class SimulatedAdapter
             0x19 => UdsDtcs.TryGetValue(tx, out var dl) ? new byte[] { 0x59, 0x02, 0xFF }.Concat(dl.SelectMany(d => new[] { (byte)(d.Dtc >> 16), (byte)(d.Dtc >> 8), (byte)d.Dtc, d.Status })).ToArray()
                                                      : new byte[] { 0x59, 0x02, 0xFF, 0x91, 0x23, 0x45, 0x2F },
             0x27 => r[1] % 2 == 1 ? new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 } : new byte[] { 0x67, r[1] },
+            0x1A => new byte[] { 0x7F, 0x1A, 0x11 },
             0x22 => Read(tx, (ushort)(r[1] << 8 | r[2])),
             0x2E => Write(tx, (ushort)(r[1] << 8 | r[2]), r[3..]),
             _ => new byte[] { 0x7F, r[0], 0x11 },
