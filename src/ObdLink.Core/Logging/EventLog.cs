@@ -14,6 +14,8 @@ public enum EventOutcome { None, Started, Succeeded, Failed, Cancelled }
 public sealed record LogEntry(DateTimeOffset Time, LogChannel Channel, LogEventLevel Level, string Action, string Text,
     IReadOnlyList<KeyValuePair<string, string>> Parameters, EventOutcome Outcome = EventOutcome.None, string? Error = null)
 {
+    /// <summary>Text column for the grid: blank when it would just repeat <see cref="Action"/> (e.g. "Read VIN" started/succeeded).</summary>
+    public string DisplayText => string.Equals(Text, Action, StringComparison.Ordinal) ? "" : Text;
     public string ParamText => string.Join(", ", Parameters.Select(p => $"{p.Key}={p.Value}"));
     public string OutcomeText => Outcome == EventOutcome.None ? "" : Outcome.ToString();
     public string LevelText => Level switch { LogEventLevel.Verbose => "VRB", LogEventLevel.Debug => "DBG", LogEventLevel.Information => "INF", LogEventLevel.Warning => "WRN", LogEventLevel.Error => "ERR", _ => "FTL" };

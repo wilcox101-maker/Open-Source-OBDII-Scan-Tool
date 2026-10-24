@@ -6,7 +6,14 @@ namespace ObdLink.App;
 
 public partial class MainWindow : Window
 {
-    public MainWindow() { InitializeComponent(); DataContext = new MainViewModel(new WpfConfirmationProvider(this)); }
+    public MainWindow()
+    {
+        InitializeComponent();
+        var vm = new MainViewModel(new WpfConfirmationProvider(this));
+        DataContext = vm;
+        try { GuideViewer.Document = MarkdownView.Build(vm.GuideText); }
+        catch (Exception ex) { GuideViewer.Document = new System.Windows.Documents.FlowDocument(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(vm.GuideText))); vm.EventLog.Message(Serilog.Events.LogEventLevel.Warning, "Guide", "Guide markdown render failed; showing plain text", ex); }
+    }
 }
 
 /// <summary>Attached property: keeps a ListBox/ListView scrolled to the newest item while enabled.</summary>

@@ -27,7 +27,7 @@
               <GridViewColumn Header="Text / error" Width="560">
                 <GridViewColumn.CellTemplate>
                   <DataTemplate>
-                    <TextBlock x:Name="T" Text="{Binding Text}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Error}"/>
+                    <TextBlock x:Name="T" Text="{Binding DisplayText, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Error}"/>
                     <DataTemplate.Triggers>
                       <DataTrigger Binding="{Binding Outcome}" Value="Failed"><Setter TargetName="T" Property="Text" Value="{Binding Error}"/></DataTrigger>
                     </DataTemplate.Triggers>
@@ -61,7 +61,7 @@
         <WrapPanel>
           <TextBlock Text="OBDLink Diag" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,12,0"/>
           <TextBlock Text="Port" VerticalAlignment="Center" Margin="4,0" Foreground="{DynamicResource FgDim}"/>
-          <ComboBox Width="240" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
+          <ComboBox MinWidth="300" MaxDropDownHeight="400" ToolTip="{Binding SelectedPort}" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
           <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
           <TextBlock Text="Vehicle" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{DynamicResource FgDim}"/>
           <ComboBox Width="170" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}"/>
@@ -189,7 +189,11 @@
           <DockPanel>
             <TextBlock DockPanel.Dock="Top" Margin="6" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
                        Text="Adapted from Livnitup's FORScan Tutorial (updated 6/14/26). Credit: Livnitup. Original: https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/"/>
-            <TextBox Text="{Binding GuideText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Segoe UI" BorderThickness="0"/>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,6,4">
+              <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource FgDim}"><Run Text="Data folder: "/><Run Text="{Binding DataDir, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+              <Button Command="{Binding OpenDataFolderCommand}" Content="Open data folder"/>
+            </StackPanel>
+            <FlowDocumentScrollViewer x:Name="GuideViewer" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False"/>
           </DockPanel>
         </TabItem>
       </TabControl>
@@ -204,6 +208,8 @@
       <StatusBarItem><TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="520"/></StatusBarItem>
       <Separator/>
       <StatusBarItem><TextBlock Text="{Binding ModeBanner}"/></StatusBarItem>
+      <Separator/>
+      <StatusBarItem ToolTip="{Binding DataDirTooltip}"><StackPanel Orientation="Horizontal"><TextBlock VerticalAlignment="Center" Text="{Binding DataDirShort}" TextTrimming="CharacterEllipsis" MaxWidth="320"/><Button Command="{Binding OpenDataFolderCommand}" Content="Open data folder" Padding="6,0" Margin="6,0,0,0"/></StackPanel></StatusBarItem>
       <StatusBarItem HorizontalAlignment="Right"><TextBlock><Run Text="{Binding AppVersion, Mode=OneWay}"/><Run Text="  ·  Ford-only  ·  theme "/><Run Text="{Binding SelectedTheme, Mode=OneWay}"/></TextBlock></StatusBarItem>
     </StatusBar>
   </Grid>

@@ -1,5 +1,17 @@
 # Release notes
 
+## v0.1.4-test
+
+- **Portable data folder.** Settings, logs, crash files, captures and As-Built backups now live in `Data\` next to the exe (paths from `AppContext.BaseDirectory`, centralized in `AppPaths`). On first run the old `%LOCALAPPDATA%\OBDLinkDiag` contents are moved in: copy, verify (size + SHA-256), then remove the original; newer files are never overwritten; a `MIGRATED.txt` note is left behind. If the app folder isn't writable the app falls back to `%LOCALAPPDATA%\OBDLinkDiag` with a one-time notice.
+- The data folder path is shown in the status bar and on the Guide tab, with an **Open data folder** button.
+- Guide tab renders Markdown (headings, lists, bold, tables) instead of raw `##` / `|` text.
+- Light theme: selected / hovered grid rows used white text on a light-blue row (nearly invisible); they now use the theme's selection text colour.
+- Port picker widened (min 300 px) with a tooltip showing the full port name.
+- Module grid shows "not scanned" instead of "?" until you run Scan modules.
+- Events log: the "Text / error" column no longer repeats the action name.
+- Diagnostics capture: protocol probes send `ATSH7DF` before `0100`, so a header left over from a module scan no longer gives a false "NO DATA".
+- Simulator uses a valid-format synthetic VIN (`1FTDEMX9SXM000001`) so you can see VIN redaction working; the old demo VIN contained an "I" and was never masked.
+
 ## v0.1.3-test
 
 - Fix startup crash "'System.Windows.Style' is not a valid value for property 'BorderBrush'": key `Danger` was both a SolidColorBrush (Light/Dark.xaml) and a Button Style (Controls.xaml); `DangerButtonStyle`'s `BorderBrush="{DynamicResource Danger}"` resolved to the Style. Brush renamed `DangerBrush`; all style keys now end in `Style` (CardStyle, PrimaryStyle, DangerButtonStyle, ChipStyle, GlyphStyle, ScrollThumbStyle, ScrollPageStyle).

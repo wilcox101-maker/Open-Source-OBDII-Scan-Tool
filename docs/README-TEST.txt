@@ -20,7 +20,7 @@ READ-ONLY BY DEFAULT
    even if "Allow writes" is ticked.
 Reading (scan, DTC read, VIN, As-Built read/backup) works normally. Turning the mode off requires
 unticking it (left panel) and confirming a warning. The setting is saved in
-%LOCALAPPDATA%\OBDLinkDiag\settings.json.
+Data\settings.json (next to the exe).
 
 HOW TO CAPTURE LOGS (please do this on each truck)
 1. Connect to the truck (ignition ON, engine off is fine).
@@ -31,12 +31,23 @@ HOW TO CAPTURE LOGS (please do this on each truck)
    It takes about 1-2 minutes.
    Optional: under "Discovery sweep" tick "Include sweep in Diagnostics capture".
    The default ID range 0x700-0x7EF takes several minutes, and the range is adjustable.
-3. A zip is saved to %LOCALAPPDATA%\OBDLinkDiag\captures\obdlink-capture-<date>.zip and Explorer
-   opens on it. Send that zip back, along with %LOCALAPPDATA%\OBDLinkDiag\logs\ if something crashed.
+3. A zip is saved to Data\captures\obdlink-capture-<date>.zip and Explorer
+   opens on it. Send that zip back, along with Data\logs\ if something crashed.
    Logs (events/app/traffic) are included in the zip. VINs are redacted when "Redact VINs
    in capture" is ticked (on by default). Raw adapter replies may still contain the serial.
 
 LOGS
 The bottom panel has three tabs: Events (everything you clicked, with outcome), Messages (Info/Warn/Error),
 and Adapter traffic. Each tab has Export (.txt/.csv), and VINs are redacted by default. Files are in
-%LOCALAPPDATA%\OBDLinkDiag\logs.
+Data\logs.
+DATA FOLDER (v0.1.4+)
+---------------------
+Everything the app writes lives in a "Data" folder next to OBDLinkDiag.exe:
+  Data\settings.json, Data\logs\ (events-/app-/traffic-*.log, crash-*.txt),
+  Data\captures\ (diagnostics zips), Data\backups\ (As-Built backups).
+The path is shown in the status bar and on the Guide tab; "Open data folder" opens it.
+On first run, anything in the old %LOCALAPPDATA%\OBDLinkDiag folder is moved into Data\
+(each file copied, verified by size + SHA-256, then the original removed; a file is never
+overwritten by an older one). A MIGRATED.txt note is left in the old folder.
+If the app folder is not writable (e.g. Program Files), the app keeps using
+%LOCALAPPDATA%\OBDLinkDiag and tells you once. Put the app folder in Documents or on a USB stick.

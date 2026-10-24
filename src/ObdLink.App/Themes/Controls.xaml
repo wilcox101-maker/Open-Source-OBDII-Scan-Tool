@@ -116,8 +116,8 @@
             <ContentPresenter ContentSource="Header" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
           </Border>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Hover}"/><Setter Property="Foreground" Value="White"/></Trigger>
-            <Trigger Property="IsSelected" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="White"/></Trigger>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+            <Trigger Property="IsSelected" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource SelFg}"/></Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource FgDisabled}"/></Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -134,7 +134,7 @@
   </Style>
   <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource Control}"/><Setter Property="Foreground" Value="{DynamicResource Fg}"/><Setter Property="Padding" Value="6,3"/><Setter Property="BorderBrush" Value="{DynamicResource Border}"/><Setter Property="BorderThickness" Value="0,0,1,1"/></Style>
   <Style TargetType="DataGridCell">
-    <Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource Selected}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="{DynamicResource Selected}"/></Trigger></Style.Triggers>
+    <Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource Selected}"/><Setter Property="Foreground" Value="{DynamicResource SelFg}"/><Setter Property="BorderBrush" Value="{DynamicResource Selected}"/></Trigger></Style.Triggers>
   </Style>
 
   <!-- ScrollBar -->

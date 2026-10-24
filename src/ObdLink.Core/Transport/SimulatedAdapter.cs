@@ -16,7 +16,7 @@ public sealed class SimulatedAdapter
     /// <summary>Host baud the simulated UART accepts (EX only; Bluetooth ignores it). Used by CreateTransportAtBaud.</summary>
     public int UartBaud { get; set; } = 115200;
     public double Voltage { get; set; } = 12.6;
-    public string Vin { get; set; } = "TESTVIN0000000001"; // synthetic
+    public string Vin { get; set; } = "1FTDEMX9SXM000001"; // synthetic, valid VIN alphabet so redaction can be seen working (not a real vehicle)
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
     public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x726, 0x720 };
     /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>

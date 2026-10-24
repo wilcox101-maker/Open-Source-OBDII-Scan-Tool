@@ -29,7 +29,7 @@ public sealed class ModuleRow : ObservableObject
     public string Address => Def.TxId.ToString("X3");
     public Bus Bus => Def.Bus;
     public Confidence Confidence => Def.Confidence;
-    private string _found = "?"; public string Found { get => _found; set => Set(ref _found, value); }
+    private string _found = "not scanned"; public string Found { get => _found; set => Set(ref _found, value); }
 }
 
 public sealed class AsBuiltRow : ObservableObject
@@ -53,8 +53,12 @@ public sealed class MainViewModel : ObservableObject
     private static readonly PortInfo DemoEx = new("DEMO-EX", "Simulated OBDLink EX", PortKind.Virtual);
     private readonly IConfirmationProvider _confirm;
     private readonly DtcDatabase _dtcDb = DtcDatabase.LoadEmbedded();
-    private readonly string _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OBDLinkDiag");
-    private string LogDir => Path.Combine(_dataDir, "logs");
+    private static ObdLink.Core.Storage.AppPaths Paths => ObdLink.Core.Storage.AppPaths.Current;
+    private string LogDir => Paths.LogsDir;
+    public string DataDir => Paths.DataDir;
+    public string DataDirShort => (Paths.IsPortable ? "Data: " : "Data (LocalAppData): ") + Paths.DataDir;
+    public string DataDirTooltip => Paths.IsPortable ? $"Portable data folder next to the exe:\n{Paths.DataDir}" : $"Not portable: {Paths.FallbackReason}\nUsing {Paths.DataDir}";
+    public RelayCommand OpenDataFolderCommand { get; }
     private AdapterSession? _session; private ElmDiagChannel? _ch; private RawConsoleService? _console; private AsBuiltService? _asBuilt;
     private string _vin = "UNKNOWNVIN";
 
@@ -101,7 +105,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _initializing = true;
 
     // ---- Settings: read-only test mode (default ON) ----
-    private string SettingsPath => Path.Combine(_dataDir, "settings.json");
+    private string SettingsPath => Paths.SettingsFile;
     private AppSettings _settings = new();
     public bool ReadOnlyTestMode
     {
@@ -197,13 +201,21 @@ public sealed class MainViewModel : ObservableObject
         try { log = LogSetup.CreateEventLog(LogDir); }
         catch (Exception ex) { log = LogSetup.CreateEventLog(Path.Combine(Path.GetTempPath(), "OBDLinkDiag", "logs")); log.Message(LogEventLevel.Warning, "App", $"Log dir {LogDir} unusable; logging to temp", ex); }
         EventLog = log;
+        OpenDataFolderCommand = new("Open data folder", log, _ =>
+        {
+            Directory.CreateDirectory(Paths.DataDir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Paths.DataDir}\"") { UseShellExecute = true });
+        });
         _confirm = new LoggingConfirmationProvider(confirm, EventLog);
         EventsPanel = new("Events", LogChannel.Events, EventLog, LogEventLevel.Verbose);
         MessagesPanel = new("Messages", LogChannel.Messages, EventLog, LogEventLevel.Information);
         TrafficPanel = new("Adapter traffic", LogChannel.Traffic, EventLog, LogEventLevel.Verbose);
         EventLog.EntryAdded += e => Application.Current?.Dispatcher.BeginInvoke(() =>
             (e.Channel switch { LogChannel.Events => EventsPanel, LogChannel.Messages => MessagesPanel, _ => TrafficPanel }).Add(e));
-        EventLog.Message(LogEventLevel.Information, "App", $"Started v{typeof(MainViewModel).Assembly.GetName().Version}; logs in {LogDir}");
+        EventLog.Message(LogEventLevel.Information, "App", $"Started v{typeof(MainViewModel).Assembly.GetName().Version}; data folder {Paths.DataDir} ({(Paths.IsPortable ? "portable" : "LocalAppData fallback: " + Paths.FallbackReason)})");
+        if (App.Migration is { Ran: true } mig)
+            EventLog.Message(mig.KeptUnverified > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Data migration",
+                $"Moved {mig.Moved} file(s) from {ObdLink.Core.Storage.AppPaths.DefaultLegacyDir}; {mig.SkippedNewer} left (newer copy here); {mig.KeptUnverified} left (not verified). " + string.Join("; ", mig.Notes));
 
         void Err(string op, Exception ex)
         {
@@ -255,7 +267,7 @@ public sealed class MainViewModel : ObservableObject
         }, ModBlk);
         RestoreAsBuiltCommand = C("Restore As-Built from backup", async () =>
         {
-            var f = OpenFile("As-Built backup", "As-Built backup|*.asbuilt.json", Path.Combine(_dataDir, "backups"));
+            var f = OpenFile("As-Built backup", "As-Built backup|*.asbuilt.json", Paths.BackupsDir);
             await AsBuilt.RestoreAsync(f);
         });
         ImportFactoryAbCommand = C("Import factory .ab", () =>
@@ -352,7 +364,7 @@ public sealed class MainViewModel : ObservableObject
         var path = await new DiagnosticsCapture(_session, Ch).RunAsync(new(SelectedVehicle, Modules.Select(r => r.Def).ToList(), StnProtocol.HsCan11_500, '6',
             CaptureIncludesDiscovery ? _settings.Discovery : null, ver, $"Port: {SelectedPort?.Name}; adapter: {AdapterName}; read-only mode: {ReadOnlyTestMode}",
             logs, CaptureRedactVins),
-            Path.Combine(_dataDir, "captures"), new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Capture", m)));
+            Paths.CapturesDir, new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Capture", m)));
         await SelectDiagProtocol();
         EventLog.Message(LogEventLevel.Information, "Capture", $"Saved {path} ({logs.Count} log files included)");
         try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); } catch { }
@@ -400,7 +412,7 @@ public sealed class MainViewModel : ObservableObject
             MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
             _ch = new ElmDiagChannel(_session);
             _console = new RawConsoleService(link) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
-            _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Path.Combine(_dataDir, "backups"));
+            _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Paths.BackupsDir);
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");

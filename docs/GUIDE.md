@@ -2,6 +2,17 @@
 
 Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/. All credit goes to Livnitup. This is a summary for Ford trucks. Read the original for full detail. Tips are community-reported (UNVERIFIED on Dale's truck).
 
+## Where this app keeps its files
+
+| Item | Location (inside the `Data` folder next to the exe) |
+|---|---|
+| Settings | `settings.json` |
+| Logs and crash reports | `logs\` |
+| Diagnostics captures | `captures\` |
+| As-Built backups | `backups\` |
+
+Use **Open data folder** (status bar or the top of this tab) to open it. Back up the `backups` folder before any write. If the app folder is read-only, the app uses `%LOCALAPPDATA%\OBDLinkDiag` instead and tells you once.
+
 ## Before you change anything
 1. Battery: key ON, engine OFF. Keep extra current draw to a minimum (lights, HVAC blower, doors closed). Use a battery maintainer for long sessions.
 2. **Back up every module's As-Built first**, and save the file off the laptop. This app saves backups automatically before any write.

@@ -31,6 +31,12 @@ public partial class App : Application
         base.OnStartup(e);
         try
         {
+            var paths = ObdLink.Core.Storage.AppPaths.Current;
+            try { Migration = paths.MigrateFrom(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir); }
+            catch (Exception ex) { Report("Data folder migration", ex, fatal: false); }
+            if (paths.ShouldShowFallbackNotice())
+                MessageBox.Show($"The folder this app runs from is not writable:\n{paths.FallbackReason}\n\nLogs, captures, backups and settings will be stored in:\n{paths.DataDir}\n\nTo keep everything next to the app, move the app folder somewhere writable (e.g. Documents or a USB drive).",
+                    "OBDLinkDiag data folder", MessageBoxButton.OK, MessageBoxImage.Information);
             var w = new MainWindow();
             MainWindow = w;
             w.Show();
@@ -42,9 +48,14 @@ public partial class App : Application
         }
     }
 
-    public static string CrashDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OBDLinkDiag", "logs");
+    public static ObdLink.Core.Storage.AppPaths.MigrationResult? Migration { get; private set; }
 
-    /// <summary>Writes %LOCALAPPDATA%\OBDLinkDiag\logs\crash-*.txt and crash.txt next to the exe, then shows a MessageBox.</summary>
+    public static string CrashDir
+    {
+        get { try { return ObdLink.Core.Storage.AppPaths.Current.LogsDir; } catch { return Path.Combine(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir, "logs"); } }
+    }
+
+    /// <summary>Writes &lt;data folder&gt;\logs\crash-*.txt and crash.txt next to the exe, then shows a MessageBox.</summary>
     public static void Report(string source, Exception? ex, bool fatal)
     {
         var text = new StringBuilder()
