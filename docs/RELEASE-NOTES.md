@@ -1,5 +1,25 @@
 # Release notes
 
+## v0.3.2-test
+
+**Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.2.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.2.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**Fix: the port list stayed on "SIM DEMO-MX+" and the real OBDLink EX (USB, FTDI COM port) never got picked, so the dashboard showed simulated data.**
+- Cause: the DEMO entries were added at the top of the list and the app selected the first entry. It also kept the previous selection on refresh, so DEMO stuck. Connect/auto-connect also fell back to DEMO when nothing was selected.
+- The port list now shows every COM port: `SerialPort.GetPortNames` (registry) merged with WMI `Win32_PnPEntity` (Device Manager names), sorted by number. Real ports come first, DEMO last.
+- FTDI ports (PnP `FTDIBUS` / `VID_0403`, used by the OBDLink EX) are labeled **OBDLink EX / FTDI**, e.g. `USB  COM4  OBDLink EX / FTDI  (USB Serial Port (COM4))`.
+- Default selection: your current real port, then the saved default port, then FTDI, other USB, Bluetooth, anything else. **DEMO is only used when you pick it yourself**; it is never auto-selected and never used as a fallback.
+- Refresh rescans and moves off DEMO when a real adapter appears (unless you picked DEMO yourself).
+- **Rescans automatically** at startup (again ~1.5 s after the window opens, since FTDI ports can show up late) and whenever a USB device is plugged in or removed (WM_DEVICECHANGE), while not connected. Before, the list was only right after clicking Refresh.
+- **Remembers the last real port** that connected (`Adapter.LastPort` in `Data\settings.json`) and preselects it next time.
+- **Read-only is the default at every start.** "WRITES ENABLED" showed on a first real connection because a `ReadOnlyTestMode: false` saved earlier (e.g. while testing demo mode) carried over in `Data\settings.json`. Turning writes on now lasts for the current session only; the app logs a warning when it resets it.
+- EX detection confirmed for STN2231 (Dale's EX reports STN2231 v5.13.1); STN2230/2231/2232 are all treated as OBDLink EX.
+- **Manual COM entry**: type e.g. `COM4` next to Refresh and click **Use**.
+- **No ports found**: a yellow bar suggests installing the FTDI VCP driver and checking Device Manager → Ports (COM & LPT).
+- **DEMO MODE bar**: while connected to a DEMO adapter a yellow banner says all values are SIMULATED. The dashboard only polls the connected adapter, so without DEMO it never shows simulated values.
+
 ## v0.3.1-test
 
 **Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.

@@ -20,6 +20,27 @@ public partial class MainWindow : Window
         Loaded += async (_, _) => { if (vm.UpdateCheckEnabled) { try { await vm.CheckForUpdatesAsync(false); } catch { } } };
     }
     private readonly MainViewModel _vm;
+    // ---- v0.3.2: rescan COM ports when a USB serial device (e.g. OBDLink EX) is plugged in or removed ----
+    private System.Windows.Threading.DispatcherTimer? _rescan;
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        (System.Windows.PresentationSource.FromVisual(this) as System.Windows.Interop.HwndSource)?.AddHook(WndProc);
+        // second scan shortly after startup: FTDI COM ports can register a moment after the app starts
+        _ = Dispatcher.InvokeAsync(async () => { await Task.Delay(1500); RequestRescan(); });
+    }
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_DEVICECHANGE = 0x0219, DBT_DEVNODES_CHANGED = 0x0007, DBT_DEVICEARRIVAL = 0x8000, DBT_DEVICEREMOVECOMPLETE = 0x8004;
+        if (msg == WM_DEVICECHANGE && (int)wParam is DBT_DEVICEARRIVAL or DBT_DEVICEREMOVECOMPLETE or DBT_DEVNODES_CHANGED) RequestRescan();
+        return IntPtr.Zero;
+    }
+    private void RequestRescan()
+    {
+        if (_vm.IsConnected) return; // never disturb a live session
+        _rescan ??= new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(800), System.Windows.Threading.DispatcherPriority.Background, (_, _) => { _rescan!.Stop(); if (!_vm.IsConnected) _vm.RefreshPortsCommand.Execute(null); }, Dispatcher);
+        _rescan.Stop(); _rescan.Start();
+    }
     private double _zoom = 1;
     // ---- v0.3.0 keyboard shortcuts (table in ObdLink.Core.Ui.Shortcuts) ----
     private static string? KeyName(Key k) => k switch

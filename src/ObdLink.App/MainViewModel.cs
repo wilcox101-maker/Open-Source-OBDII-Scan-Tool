@@ -95,7 +95,15 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand ImportAbtCommand { get; }
     public AsyncCommand ExportAbtCommand { get; }
 
-    private PortInfo? _port; public PortInfo? SelectedPort { get => _port; set { if (Set(ref _port, value) && !_initializing) EventLog.UserAction("Port selected", ("port", value?.Name), ("kind", value?.Kind)); } }
+    private PortInfo? _port; private bool _refreshingPorts, _simExplicit;
+    public PortInfo? SelectedPort { get => _port; set { if (Set(ref _port, value)) { if (!_refreshingPorts) _simExplicit = value?.IsSimulated == true; if (!_initializing && !_refreshingPorts) EventLog.UserAction("Port selected", ("port", value?.Name), ("kind", value?.Kind)); } } }
+    /// <summary>v0.3.2: shown next to the port list when no real COM port was found.</summary>
+    private string _portHint = ""; public string PortHint { get => _portHint; private set { Set(ref _portHint, value); OnPropertyChanged(nameof(PortHintVisible)); } }
+    public bool PortHintVisible => PortHint.Length > 0;
+    private string _manualPort = ""; public string ManualPort { get => _manualPort; set => Set(ref _manualPort, value); }
+    /// <summary>v0.3.2: true only while connected to a DEMO (simulated) adapter; drives the "DEMO - simulated data" banner.</summary>
+    public bool IsDemo => IsConnected && _connectedSim;
+    private bool _connectedSim;
     private string _vehicle = VehicleProfiles.F150_2017; public string SelectedVehicle { get => _vehicle; set { if (Set(ref _vehicle, value)) { EventLog.UserAction("Vehicle selected", ("vehicle", value)); LoadModules(); } } }
     private ModuleRow? _mod; public ModuleRow? SelectedModule
     {
@@ -123,7 +131,7 @@ public sealed class MainViewModel : ObservableObject
     private string _bottomTab = "Events"; public string SelectedLogTab { get => _bottomTab; set { if (Set(ref _bottomTab, value) && !string.IsNullOrEmpty(value)) EventLog.UserAction("Log tab changed", ("tab", value)); } }
 
     private ConnectionStatus _conn = ConnectionStatus.Disconnected;
-    public ConnectionStatus Connection { get => _conn; private set { _conn = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(Voltage)); OnPropertyChanged(nameof(AdapterName)); OnPropertyChanged(nameof(Capabilities)); OnPropertyChanged(nameof(IsConnected)); OnPropertyChanged(nameof(ConnState)); SyncDashboard(); } }
+    public ConnectionStatus Connection { get => _conn; private set { _conn = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(Voltage)); OnPropertyChanged(nameof(AdapterName)); OnPropertyChanged(nameof(Capabilities)); OnPropertyChanged(nameof(IsConnected)); OnPropertyChanged(nameof(IsDemo)); OnPropertyChanged(nameof(ConnState)); SyncDashboard(); } }
     public string Status => Connection.StatusText;
     public string Voltage => Connection.Voltage;
     public string AdapterName => Connection.AdapterName;
@@ -244,6 +252,7 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand DiscoveryCommand { get; }
 
     public AsyncCommand RefreshPortsCommand { get; }
+    public AsyncCommand UseManualPortCommand { get; }
     public AsyncCommand ConnectCommand { get; }
     public AsyncCommand DisconnectCommand { get; }
     public AsyncCommand ScanCommand { get; }
@@ -369,6 +378,7 @@ public sealed class MainViewModel : ObservableObject
 
         try { _settings = AppSettings.Load(SettingsPath); }
         catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
+        if (_settings.ApplyStartupSafety()) { EventLog.Message(LogEventLevel.Warning, "Settings", "Read-only test mode was OFF in settings.json; turned back ON at startup (writes are enabled per session only)"); try { SaveSettings(); } catch { } }
         _capRedact = _settings.RedactVinsDefault;
         foreach (var lp in new[] { EventsPanel, MessagesPanel, TrafficPanel }) if (lp != null) lp.RedactOnExport = _settings.RedactVinsDefault;
         try { ThemeManager.Apply(_settings.Theme); }
@@ -378,11 +388,29 @@ public sealed class MainViewModel : ObservableObject
         CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
         RefreshPortsCommand = C("Refresh ports", () =>
         {
-            Ports.Clear(); if (_settings.SimulatorEnabled) { Ports.Add(DemoMx); Ports.Add(DemoEx); } foreach (var p in PortEnumerator.List()) Ports.Add(p);
-            SelectedPort = Ports.FirstOrDefault(p => p.Name == SelectedPort?.Name) ?? Ports.FirstOrDefault(p => p.Name == _settings.Adapter.Port) ?? Ports.FirstOrDefault();
-            EventLog.Message(LogEventLevel.Information, "Ports", $"{Ports.Count} ports: {string.Join(", ", Ports.Select(p => p.Name))}");
+            // v0.3.2: real ports first, DEMO last; the simulator is never picked automatically (it used to be first and won FirstOrDefault).
+            var prev = SelectedPort?.Name; var real = PortEnumerator.List();
+            var manual = Ports.Where(p => p.FriendlyName == "Manual entry" && !real.Any(r => r.Name.Equals(p.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            _refreshingPorts = true;
+            try
+            {
+                Ports.Clear(); foreach (var p in real.Concat(manual)) Ports.Add(p);
+                if (_settings.SimulatorEnabled) { Ports.Add(DemoMx); Ports.Add(DemoEx); }
+                SelectedPort = PortEnumerator.ChooseDefault(Ports, prev, string.IsNullOrWhiteSpace(_settings.Adapter.Port) ? _settings.Adapter.LastPort : _settings.Adapter.Port, _simExplicit);
+            }
+            finally { _refreshingPorts = false; }
+            PortHint = real.Count == 0 && manual.Count == 0 ? PortEnumerator.NoPortsHint : "";
+            EventLog.Message(LogEventLevel.Information, "Ports", $"{real.Count} real COM port(s): {(real.Count == 0 ? "none" : string.Join(", ", real.Select(p => p.Label)))}; selected {SelectedPort?.Name ?? "(none)"}");
             return Task.CompletedTask;
         });
+        UseManualPortCommand = C("Use manual COM port", () =>
+        {
+            var n = PortEnumerator.NormalizePort(ManualPort) ?? throw new InvalidOperationException($"\"{ManualPort}\" is not a COM port. Type e.g. COM5 (see Device Manager > Ports (COM & LPT)).");
+            var p = Ports.FirstOrDefault(x => x.Name.Equals(n, StringComparison.OrdinalIgnoreCase));
+            if (p is null) { p = new PortInfo(n, "Manual entry", PortKind.Unknown); Ports.Insert(Ports.TakeWhile(x => !x.IsSimulated).Count(), p); }
+            SelectedPort = p; ManualPort = n; PortHint = "";
+            return Task.CompletedTask;
+        }, () => new (string, object?)[] { ("port", ManualPort) });
         ConnectCommand = C("Connect", ConnectAsync, () => new (string, object?)[] { ("port", SelectedPort?.Name), ("vehicle", SelectedVehicle) });
         DisconnectCommand = C("Disconnect", DisconnectAsync);
         ScanCommand = C("Scan modules", ScanAsync, () => new (string, object?)[] { ("vehicle", SelectedVehicle), ("modules", Modules.Count) });
@@ -607,7 +635,9 @@ public sealed class MainViewModel : ObservableObject
     private async Task ConnectAsync()
     {
         if (_session != null) await DisconnectAsync();
-        var sel = SelectedPort ?? DemoMx;
+        // v0.3.2: never fall back to the simulator; DEMO must be chosen in the port list.
+        var sel = SelectedPort ?? throw new InvalidOperationException(Ports.Any(p => !p.IsSimulated) ? "Pick a COM port first." : PortEnumerator.NoPortsHint);
+        _connectedSim = sel.IsSimulated;
         try
         {
             ITransport t;
@@ -636,6 +666,7 @@ public sealed class MainViewModel : ObservableObject
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
             _lastSti = info.StnId;
             _ = RunFirmwareCheckAsync(info.StnId);
+            if (!sel.IsSimulated && _settings.Adapter.LastPort != sel.Name) { _settings.Adapter.LastPort = sel.Name; SaveSettings(); }
         }
         catch (Exception ex)
         {
@@ -879,7 +910,8 @@ public sealed class MainViewModel : ObservableObject
     private async Task<bool> EnsureConnectedAsync()
     {
         if (IsConnected && _ch != null) return true;
-        var port = SelectedPort?.Name ?? DemoMx.Name;
+        if (SelectedPort is null) { ModuleHint = "Pick a COM port first (or DEMO for simulated data)."; DialogService.Info(Ports.Any(p => !p.IsSimulated) ? "Pick a COM port first." : PortEnumerator.NoPortsHint, "Connect"); return false; }
+        var port = SelectedPort.Name;
         if (!DialogService.YesNo($"Not connected. Connect to {port} now?", "Connect"))
         { ModuleHint = "Connect first (toolbar Connect, or F5). A DEMO port works without a vehicle."; EventLog.UserAction("Auto-connect declined"); return false; }
         EventLog.UserAction("Auto-connect accepted", ("port", port));

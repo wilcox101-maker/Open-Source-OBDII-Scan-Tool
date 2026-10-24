@@ -283,7 +283,9 @@
           <Image Source="{Binding HeaderIconUri}" Width="30" Height="30" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" ToolTip="OBDLink Diag (Ford-only)"/>
           <TextBlock Text="OBDLink Diag" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0" Foreground="{DynamicResource HeaderFg}"/>
           <ComboBox MinWidth="250" MaxDropDownHeight="400" ToolTip="{Binding SelectedPort}" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
-          <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
+          <Button Command="{Binding RefreshPortsCommand}" ToolTip="Rescan COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
+          <TextBox Width="62" Text="{Binding ManualPort, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" ToolTip="Type a COM port by hand (e.g. COM4, see Device Manager &gt; Ports (COM &amp; LPT)), then click Use"/>
+          <Button Command="{Binding UseManualPortCommand}" Content="Use" ToolTip="Use the typed COM port"/>
           <ComboBox Width="210" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}" ToolTip="Vehicle profile"/>
           <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
           <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle: read VIN, scan modules, pick the profile (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
@@ -307,6 +309,12 @@
       </DockPanel>
     </Border>
 
+    <Border DockPanel.Dock="Top" Visibility="{Binding IsDemo, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
+      <TextBlock FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource Fg}" Text="DEMO MODE: connected to a simulated adapter. All values are SIMULATED, not from a vehicle. Pick your real COM port and Connect for live data."/>
+    </Border>
+    <Border DockPanel.Dock="Top" Visibility="{Binding PortHintVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
+      <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Fg}" Text="{Binding PortHint}"/>
+    </Border>
     <Border DockPanel.Dock="Top" Visibility="{Binding FirmwareBannerVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

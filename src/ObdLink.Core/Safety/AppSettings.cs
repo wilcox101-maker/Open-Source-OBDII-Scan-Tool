@@ -43,6 +43,15 @@ public sealed class AppSettings
         try { return (File.Exists(path) ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Json) ?? new() : new()).Normalize(); }
         catch { return new(); } // corrupt file: fall back to safe defaults (read-only)
     }
+    /// <summary>
+    /// v0.3.2: "writes enabled" is session-only. A settings.json saved with ReadOnlyTestMode=false (e.g. toggled during demo testing)
+    /// used to make the next start, including a first real connection, show WRITES ENABLED. Returns true if it had to reset it.
+    /// </summary>
+    public bool ApplyStartupSafety()
+    {
+        if (ReadOnlyTestMode) return false;
+        ReadOnlyTestMode = true; return true;
+    }
     /// <summary>Repairs nulls / out-of-range values from older or hand-edited files.</summary>
     public AppSettings Normalize()
     {
@@ -97,6 +106,8 @@ public sealed class AdapterDefaults
 {
     /// <summary>Port to preselect ("" = first found, "Demo" = simulator).</summary>
     public string Port { get; set; } = "";
+    /// <summary>v0.3.2: last real (non-DEMO) COM port that connected successfully; preselected next start when present.</summary>
+    public string? LastPort { get; set; }
     /// <summary>EX (USB/UART) host baud; 115200 is the STN default. Ignored over Bluetooth (MX+).</summary>
     public int Baud { get; set; } = 115200;
     public int TimeoutMs { get; set; } = 1000;

@@ -1,11 +1,11 @@
-OBDLink Diag - TEST BUILD v0.3.1 (win-x64 / win-arm64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.3.2 (win-x64 / win-arm64)  2026-10-24
 =======================================================
 UNSIGNED TEST BUILD. Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2
-(Dale, demo mode); this v0.3.1 build has not been run on Windows yet. Real-vehicle testing is still pending.
+(Dale, demo mode); this v0.3.2 build has not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
 
-WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.1.zip
-  ObdLinkApp-ARM64-only-v0.3.1.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.2.zip
+  ObdLinkApp-ARM64-only-v0.3.2.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
   (Running the ARM64 build on a normal Intel/AMD PC gives "This app can't run on your PC".)
   How to check: Settings > System > About > "System type".
     "64-bit operating system, x64-based processor"  -> x64 zip
@@ -14,6 +14,21 @@ WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.
 SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Windows 7, 8 and 8.1 are NOT
 supported: the exe will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in
 the Data folder.
+
+NEW IN v0.3.2 (fix: stuck on "SIM DEMO-MX+", real OBDLink EX never listed)
+- The port list now shows every COM port Windows knows about (registry + Device Manager/WMI), real
+  ports first. FTDI ports (VID 0403, the OBDLink EX) are labeled "OBDLink EX / FTDI".
+  Example: "USB  COM4  OBDLink EX / FTDI  (USB Serial Port (COM4))".
+- A real port is always preselected over DEMO. DEMO is never chosen automatically or as a fallback:
+  pick it yourself in the list. Refresh rescans and switches to a newly plugged-in adapter.
+- Rescans automatically at startup and when a USB device is plugged in/removed; remembers the last
+  real port that connected.
+- Read-only test mode is ON at every start; "writes enabled" lasts for the current session only.
+- Type a COM port by hand (box next to Refresh, e.g. COM4) and click Use, if it is not listed.
+- If no COM ports are found, a yellow bar explains: plug in the EX, install the FTDI VCP driver,
+  check Device Manager > Ports (COM & LPT).
+- While connected to DEMO a yellow "DEMO MODE ... SIMULATED" bar is shown; without DEMO the
+  dashboard only shows values read from the real adapter.
 
 NEW IN v0.3.1
 - Firmware banner / Tools > Adapter firmware: "Get official updater" downloads OBDLink's official
