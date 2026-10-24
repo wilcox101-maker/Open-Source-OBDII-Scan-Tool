@@ -57,7 +57,7 @@ public sealed class AsBuiltRow : ObservableObject
     private void OnChecksum()
     {
         try { Checksum = AsBuiltLine.ComputeChecksum(Addr, Convert.FromHexString(_data.Replace(" ", ""))).ToString("X2"); }
-        catch { Checksum = "ERR"; }
+        catch { Checksum = "ERR"; } // partially typed hex: shown as ERR in the grid
     }
 }
 
@@ -382,7 +382,7 @@ public sealed class MainViewModel : ObservableObject
 
         try { _settings = AppSettings.Load(SettingsPath); }
         catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
-        if (_settings.ApplyStartupSafety()) { EventLog.Message(LogEventLevel.Warning, "Settings", "Read-only test mode was OFF in settings.json; turned back ON at startup (writes are enabled per session only)"); try { SaveSettings(); } catch { } }
+        if (_settings.ApplyStartupSafety()) { EventLog.Message(LogEventLevel.Warning, "Settings", "Read-only test mode was OFF in settings.json; turned back ON at startup (writes are enabled per session only)"); try { SaveSettings(); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Settings", "Could not save settings.json", ex); } }
         _capRedact = _settings.RedactVinsDefault;
         foreach (var lp in new[] { EventsPanel, MessagesPanel, TrafficPanel }) if (lp != null) lp.RedactOnExport = _settings.RedactVinsDefault;
         try { ThemeManager.Apply(_settings.Theme); }
@@ -544,7 +544,7 @@ public sealed class MainViewModel : ObservableObject
         OpenMotorcraftCommand = C("Open Motorcraft As-Built site", () =>
         {
             var vin = _current?.Vin is { Length: 17 } cv ? cv : _vin.Length == 17 ? _vin : null;
-            if (vin != null) { try { Clipboard.SetText(vin); } catch { } }
+            if (vin != null) { try { Clipboard.SetText(vin); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Vehicle", "Could not copy VIN to the clipboard: " + ex.Message); } }
             DialogService.OpenExternal(MotorcraftAsBuiltUrl);
             EventLog.Message(LogEventLevel.Information, "Motorcraft As-Built", $"Opened {MotorcraftAsBuiltUrl} in the browser{(vin != null ? "; VIN copied to clipboard" : "")}. Sign in, pass the captcha, download the .ab, then use Import .ab here (it is copied into {Paths.AsBuiltDir}).");
             return Task.CompletedTask;
@@ -614,7 +614,7 @@ public sealed class MainViewModel : ObservableObject
             Paths.CapturesDir, new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Capture", m)));
         await SelectDiagProtocol();
         EventLog.Message(LogEventLevel.Information, "Capture", $"Saved {path} ({logs.Count} log files included)");
-        try { DialogService.OpenExternal("explorer.exe", $"/select,\"{path}\""); } catch { }
+        try { DialogService.OpenExternal("explorer.exe", $"/select,\"{path}\""); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Explorer", "Could not open Explorer: " + ex.Message); }
         Info("Diagnostics capture", $"Capture saved:\n{path}\n\nSend this zip back. " + (CaptureRedactVins ? "VINs were redacted." : "(It is NOT redacted: it may include your VIN and adapter serial.)"));
     }
     private AsBuiltService AsBuilt => _asBuilt ?? throw new InvalidOperationException("Not connected - click Connect first");
@@ -691,7 +691,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            if (_session != null) { try { await _session.Link.DisposeAsync(); } catch { } }
+            if (_session != null) { try { await _session.Link.DisposeAsync(); } catch (Exception closeEx) { EventLog.Message(LogEventLevel.Debug, "Adapter", "Closing the old link failed: " + closeEx.Message); } }
             _session = null; _ch = null; _console = null; _asBuilt = null;
             Connection = ConnectionStatus.Failed(ex.Message);
             throw;
@@ -740,8 +740,8 @@ public sealed class MainViewModel : ObservableObject
     private void InitFirmwareCommands(Action<string, Exception> Err)
     {
         DownloadFirmwareCommand = new AsyncCommand("Download firmware", EventLog, DownloadFirmwareAsync, Err);
-        OpenFirmwareFolderCommand = new RelayCommand("Open firmware folder", EventLog, _ => { var d = _fwFolder ?? ObdLink.Core.Storage.AppPaths.Ensure(FirmwareRoot); try { DialogService.OpenExternal("explorer.exe", $"\"{d}\""); } catch { } });
-        OpenFirmwarePageCommand = new RelayCommand("Open firmware page", EventLog, _ => { try { DialogService.OpenExternal(FirmwarePage); } catch { } });
+        OpenFirmwareFolderCommand = new RelayCommand("Open firmware folder", EventLog, _ => { var d = _fwFolder ?? ObdLink.Core.Storage.AppPaths.Ensure(FirmwareRoot); try { DialogService.OpenExternal("explorer.exe", $"\"{d}\""); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Explorer", "Could not open the firmware folder: " + ex.Message); } });
+        OpenFirmwarePageCommand = new RelayCommand("Open firmware page", EventLog, _ => { try { DialogService.OpenExternal(FirmwarePage); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Firmware", "Could not open the firmware page (blocked or no browser): " + ex.Message); } });
         DismissFirmwareCommand = new RelayCommand("Dismiss firmware notice", EventLog, _ => FirmwareBannerVisible = false);
         GetUpdaterCommand = new AsyncCommand("Get official updater", EventLog, GetUpdaterAsync, Err);
         RunUpdaterCommand = new AsyncCommand("Run official updater", EventLog, RunUpdaterAsync, Err);
@@ -783,7 +783,7 @@ public sealed class MainViewModel : ObservableObject
                 EventLog.Message(LogEventLevel.Warning, "Updater", "Installer is unsigned and its hash is not pinned; asking the user");
                 if (!DialogService.YesNo($"The downloaded updater came from {m.Url} (https, scantool.net) and looks like an installer, but it is NOT digitally signed and its SHA-256 is not one this app knows:\n\n{m.Sha256}\n\nOBDLink may simply have released a new version. Keep and use it?", "Unverified updater", System.Windows.MessageBoxImage.Warning))
                 {
-                    try { File.Delete(file); File.Delete(Path.Combine(dir, OfficialUpdater.ManifestName)); } catch { }
+                    try { File.Delete(file); File.Delete(Path.Combine(dir, OfficialUpdater.ManifestName)); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Updater", "Could not delete the declined installer: " + ex.Message); }
                     EventLog.Message(LogEventLevel.Warning, "Updater", "User declined the unverified installer; deleted");
                     return null;
                 }
@@ -835,7 +835,7 @@ public sealed class MainViewModel : ObservableObject
         if (IsConnected) { EventLog.Message(LogEventLevel.Information, "Updater", "Auto-disconnecting the adapter before the official updater"); await DisconnectAsync(); }
         EventLog.Message(LogEventLevel.Information, "Updater", $"Launching official updater ({kind}): {exe}");
         if (!DialogService.RunUpdater(exe!)) EventLog.Message(LogEventLevel.Warning, "Updater", "Launch canceled (UAC declined)");
-        if (fwNote is not null) { try { DialogService.OpenExternal("explorer.exe", $"\"{fwNote}\""); } catch { } }
+        if (fwNote is not null) { try { DialogService.OpenExternal("explorer.exe", $"\"{fwNote}\""); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Explorer", "Could not open Explorer: " + ex.Message); } }
     }
 
     private void FwChanged() { foreach (var n in new[] { nameof(FirmwareCanDownload), nameof(FirmwareHasFolder), nameof(FirmwarePage) }) OnPropertyChanged(n); }

@@ -115,7 +115,7 @@ public sealed class FirmwareChecker
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct); cts.CancelAfter(_probe);
         try { using var r = await _http.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"https://{FirmwareFeed.Host}/"), cts.Token); return true; }
-        catch { return false; }
+        catch { return false; } // offline is an expected answer, reported by the caller
     }
 
     public async Task<FirmwareCheckResult> CheckAsync(string? sti, CancellationToken ct = default)
@@ -194,7 +194,7 @@ public static class FirmwareDownloader
                 $"Official OBDLink firmware package downloaded by OBDLink Diag on {DateTime.Now:yyyy-MM-dd HH:mm}.\nSource: {r.PackageUrl}\nAdapter: STN{fw.Chip}, installed v{fw.Version}; this package v{r.Version}.\n\nOBDLink Diag does NOT flash firmware. Use OBDLink's official firmware updater:\n{FirmwareFeed.OfficialPage(fw.Chip)}\n");
             return new(dir, zip, clPath, new FileInfo(zip).Length, bin);
         }
-        catch { try { File.Delete(tmp); } catch { } throw; }
+        catch { try { File.Delete(tmp); } catch { /* temp cleanup only; the original error is rethrown */ } throw; }
     }
 
     /// <summary>Checks that the zip opens, every entry reads (CRC), and exactly one .bin starts with "STNFWv". Returns (bin entry, changelog entry).</summary>

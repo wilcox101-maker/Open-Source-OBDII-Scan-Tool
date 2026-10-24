@@ -17,7 +17,7 @@ public partial class MainWindow : Window
         catch (Exception ex) { GuideViewer.Document = new System.Windows.Documents.FlowDocument(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(vm.GuideText))); vm.EventLog.Message(Serilog.Events.LogEventLevel.Warning, "Guide", "Guide markdown render failed; showing plain text", ex); }
         _vm = vm;
         PreviewKeyDown += OnShortcutKey;
-        Loaded += async (_, _) => { if (vm.UpdateCheckEnabled) { try { await vm.CheckForUpdatesAsync(false); } catch { } } };
+        Loaded += async (_, _) => { if (vm.UpdateCheckEnabled) { try { await vm.CheckForUpdatesAsync(false); } catch (Exception ex) { Serilog.Log.Warning("Startup update check failed: {Err}", ex.Message); } } };
     }
     private readonly MainViewModel _vm;
     // ---- v0.3.2: rescan COM ports when a USB serial device (e.g. OBDLink EX) is plugged in or removed ----

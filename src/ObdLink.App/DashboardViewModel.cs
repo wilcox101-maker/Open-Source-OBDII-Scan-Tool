@@ -313,7 +313,7 @@ public sealed class DashboardViewModel : ObservableObject
                 if (++cycles % 20 == 0) RateText = $"×{_engine.Scheduler.Factor:0.0} rate factor · fast PIDs every {_engine.Scheduler.BaseMs * _engine.Scheduler.Factor:0} ms";
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* normal stop (page hidden or disconnected) */ }
         catch (Exception ex) { Info = "Dashboard stopped: " + ex.Message; _log.Message(LogEventLevel.Warning, "Dashboard", "Polling stopped", ex); }
         finally { Active = false; }
     }

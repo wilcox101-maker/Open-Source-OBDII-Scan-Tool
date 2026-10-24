@@ -85,7 +85,7 @@ public sealed class DashboardEngine
                 }
             }
             catch (OperationCanceledException) { throw; }
-            catch { ok = false; }
+            catch (Exception ex) { ok = false; Serilog.Log.Debug("Dashboard read {Item} failed: {Err}", item, ex.Message); }
             Scheduler.Completed(item, _now(), ok);
         }
         Scheduler.CycleTook(_now() - start);

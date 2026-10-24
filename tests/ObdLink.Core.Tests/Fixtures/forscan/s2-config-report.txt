@@ -14,37 +14,37 @@ Generation: 2017 MY
 Fuel: Gasoline
 Transmission gear: Automatic
 SYNC version: SYNC 1.1
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 OBD2_PCM - On Board Diagnostic II (PCM)
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 PCM - Powertrain Control Module
 Part number: FL3A-12A650-CGA
 Calibration level: HL3A-12A650-BDB
 Strategy : HL3A-14C204-BDB
 Hardware type: FL3A-12B684-BEA / FL3A-12B684-BEB
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 Total Distance: 187536.7 miles
 
 APIM - Accessory Protocol Interface Module
 Part number: FL3T-14D212-RB
 Calibration level: FL3T-14D212-RB
 Strategy : E1BT-14D205-AJ
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 BdyCM - Body Control Module
 Part number: HU5T-14B476-DAJ
 Calibration level: HU5T-14B476-DAJ (latest known: HU5T-14B476-DAT)
 Strategy : HU5T-14C184-AAJ
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 FCIM - Front Controls Interface Module
 Part number: HL3T-18E243-BMB
 Calibration level: HL3T-18E243-BMB (latest known: HL3T-18E243-BMC)
 Strategy : HL3T-14G130-GB
 Calibration: HL3T-14G131-BA
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 FCDIM - Front Control/Display Interface Module
 Part number: HL3T-18B955-CB
@@ -67,13 +67,13 @@ ABS - Antilock braking system
 Part number: HL34-2C219-AG
 Calibration level: HL34-2C219-AG
 Strategy : HL34-2D053-AG
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 PBM - Park Brake Control Module
 Part number: FL34-2C496-AK
 Calibration level: FL34-2C496-AK
 Strategy : FL34-14C168-AG
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 Total Distance: 187536.7 miles
 
 RTM - Radio Transceiver Module
@@ -85,27 +85,27 @@ PDM - Passengers Door Control Unit
 Part number: DG9T-14B533-FB
 Calibration level: DG9T-14B533-FB (latest known: DG9T-14B533-FD)
 Strategy : DG9T-14C108-CB
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 DDM - Drivers Door Module
 Part number: DG9T-14B531-FB
 Calibration level: DG9T-14B531-FB (latest known: DG9T-14B531-FD)
 Strategy : DG9T-14C064-CB
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 RCM - Restraint Control Module
 Part number: HL3T-14B321-AC
 Calibration level: HL3T-14B321-AC
 Strategy : GR3T-14C028-AA
 Calibration: HL3T-14C098-AC
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 
 PSCM - Power Steering Control Module
 Part number: HL34-3F964-BG
 Calibration level: HL34-3F964-BG
 Strategy : HR3C-14D003-AA
 Calibration: HL34-14D004-BE
-VIN: XXXXXXXXXXXE25268
+VIN: XXXXXXXXXXX000000
 Total Distance: 187536.7 miles
 
 ACM - Audio Control Module

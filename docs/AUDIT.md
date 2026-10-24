@@ -19,7 +19,7 @@ How to repeat:
 | async void / unobserved tasks | 5 checked | 1 | 0 |
 | Threading / race conditions | 1 | 1 | 0 |
 | Disposal (SerialPort, HttpClient) | 2 | 2 | 0 |
-| Swallowed exceptions (`catch { }`) | 46 sites | 0 | reviewed, finding F3 |
+| Swallowed exceptions (`catch { }`) | 46 sites | v0.3.5: 21 now log, rest commented | 0 (F3) |
 | Paths outside the Data folder | 2 | 0 | both intentional, F5 |
 | DEMO-to-real leaks | 0 new | - | - |
 | Security (URL / process launch) | 1 | 1 | 0 |
@@ -66,12 +66,18 @@ An older `Data\ford-enhanced-pids.json` gains only the new `oss` entry; deleted 
 
 - **F1 OSS DID is a guess.** Please check 1E13 with FORScan (look for OSS / OSS_SRC on PCM or TCM) and send the
   real DID; it is a one-line edit in `Data\ford-enhanced-pids.json`.
-- **F2 Simulator VIN tail.** `SimulatedAdapter.Vin = "XXXXXXXXXXXE25268"` contains the last 6 characters of your
-  real VIN. Not the full VIN (VIN check passes), but I suggest replacing it with a synthetic tail. Not changed, because
-  tests and demo profiles key on it.
-- **F3 Empty catches (46).** Most are deliberate (BT dropout on close, best-effort Explorer, cleanup). A few in
-  `MainViewModel` (Explorer/firmware page `try { OpenExternal } catch { }`) now also hide an allow-list refusal;
-  logging them would be better. Behavior unchanged for now.
+- **F2 Simulator VIN tail - RESOLVED in v0.3.5.** The log-based DEMO simulator used a masked VIN whose last 6
+  characters came from the real truck. It now reports the synthetic `1FTDEMX95HF000001` (`SimulatedAdapter.DemoVin`),
+  and all redacted fixtures, tests and docs use `XXXXXXXXXXX000000` (As-Built checksums recomputed). Profiles saved with
+  the old demo VIN still show `[DEMO]`: the app keeps only a SHA-256 of that VIN, not the text. Tests check that the
+  demo VIN shares no 5-character run with the real VIN and that the old tail appears nowhere in the repo.
+- **F3 Empty catches - RESOLVED in v0.3.5.** Every `catch { }` now either logs to the app/Events log or carries a
+  comment saying why it is safe to ignore (a test fails on any new bare `catch { }`). Now logged: refused/failed link
+  and Explorer opens and the firmware page (Warning), unreadable vehicle profiles and settings.json (Warning), update
+  check, updater manifest/page/HEAD fallbacks, signature-read and WinVerifyTrust failures, VIN clipboard copy,
+  settings save, folder creation, declined-installer delete (Warning/Information), and per-DID identify / dashboard read
+  failures and old-link close (Debug, to avoid flooding). Left silent with a comment: crash-path writes, BT-dropout port
+  close, buffer discard, temp-file cleanup before rethrow, folder probes, theme registry default, malformed ELM command.
 - **F4 CA1001.** `MainViewModel` (`_batchCts`, `_bus`) and `DashboardViewModel` (`_cts`, `_rec`) are app-lifetime
   objects; making them IDisposable means wiring Window.Closed. Low risk of a real leak; left as is.
 - **F5 Paths outside Data.** crash.txt fallback in the exe folder (when Data cannot be written) and user-chosen Save

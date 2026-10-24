@@ -12,11 +12,11 @@ internal static class UpdaterWindows
     public static SignatureInfo VerifySignature(string path)
     {
         bool has;
-        try { has = OfficialUpdater.HasAuthenticodeBlob(File.ReadAllBytes(path)); } catch { return new(false, false, null); }
+        try { has = OfficialUpdater.HasAuthenticodeBlob(File.ReadAllBytes(path)); } catch (Exception ex) { Serilog.Log.Warning("Could not read {Path} for signature check: {Err}", path, ex.Message); return new(false, false, null); }
         if (!has) return new(false, false, null);
         string? pub = null;
 #pragma warning disable SYSLIB0057
-        try { pub = new X509Certificate2(X509Certificate.CreateFromSignedFile(path)).GetNameInfo(X509NameType.SimpleName, false); } catch { }
+        try { pub = new X509Certificate2(X509Certificate.CreateFromSignedFile(path)).GetNameInfo(X509NameType.SimpleName, false); } catch { /* unsigned file: no publisher name */ }
 #pragma warning restore SYSLIB0057
         return new(true, WinTrust(path) == 0, pub);
     }
@@ -35,7 +35,7 @@ internal static class UpdaterWindows
                     if (s is not null) entries.Add((s.GetValue("DisplayName") as string, s.GetValue("InstallLocation") as string, s.GetValue("DisplayIcon") as string));
                 }
             }
-            catch { }
+            catch (Exception ex) { Serilog.Log.Debug("Registry scan of {Key} failed: {Err}", key, ex.Message); }
         }
         Scan(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
         Scan(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall");
@@ -74,7 +74,7 @@ internal static class UpdaterWindows
             d.dwStateAction = 2; /*CLOSE*/ _ = WinVerifyTrust(new IntPtr(-1), GenericVerifyV2, ref d);
             return r;
         }
-        catch { return -1; }
+        catch (Exception ex) { Serilog.Log.Warning("WinVerifyTrust failed: {Err}", ex.Message); return -1; }
         finally { Marshal.DestroyStructure<FileInfoW>(pFi); Marshal.FreeHGlobal(pFi); }
     }
 }

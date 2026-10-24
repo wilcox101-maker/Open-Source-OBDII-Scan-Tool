@@ -16,7 +16,9 @@ public sealed class SimulatedAdapter
     /// <summary>Host baud the simulated UART accepts (EX only; Bluetooth ignores it). Used by CreateTransportAtBaud.</summary>
     public int UartBaud { get; set; } = 115200;
     public double Voltage { get; set; } = 12.6;
-    public string Vin { get; set; } = "1FTDEMX95HF000001"; // synthetic (check digit valid, MY2017, plant F), valid VIN alphabet so redaction can be seen working (not a real vehicle)
+    /// <summary>The only VIN the simulator reports (synthetic; shares no 5-character run with any real VIN in the logs).</summary>
+    public const string DemoVin = "1FTDEMX95HF000001";
+    public string Vin { get; set; } = DemoVin; // synthetic (check digit valid, MY2017, plant F), valid VIN alphabet so redaction can be seen working (not a real vehicle)
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
     public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x7E1, 0x726, 0x720 };
     /// <summary>Modules that answer only while the MS-CAN preset (STP53) is selected; used by the Identify vehicle demo.</summary>
@@ -84,7 +86,7 @@ public sealed class SimulatedAdapter
         if (c == "ATCAF1") { _caf = true; return "OK"; }
         if (c.StartsWith("AT") || c.StartsWith("ST")) return "?";
         byte[] req;
-        try { req = Convert.FromHexString(c); } catch { return "?"; }
+        try { req = Convert.FromHexString(c); } catch { return "?"; } // ELM answers "?" to a malformed command
         if (!_caf)
         {   // raw frame mode: host performs ISO-TP
             var type = req[0] >> 4;
@@ -179,7 +181,7 @@ public sealed class SimulatedAdapter
     /// </summary>
     public static SimulatedAdapter FromForscanLogs(string scanLog, params string[] dtcReports)
     {
-        var sim = new SimulatedAdapter { Vin = "XXXXXXXXXXXE25268" };
+        var sim = new SimulatedAdapter { Vin = DemoVin };
         sim.PresentModules.Clear();
         var table = Modules.FordF150_2017.Modules;
         uint? Addr(string ac) { var a = Modules.FordF150_2017.ForscanAlias.GetValueOrDefault(ac, ac); return table.FirstOrDefault(m => m.Acronym == a && m.HasAddress)?.TxId; }

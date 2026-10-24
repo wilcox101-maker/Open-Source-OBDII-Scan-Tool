@@ -25,7 +25,7 @@ public sealed class AppPaths
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
     public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles" };
     /// <summary>Returns <paramref name="dir"/> after making sure it exists (for Save/Open dialog InitialDirectory).</summary>
-    public static string Ensure(string dir) { try { Directory.CreateDirectory(dir); } catch { } return dir; }
+    public static string Ensure(string dir) { try { Directory.CreateDirectory(dir); } catch (Exception ex) { Serilog.Log.Warning("Could not create folder {Dir}: {Err}", dir, ex.Message); } return dir; }
 
     private AppPaths(string dataDir, bool portable, string? reason) { DataDir = dataDir; IsPortable = portable; FallbackReason = reason; }
 
@@ -49,7 +49,7 @@ public sealed class AppPaths
         }
         catch (Exception ex) { reason = $"{exeDir} is not writable ({ex.GetType().Name}: {ex.Message})"; }
         Directory.CreateDirectory(legacyDir);
-        foreach (var d in SubFolders) try { Directory.CreateDirectory(Path.Combine(legacyDir, d)); } catch { }
+        foreach (var d in SubFolders) try { Directory.CreateDirectory(Path.Combine(legacyDir, d)); } catch { /* probe only: failure means the folder is not writable, checked next */ }
         return new AppPaths(legacyDir, false, reason);
     }
 
@@ -59,7 +59,7 @@ public sealed class AppPaths
         if (IsPortable) return false;
         var flag = Path.Combine(DataDir, FallbackNoticeFlag);
         if (File.Exists(flag)) return false;
-        try { File.WriteAllText(flag, DateTime.Now.ToString("O")); } catch { }
+        try { File.WriteAllText(flag, DateTime.Now.ToString("O")); } catch { /* marker file is optional */ }
         return true;
     }
 
@@ -95,7 +95,7 @@ public sealed class AppPaths
             catch (Exception ex) { kept++; notes.Add($"could not move {rel}: {ex.Message}"); }
         }
         foreach (var d in Directory.GetDirectories(legacyDir, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
-            try { if (!Directory.EnumerateFileSystemEntries(d).Any()) Directory.Delete(d); } catch { }
+            try { if (!Directory.EnumerateFileSystemEntries(d).Any()) Directory.Delete(d); } catch { /* tidy-up of empty legacy folders only */ }
         var sb = new StringBuilder()
             .AppendLine($"OBDLinkDiag data moved on {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz} to:")
             .AppendLine(DataDir).AppendLine()

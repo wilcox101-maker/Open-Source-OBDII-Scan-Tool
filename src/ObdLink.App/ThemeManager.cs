@@ -18,7 +18,7 @@ public static class ThemeManager
             using var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
             return k?.GetValue("AppsUseLightTheme") is int i ? i != 0 : true;
         }
-        catch { return true; }
+        catch { return true; } // no registry value: default to light theme
     }
 
     public static string Apply(string mode)

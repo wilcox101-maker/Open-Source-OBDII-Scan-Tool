@@ -1,6 +1,6 @@
 # Dale's 2017 F-150: factory As-Built (.ab) analysis
 
-Source: Ford's official As-Built file for VIN **XXXXXXXXXXXE25268**. The original is kept locally in `samples/real-logs/` (git-ignored). The committed fixture is `tests/ObdLink.Core.Tests/Fixtures/ab/dale-f150-2017.redacted.ab`: the VIN is masked, including the ASCII copies inside module blocks with checksums recomputed, and module serial/MAC DIDs (F18C/F1D0/F141) read `REDACTED`.
+Source: Ford's official As-Built file for Dale's truck (VIN redacted). The original is kept locally in `samples/real-logs/` (git-ignored). The committed fixture is `tests/ObdLink.Core.Tests/Fixtures/ab/dale-f150-2017.redacted.ab`: the VIN is masked, including the ASCII copies inside module blocks with checksums recomputed, and module serial/MAC DIDs (F18C/F1D0/F141) read `REDACTED`.
 
 Tooling: `FordAbFile` (Core/AsBuilt/FordAbFile.cs) and `tools/AbTool` (`summary`, `decode`, `redact`).
 

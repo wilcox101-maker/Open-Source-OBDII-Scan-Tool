@@ -1,3 +1,12 @@
+## v0.3.5-test
+
+**Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.5.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.5.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+- **Demo VIN is fully synthetic.** DEMO now always reports `1FTDEMX95HF000001`; no part of a real VIN is in the app, tests or docs any more (test fixtures use `XXXXXXXXXXX000000`). Vehicle profiles saved from DEMO by older versions are still labeled `[DEMO]`.
+- **Hidden failures are now logged.** Errors that used to be silently ignored now appear in the Events/app log: a link or folder that could not be opened (including one refused by the trusted-site check), an unreadable vehicle profile or settings.json, failed update checks, updater fallbacks, signature-check problems and clipboard errors. Harmless cases (port already gone, temp-file cleanup, crash-file fallbacks) stay quiet and are commented in the code. See docs/AUDIT.md (F2, F3).
+
 ## v0.3.4-test
 
 **Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.

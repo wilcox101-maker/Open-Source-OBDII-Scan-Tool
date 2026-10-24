@@ -106,7 +106,7 @@ public sealed class VehicleIdentifier
                     try { await uds.TesterPresentAsync(ct); present = true; }
                     catch (UdsNegativeResponseException) { present = true; }
                     catch (OperationCanceledException) { throw; }
-                    catch { present = false; }
+                    catch { present = false; } // no answer or bad frame = module not present (expected for most addresses)
                     if (!present) continue;
                     var (ac, name, known) = NameFor(id);
                     var dids = new Dictionary<string, string>();
@@ -114,10 +114,10 @@ public sealed class VehicleIdentifier
                     {
                         try { var b = await uds.ReadDataByIdentifierAsync(did, ct); var a = AsciiOf(b); dids[$"{did:X4}"] = a.Length >= Math.Max(4, b.Length / 2) ? a : Convert.ToHexString(b); }
                         catch (OperationCanceledException) { throw; }
-                        catch { }
+                        catch (Exception ex) { Serilog.Log.Debug("Identify: {Id:X3} DID {Did:X4} not read: {Err}", id, did, ex.Message); }
                     }
                     bool de00;
-                    try { await uds.ReadDataByIdentifierAsync(0xDE00, ct); de00 = true; } catch (OperationCanceledException) { throw; } catch { de00 = false; }
+                    try { await uds.ReadDataByIdentifierAsync(0xDE00, ct); de00 = true; } catch (OperationCanceledException) { throw; } catch { de00 = false; } // DE00 not readable = not configurable
                     p.Modules.Add(new(ac, name, bus.ToString(), id, id + 8, known, dids, de00));
                     progress?.Report($"FOUND {bus} 0x{id:X3} {ac} - {name}{(dids.TryGetValue("F188", out var sw) ? $"  F188={sw}" : "")}{(de00 ? "  (As-Built DE00 readable)" : "")}");
                 }

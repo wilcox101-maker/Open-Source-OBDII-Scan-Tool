@@ -1,7 +1,7 @@
 # What Dale's real logs and reference files show (2026-10-23)
 
 ## FORScan text logs from Dale's 2017 F-150 (redacted copies in tests/ObdLink.Core.Tests/Fixtures/forscan)
-- **Vehicle:** 2017 F-150, 3.5L TiVCT, SYNC 1.1, odometer 183,387.8 mi. VIN redacted to its last 6 characters (…E25268).
+- **Vehicle:** 2017 F-150, 3.5L TiVCT, SYNC 1.1, odometer 183,387.8 mi. VIN fully redacted.
 - **Adapter:** FORScan used an **OBDLink EX** (r2.2.1 STN2231, firmware v5.10.3 and v5.13.0), FTDI USB on COM4 at 2,000,000 bps, min delay 14 ms. It is not an MX+. FORScan tried Bluetooth first and that failed. The first vehicle connect failed with "ignition key ON".
 - **Modules found (20):** OBD2_PCM, PCM, APIM, BdyCM, FCIM, FCDIM, OCS, TCCM, ABS, PBM, RTM, PDM, DDM, RCM, PSCM, ACM, SCCM, IPC, GWM, GPSM.
 - **What the logs contain:** part numbers and strategies, DTCs with FORScan's `code:FTB-status` notation, KOEO/KOER self-tests and Mode 6 results, and PBM service procedures.

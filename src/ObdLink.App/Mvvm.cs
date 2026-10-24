@@ -35,13 +35,13 @@ public sealed class AsyncCommand : ICommand
     public async void Execute(object? p)
     {
         // v0.3.4 audit: async void must never throw (an exception here would crash the dispatcher)
-        try { await ExecuteAsync(); } catch (Exception ex) { try { _log.Message(LogEventLevel.Error, _name, "Unhandled command error", ex); } catch { } }
+        try { await ExecuteAsync(); } catch (Exception ex) { try { _log.Message(LogEventLevel.Error, _name, "Unhandled command error", ex); } catch { /* logging itself failed; never crash from a command */ } }
     }
     public async Task ExecuteAsync()
     {
         _busy = true; CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         (string, object?)[] ps;
-        try { ps = _params?.Invoke() ?? Array.Empty<(string, object?)>(); } catch { ps = Array.Empty<(string, object?)>(); }
+        try { ps = _params?.Invoke() ?? Array.Empty<(string, object?)>(); } catch { ps = Array.Empty<(string, object?)>(); } // log parameters are optional context
         var op = _log.Begin(_name, ps);
         try { await _run(); op.Succeeded(); }
         catch (UserDeclinedException ex) { op.Cancelled(ex.Message); }

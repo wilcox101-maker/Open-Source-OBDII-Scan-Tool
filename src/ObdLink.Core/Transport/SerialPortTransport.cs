@@ -23,7 +23,7 @@ public sealed class SerialPortTransport : ITransport
     public Task OpenAsync(CancellationToken ct = default)
     {
         // v0.3.4 audit: re-open must not leak the previous handle, and a failed Open must not leave a half-built port behind
-        try { _port?.Close(); } catch { }
+        try { _port?.Close(); } catch { /* old port may already be gone (BT dropout) */ }
         _port?.Dispose();
         _port = null;
         var port = new SerialPort(_portName, _baud, Parity.None, 8, StopBits.One)
@@ -66,7 +66,7 @@ public sealed class SerialPortTransport : ITransport
         return Encoding.ASCII.GetString(buf, 0, n);
     }
 
-    public void DiscardInput() { try { _port?.DiscardInBuffer(); } catch { } }
+    public void DiscardInput() { try { _port?.DiscardInBuffer(); } catch { /* port closing or gone; nothing to discard */ } }
 
     public async ValueTask DisposeAsync() => await CloseAsync();
 }

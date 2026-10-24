@@ -1,11 +1,11 @@
-OBDLink Diag - TEST BUILD v0.3.4 (win-x64 / win-arm64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.3.5 (win-x64 / win-arm64)  2026-10-24
 =======================================================
 UNSIGNED TEST BUILD. Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2
-(Dale, demo mode); this v0.3.4 build has not been run on Windows yet. Real-vehicle testing is still pending.
+(Dale, demo mode); this v0.3.5 build has not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
 
-WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.4.zip
-  ObdLinkApp-ARM64-only-v0.3.4.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.5.zip
+  ObdLinkApp-ARM64-only-v0.3.5.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
   (Running the ARM64 build on a normal Intel/AMD PC gives "This app can't run on your PC".)
   How to check: Settings > System > About > "System type".
     "64-bit operating system, x64-based processor"  -> x64 zip
@@ -15,7 +15,12 @@ SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Windows 7, 8
 supported: the exe will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in
 the Data folder.
 
-NEW IN v0.3.4: OUTPUT SHAFT SPEED + CODE AUDIT
+NEW IN v0.3.5
+- DEMO uses a fully synthetic VIN (1FTDEMX95HF000001). Old DEMO profiles still show [DEMO].
+- Failures that used to be silent (link/folder could not open, unreadable profile or settings,
+  update-check errors) are now written to the Events/app log.
+
+IN v0.3.4: OUTPUT SHAFT SPEED + CODE AUDIT
 - Customize > add "Output shaft speed (OSS)": rpm from an UNVERIFIED Ford Mode 22 DID (1E13), asked of
   PCM 0x7E0 then TCM 0x7E1. Read-only; DEMO shows a simulated value. Not on the default layout.
 - Code audit fixes (see docs/AUDIT.md): safer link opening, no double dashboard polling, COM port

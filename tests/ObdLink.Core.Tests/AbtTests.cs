@@ -60,10 +60,10 @@ public class AbtTests
     {
         var bcm = Abt("726-bcm");
         var s = System.Text.Encoding.ASCII.GetString(bcm.Lines.SelectMany(l => l.Data).ToArray());
-        Assert.Contains("XXXXXXXXXXXE25268", s);
-        var fake = ForscanAbtFile.Parse(ForscanAbtFile.Format(new[] { AsBuiltLine.Create(new(0x7A7, 1, 1), "1ABCD"u8.ToArray()), AsBuiltLine.Create(new(0x7A7, 2, 1), "EFGH01E25268"u8.ToArray()) }));
-        var r = fake.Redacted("1ABCDEFGH01E25268");
-        Assert.Equal("XXXXXXXXXXXE25268", System.Text.Encoding.ASCII.GetString(r.Lines.SelectMany(l => l.Data).ToArray()));
+        Assert.Contains("XXXXXXXXXXX000000", s);
+        var fake = ForscanAbtFile.Parse(ForscanAbtFile.Format(new[] { AsBuiltLine.Create(new(0x7A7, 1, 1), "1ABCD"u8.ToArray()), AsBuiltLine.Create(new(0x7A7, 2, 1), "EFGH01000042"u8.ToArray()) }));
+        var r = fake.Redacted("1ABCDEFGH01000042");
+        Assert.Equal("XXXXXXXXXXX000042", System.Text.Encoding.ASCII.GetString(r.Lines.SelectMany(l => l.Data).ToArray()));
         Assert.All(r.Lines, l => Assert.True(l.ChecksumValid));
     }
 
@@ -103,7 +103,7 @@ public class AbtTests
     {
         var data = Ab().Lines.Where(l => l.Address.Module == 0x726).OrderBy(l => l.Address.Block).ThenBy(l => l.Address.Line).SelectMany(l => l.Data).ToArray();
         var s = System.Text.Encoding.ASCII.GetString(data);
-        Assert.Contains("XXXXXXXXXXXE25268", s);
+        Assert.Contains("XXXXXXXXXXX000000", s);
         Assert.DoesNotContain("1FTEX", s);
     }
 

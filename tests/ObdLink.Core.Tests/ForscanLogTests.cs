@@ -58,7 +58,7 @@ public class ForscanLogTests
         var mods = ForscanLogParser.ParseConfigReport(Fx("config-report.txt"));
         var pcm = mods.Single(m => m.Acronym == "PCM");
         Assert.Equal("FL3A-12A650-CGA", pcm.Fields["Part number"]);
-        Assert.Equal("XXXXXXXXXXXE25268", pcm.Fields["VIN"]);
+        Assert.Equal("XXXXXXXXXXX000000", pcm.Fields["VIN"]);
         Assert.Contains(mods, m => m.Acronym == "BdyCM" && m.Fields["Strategy"] == "HU5T-14C184-AAJ");
     }
 

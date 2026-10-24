@@ -15,7 +15,7 @@ public class FordAbTests
     public void Parses_redacted_fixture()
     {
         var f = Ab();
-        Assert.Equal("XXXXXXXXXXXE25268", f.Vin);
+        Assert.Equal("XXXXXXXXXXX000000", f.Vin);
         Assert.Equal(295, f.Lines.Count);
         Assert.Equal(9, f.PcmLines.Count);
         Assert.Equal(19, f.Nodes.Count);
@@ -62,7 +62,7 @@ public class FordAbTests
         Assert.DoesNotContain("1FTEX1", text);
         var f = Ab();
         var vinBlock = Encoding.ASCII.GetString(f.Lines.Where(l => l.Address.Module == 0x737 && l.Address.Block == 1).SelectMany(l => l.Data).ToArray());
-        Assert.Equal("XXXXXXXXXXXE25268", vinBlock);
+        Assert.Equal("XXXXXXXXXXX000000", vinBlock);
         Assert.All(f.Nodes.Values, n => Assert.All(FordAbFile.SerialDids, d => Assert.True(!n.ContainsKey(d) || n[d] == "REDACTED")));
         var again = f.Redacted();
         Assert.All(again.Lines, l => Assert.True(l.ChecksumValid));

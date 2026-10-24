@@ -22,8 +22,14 @@ public sealed class VehicleProfile
     /// <summary>v0.3.2: true when identified on a DEMO (simulated) adapter. Demo profiles are labeled and never used on a real adapter.</summary>
     public bool IsDemo { get; set; }
     /// <summary>Also catches profiles saved by v0.3.1 and earlier (no IsDemo flag): the simulator's synthetic VIN or DEMO part numbers.</summary>
-    public bool LooksDemo => IsDemo || Vin.EndsWith("000001", StringComparison.Ordinal) && Vin.StartsWith("1FTDEMX", StringComparison.Ordinal)
+    public bool LooksDemo => IsDemo || Vin.EndsWith("000001", StringComparison.Ordinal) && Vin.StartsWith("1FTDEMX", StringComparison.Ordinal) || IsLegacyLogDemoVin(Vin)
         || Modules.Any(m => m.Dids != null && m.Dids.TryGetValue("F188", out var v) && v.StartsWith("DEMO", StringComparison.OrdinalIgnoreCase));
+
+    // v0.3.4 and earlier, the log-based DEMO simulator reported a masked VIN whose tail came from Dale's truck.
+    // Only its SHA-256 is kept so the tail no longer appears in the source, but those old profiles still show [DEMO].
+    private const string LegacyLogDemoVinSha256 = "3769afa8825ce091acffb966eb0021e318402571c8d7aaf6ae93e5ed3de479c2";
+    public static bool IsLegacyLogDemoVin(string vin) => vin.Length == 17 && vin.StartsWith("XXXXXXXXXXX", StringComparison.Ordinal)
+        && Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(vin))).Equals(LegacyLogDemoVinSha256, StringComparison.OrdinalIgnoreCase);
 
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
     public static string FileNameFor(string vin) => VinRedactor.MaskVin(vin) + ".json";
@@ -34,7 +40,7 @@ public sealed class VehicleProfile
     {
         var res = new List<VehicleProfile>();
         if (!Directory.Exists(dir)) return res;
-        foreach (var f in Directory.GetFiles(dir, "*.json")) try { res.Add(Load(f)); } catch { }
+        foreach (var f in Directory.GetFiles(dir, "*.json")) try { res.Add(Load(f)); } catch (Exception ex) { Serilog.Log.Warning(ex, "Skipped unreadable vehicle profile {File}", Path.GetFileName(f)); }
         return res;
     }
 

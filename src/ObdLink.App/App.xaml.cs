@@ -56,7 +56,7 @@ public partial class App : Application
 
     public static string CrashDir
     {
-        get { try { return ObdLink.Core.Storage.AppPaths.Current.LogsDir; } catch { return Path.Combine(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir, "logs"); } }
+        get { try { return ObdLink.Core.Storage.AppPaths.Current.LogsDir; } catch { /* paths not initialized yet (early crash) */ return Path.Combine(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir, "logs"); } }
     }
 
     /// <summary>Writes &lt;data folder&gt;\logs\crash-*.txt (crash.txt next to the exe only if that fails), then shows a MessageBox.</summary>
@@ -70,10 +70,10 @@ public partial class App : Application
             .AppendLine($"Exe dir: {AppContext.BaseDirectory}")
             .AppendLine().AppendLine(ex?.ToString() ?? "(no exception object)").ToString();
         var paths = new List<string>();
-        try { Directory.CreateDirectory(CrashDir); var p = Path.Combine(CrashDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { }
+        try { Directory.CreateDirectory(CrashDir); var p = Path.Combine(CrashDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { /* try the next crash location */ }
         // Last resort only (v0.1.5: crash files live in Data\logs; the exe folder is written only if that failed).
-        if (paths.Count == 0) try { var p = Path.Combine(AppContext.BaseDirectory, "crash.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { }
-        try { Serilog.Log.Fatal(ex, "Unhandled exception from {Source}", source); Serilog.Log.CloseAndFlush(); } catch { }
+        if (paths.Count == 0) try { var p = Path.Combine(AppContext.BaseDirectory, "crash.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { /* last crash location; the dialog reports none was written */ }
+        try { Serilog.Log.Fatal(ex, "Unhandled exception from {Source}", source); Serilog.Log.CloseAndFlush(); } catch { /* crash path: logging may be what failed */ }
         if (!fatal && Interlocked.Exchange(ref _reported, 1) == 1) return;
         try
         {
@@ -81,6 +81,6 @@ public partial class App : Application
             DialogService.Show($"{(fatal ? "OBDLinkDiag failed to start / crashed." : "OBDLinkDiag hit an unexpected error.")}\n\n{inner?.GetType().Name}: {inner?.Message}\n\nDetails saved to:\n{(paths.Count > 0 ? string.Join("\n", paths) : "(could not write crash file)")}",
                 "OBDLinkDiag error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        catch { }
+        catch { /* crash path: no UI available; the crash file above is the record */ }
     }
 }

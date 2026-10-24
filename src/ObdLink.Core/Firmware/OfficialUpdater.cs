@@ -100,7 +100,7 @@ public static class OfficialUpdater
 
     public static UpdaterManifest? LoadManifest(string dir)
     {
-        try { var p = Path.Combine(dir, ManifestName); return File.Exists(p) ? JsonSerializer.Deserialize<UpdaterManifest>(File.ReadAllText(p)) : null; } catch { return null; }
+        try { var p = Path.Combine(dir, ManifestName); return File.Exists(p) ? JsonSerializer.Deserialize<UpdaterManifest>(File.ReadAllText(p)) : null; } catch (Exception ex) { Serilog.Log.Warning("Updater manifest unreadable, will download again: {Err}", ex.Message); return null; }
     }
 
     /// <summary>Existing download still matches its manifest (size + SHA-256).</summary>
@@ -176,7 +176,7 @@ public static class OfficialUpdater
             if (r.IsSuccessStatusCode && ParseInstallerUrl(await r.Content.ReadAsStringAsync(ct)) is { } u) return u;
         }
         catch (InvalidOperationException) { throw; }
-        catch { }
+        catch (Exception ex) { Serilog.Log.Information("Updater page not readable, using the known installer link: {Err}", ex.Message); }
         return KnownInstallerUrl;
     }
 
@@ -197,7 +197,7 @@ public static class OfficialUpdater
                 len = h.Content.Headers.ContentLength; lm = h.Content.Headers.LastModified?.ToString("R"); etag = h.Headers.ETag?.Tag;
             }
             catch (InvalidOperationException) { throw; }
-            catch { }
+            catch (Exception ex) { Serilog.Log.Information("Updater HEAD check failed, comparing with the saved copy only: {Err}", ex.Message); }
             if (!ServerIsNewer(old, url, len, lm, etag))
             {
                 var p = Path.Combine(dir, old.FileName);
@@ -237,6 +237,6 @@ public static class OfficialUpdater
             File.WriteAllText(Path.Combine(dir, ManifestName), JsonSerializer.Serialize(m, IndentedJson));
             return (m, t, false);
         }
-        catch { try { File.Delete(tmp); } catch { } throw; }
+        catch { try { File.Delete(tmp); } catch { /* temp cleanup only; the original error is rethrown */ } throw; }
     }
 }

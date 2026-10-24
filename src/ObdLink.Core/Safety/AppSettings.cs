@@ -41,7 +41,7 @@ public sealed class AppSettings
     public static AppSettings Load(string path)
     {
         try { return (File.Exists(path) ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Json) ?? new() : new()).Normalize(); }
-        catch { return new(); } // corrupt file: fall back to safe defaults (read-only)
+        catch (Exception ex) { Serilog.Log.Warning(ex, "settings.json unreadable; using safe defaults (read-only)"); return new(); }
     }
     /// <summary>
     /// v0.3.2: "writes enabled" is session-only. A settings.json saved with ReadOnlyTestMode=false (e.g. toggled during demo testing)

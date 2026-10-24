@@ -41,6 +41,6 @@ public sealed class UpdateChecker
             }
             return best is null ? null : best with { Newer = bestV! > new Version(current.Major, current.Minor, Math.Max(0, current.Build)) };
         }
-        catch { return null; }
+        catch (Exception ex) { Serilog.Log.Warning("Update check failed: {Err}", ex.Message); return null; }
     }
 }
