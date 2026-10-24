@@ -14,6 +14,8 @@ using ObdLink.Core.Obd;
 using ObdLink.Core.Safety;
 using ObdLink.Core.Transport;
 using ObdLink.Core.Uds;
+using ObdLink.Core.Vehicles;
+using System.Windows.Threading;
 using Serilog;
 using Serilog.Events;
 
@@ -138,10 +140,19 @@ public sealed class MainViewModel : ObservableObject
             _settings.Theme = value; SaveSettings();
             var eff = ThemeManager.Apply(value);
             EventLog.UserAction("Theme changed", ("theme", value), ("effective", eff));
-            OnPropertyChanged();
+            OnPropertyChanged(); OnPropertyChanged(nameof(HeaderIconUri));
         }
     }
     public string ConnState => Connection.State.ToString();
+    // ---- App logo (Dale's artwork, assets/icons). Auto = black variant 1 on light, yellow variant 2 on dark. ----
+    public string[] HeaderIcons { get; } = { "Auto", "1", "2", "3" };
+    public string SelectedHeaderIcon
+    {
+        get => _settings.HeaderIcon;
+        set { if (string.IsNullOrEmpty(value) || value == _settings.HeaderIcon) return; _settings.HeaderIcon = value; SaveSettings(); EventLog.UserAction("Header icon changed", ("icon", value)); OnPropertyChanged(); OnPropertyChanged(nameof(HeaderIconUri)); }
+    }
+    public static string IconFor(string choice, string effectiveTheme) => choice is "1" or "2" or "3" ? choice : effectiveTheme == "Dark" ? "2" : "1";
+    public string HeaderIconUri => $"pack://application:,,,/OBDLinkDiag;component/Assets/icon-{IconFor(_settings.HeaderIcon, ThemeManager.Effective)}.png";
     public string AppVersion => "v" + (typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "?");
     public string ModeBanner => ReadOnlyTestMode ? "READ-ONLY TEST MODE (writes/clears disabled)" : "WRITES ENABLED";
     public string DiscoveryStart { get => _settings.Discovery.StartId.ToString("X3"); set { _settings.Discovery.StartId = Convert.ToUInt32(value, 16); SaveSettings(); EventLog.UserAction("Discovery start ID entered", ("id", value)); OnPropertyChanged(); } }
@@ -169,6 +180,53 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand WriteAsBuiltCommand { get; }
     public AsyncCommand RestoreAsBuiltCommand { get; }
     public AsyncCommand ConsoleSendCommand { get; }
+    public AsyncCommand IdentifyVehicleCommand { get; }
+    public AsyncCommand OpenMotorcraftCommand { get; }
+    public AsyncCommand ImportVehicleAbCommand { get; }
+
+    // ---- TX/RX/ERR/connection LEDs (v0.1.5). Traffic only stamps times; a 30 ms timer samples them, so bursts never flood the UI. ----
+    public ActivityLeds Leds { get; } = new();
+    private bool _txOn, _rxOn, _errOn;
+    public bool TxOn { get => _txOn; private set => Set(ref _txOn, value); }
+    public bool RxOn { get => _rxOn; private set => Set(ref _rxOn, value); }
+    public bool ErrOn { get => _errOn; private set => Set(ref _errOn, value); }
+    private DispatcherTimer? _ledTimer;
+    private void StartLedTimer()
+    {
+        if (Application.Current is null) return;
+        _ledTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(30) };
+        _ledTimer.Tick += (_, _) => { var st = Leds.Sample(); if (st.Tx != _txOn) TxOn = st.Tx; if (st.Rx != _rxOn) RxOn = st.Rx; if (st.Error != _errOn) ErrOn = st.Error; };
+        _ledTimer.Start();
+    }
+
+    // ---- Identify vehicle / saved vehicle profiles (v0.1.5) ----
+    private readonly Dictionary<string, VehicleProfile> _profiles = new();
+    private VehicleProfile? _current;
+    private string _vehInfo = "No vehicle identified yet. Connect, then click Identify vehicle (read-only)."; public string VehicleInfo { get => _vehInfo; set => Set(ref _vehInfo, value); }
+    public bool OnlineVinDecode { get => _settings.OnlineVinDecode; set { _settings.OnlineVinDecode = value; SaveSettings(); EventLog.UserAction("Online VIN decode (NHTSA vPIC) toggled", ("on", value)); OnPropertyChanged(); } }
+    private void LoadSavedProfiles()
+    {
+        foreach (var p in VehicleProfile.LoadAll(Paths.VehiclesDir)) AddProfile(p);
+    }
+    private void AddProfile(VehicleProfile p)
+    {
+        var had = _profiles.ContainsKey(p.Label);
+        _profiles[p.Label] = p;
+        if (!had) Vehicles.Add(p.Label);
+    }
+    public const string MotorcraftAsBuiltUrl = "https://www.motorcraftservice.com/AsBuilt";
+    private static string DescribeProfile(VehicleProfile p)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"{p.DisplayName}   VIN {p.VinRedacted}");
+        if (p.Offline is { } o) sb.AppendLine($"Offline: {o.Manufacturer}, {o.Country}, MY {o.ModelYear}, plant {o.PlantCode} = {o.Plant}, check digit {(o.CheckDigitOk ? "OK" : "MISMATCH")}");
+        if (p.Online is { Count: > 0 } on) sb.AppendLine("NHTSA vPIC: " + string.Join(", ", on.Where(k => k.Key is not ("ErrorCode" or "ErrorText")).Select(k => $"{k.Key}={k.Value}")));
+        sb.AppendLine($"{p.Modules.Count} module(s):");
+        foreach (var m in p.Modules)
+            sb.AppendLine($"  {m.Bus,-5} 0x{m.TxId:X3} {m.Acronym,-6} {m.Name}" + string.Concat(m.Dids.Where(d => d.Key != "F190").Select(d => $"  {d.Key}={d.Value}")) + (m.HasAsBuiltDe00 ? "  [As-Built]" : ""));
+        if (p.FactoryAbFile != null) sb.AppendLine($"Factory .ab: {p.FactoryAbFile}");
+        return sb.ToString();
+    }
 
     /// <summary>Yes/No dialog that is recorded in the event log (shown / accepted / cancelled).</summary>
     private bool Ask(string title, string message, MessageBoxImage icon = MessageBoxImage.Question)
@@ -180,18 +238,19 @@ public sealed class MainViewModel : ObservableObject
     }
     private void Info(string title, string message) { EventLog.UserAction("Info dialog shown", ("title", title)); MessageBox.Show(message, title); }
 
-    private string OpenFile(string purpose, string filter, string? dir = null)
+    // v0.1.5: every dialog starts in a Data\<subfolder> (never the working directory) and logs the full chosen path.
+    private string OpenFile(string purpose, string filter, string initialDir)
     {
-        var dlg = new OpenFileDialog { Filter = filter, InitialDirectory = dir ?? "" };
+        var dlg = new OpenFileDialog { Filter = filter, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
         if (dlg.ShowDialog() != true) throw new UserCancelledException($"{purpose}: open dialog cancelled");
-        EventLog.UserAction("File chosen for import", ("purpose", purpose), ("file", Path.GetFileName(dlg.FileName)));
+        EventLog.UserAction("File chosen for import", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
-    private string SaveFile(string purpose, string filter, string name)
+    private string SaveFile(string purpose, string filter, string name, string initialDir)
     {
-        var dlg = new SaveFileDialog { Filter = filter, FileName = name };
+        var dlg = new SaveFileDialog { Filter = filter, FileName = name, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
         if (dlg.ShowDialog() != true) throw new UserCancelledException($"{purpose}: save dialog cancelled");
-        EventLog.UserAction("File chosen for export", ("purpose", purpose), ("file", Path.GetFileName(dlg.FileName)));
+        EventLog.UserAction("File chosen for export", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
 
@@ -272,7 +331,7 @@ public sealed class MainViewModel : ObservableObject
         });
         ImportFactoryAbCommand = C("Import factory .ab", () =>
         {
-            _factory = FordAbFile.Load(OpenFile("Factory .ab", "Ford As-Built|*.ab|All files|*.*"));
+            _factory = FordAbFile.Load(OpenFile("Factory .ab", "Ford As-Built|*.ab|All files|*.*", Paths.AsBuiltDir));
             var bad = _factory.Lines.Count(l => !l.ChecksumValid);
             FactoryInfo = $"Factory .ab: VIN …{(_factory.Vin.Length >= 6 ? _factory.Vin[^6..] : _factory.Vin)}, {_factory.AsBuiltModules.Count()} modules, {_factory.Lines.Count} lines, {bad} bad checksums";
             EventLog.Message(bad > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Import factory .ab", FactoryInfo);
@@ -281,15 +340,15 @@ public sealed class MainViewModel : ObservableObject
         ExportFactoryAbCommand = C("Export .ab", () =>
         {
             if (_factory is null) throw new InvalidOperationException("Import a factory .ab first");
-            var f = SaveFile("Factory .ab", "Ford As-Built|*.ab", "factory-redacted.ab");
+            var f = SaveFile("Factory .ab", "Ford As-Built|*.ab", "factory-redacted.ab", Paths.AsBuiltDir);
             var redact = Ask("Export", "Redact VIN (keep last 6) and module serials?");
             File.WriteAllText(f, (redact ? _factory.Redacted() : _factory).ToXml());
-            EventLog.Message(LogEventLevel.Information, "Export .ab", $"Saved {Path.GetFileName(f)} (redacted: {redact})");
+            EventLog.Message(LogEventLevel.Information, "Export .ab", $"Saved {f} (redacted: {redact})");
             return Task.CompletedTask;
         });
         ImportAbtCommand = C("Import .abt", () =>
         {
-            var abt = ForscanAbtFile.Load(OpenFile("FORScan .abt", "FORScan As-Built backup|*.abt|All files|*.*"));
+            var abt = ForscanAbtFile.Load(OpenFile("FORScan .abt", "FORScan As-Built backup|*.abt|All files|*.*", Paths.AsBuiltDir));
             AsBuiltRows.Clear();
             foreach (var l in abt.Lines) AsBuiltRows.Add(new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) });
             var bad = abt.Lines.Count(l => !l.ChecksumValid);
@@ -308,11 +367,12 @@ public sealed class MainViewModel : ObservableObject
         {
             if (AsBuiltRows.Count == 0) throw new InvalidOperationException("Read or import As-Built rows first");
             var lines = AsBuiltRows.Select(r => AsBuiltLine.Create(r.Addr, Convert.FromHexString(r.Data.Replace(" ", "")))).ToList();
-            var f = SaveFile("FORScan .abt", "FORScan As-Built backup|*.abt", $"{lines[0].Address.Module:X3}.abt");
+            var f = SaveFile("FORScan .abt", "FORScan As-Built backup|*.abt", $"{lines[0].Address.Module:X3}.abt", Paths.AsBuiltDir);
             var abt = ForscanAbtFile.Parse(ForscanAbtFile.Format(lines));
             if (_factory is { Vin.Length: 17 } && Ask("Export", "Redact VIN (keep last 6) in block data?"))
                 abt = abt.Redacted(_factory.Vin);
             File.WriteAllText(f, abt.ToText());
+            EventLog.Message(LogEventLevel.Information, "Export .abt", $"Saved {f}");
             return Task.CompletedTask;
         });
         CompareToFactoryCommand = C("Compare to factory", async () =>
@@ -325,16 +385,69 @@ public sealed class MainViewModel : ObservableObject
             foreach (var d in AsBuiltDiff.Compare(_factory.Lines, current, Module)) FactoryDiff.Add(d);
             EventLog.Message(LogEventLevel.Information, "Compare to factory", string.Join(", ", FactoryDiff.GroupBy(d => d.Kind).Select(g => $"{g.Key}={g.Count()}")));
         }, Mod);
+        IdentifyVehicleCommand = C("Identify vehicle", async () =>
+        {
+            if (_session is null) throw new InvalidOperationException("Connect first (use a DEMO port to try it without a vehicle)");
+            var vpic = OnlineVinDecode ? new VpicClient() : null;
+            VehicleProfile prof;
+            try { prof = await new VehicleIdentifier(_session, Ch, vpic).RunAsync(new IdentifyOptions { OnlineDecode = OnlineVinDecode, SweepMsCan = MsCanAvailable },
+                new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Identify vehicle", m))); }
+            catch (NotFordVehicleException nf)
+            {
+                EventLog.Message(LogEventLevel.Warning, "Identify vehicle", nf.Message);
+                VehicleInfo = nf.Message; Info("Ford products only", nf.Message); return;
+            }
+            if (prof.Vin.Length == 17) _vin = prof.Vin;
+            _current = prof;
+            if (prof.Vin.Length == 17)
+            {
+                var path = prof.Save(Paths.VehiclesDir);
+                EventLog.Message(LogEventLevel.Information, "Identify vehicle", $"Vehicle profile saved to {path}");
+                AddProfile(prof); SelectedVehicle = prof.Label;
+            }
+            VehicleInfo = DescribeProfile(prof);
+        }, () => new (string, object?)[] { ("online", OnlineVinDecode), ("msCan", MsCanAvailable) });
+        OpenMotorcraftCommand = C("Open Motorcraft As-Built site", () =>
+        {
+            var vin = _current?.Vin is { Length: 17 } cv ? cv : _vin.Length == 17 ? _vin : null;
+            if (vin != null) { try { Clipboard.SetText(vin); } catch { } }
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(MotorcraftAsBuiltUrl) { UseShellExecute = true });
+            EventLog.Message(LogEventLevel.Information, "Motorcraft As-Built", $"Opened {MotorcraftAsBuiltUrl} in the browser{(vin != null ? "; VIN copied to clipboard" : "")}. Sign in, pass the captcha, download the .ab, then use Import .ab here (it is copied into {Paths.AsBuiltDir}).");
+            return Task.CompletedTask;
+        });
+        ImportVehicleAbCommand = C("Import downloaded .ab", () =>
+        {
+            var src = OpenFile("Motorcraft .ab", "Ford As-Built|*.ab|All files|*.*", Paths.AsBuiltDir);
+            var ab = FordAbFile.Load(src);
+            var dest = Path.Combine(ObdLink.Core.Storage.AppPaths.Ensure(Paths.AsBuiltDir), Path.GetFileName(src));
+            if (!string.Equals(Path.GetFullPath(src), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase)) File.Copy(src, dest, overwrite: true);
+            _factory = ab;
+            if (_current is null && ab.Vin.Length == 17) _current = _profiles.Values.FirstOrDefault(p => p.Vin == ab.Vin);
+            if (_current is { } cur && (cur.Vin.Length != 17 || cur.Vin == ab.Vin))
+            {
+                cur.FactoryAbFile = Path.GetFileName(dest);
+                if (cur.Vin.Length == 17) cur.Save(Paths.VehiclesDir);
+                VehicleInfo = DescribeProfile(cur);
+            }
+            FactoryInfo = $"Factory .ab: VIN …{(ab.Vin.Length >= 6 ? ab.Vin[^6..] : ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines (copied to {dest})";
+            EventLog.Message(LogEventLevel.Information, "Import .ab", FactoryInfo);
+            return Task.CompletedTask;
+        });
         ConsoleSendCommand = C("Console send", async () =>
         {
-            if (_console is null) throw new InvalidOperationException("Not connected");
             var input = ConsoleInput; ConsoleInput = "";
+            var t = input.Trim().ToUpperInvariant();
+            if (t is "CLS" or "CLEAR") { ConsoleOutput = ""; return; }
+            if (t is "HELP" or "?" or "/?" or "/HELP" && _console is null) { ConsoleOutput += $"> {input}{Environment.NewLine}{ObdLink.Core.ConsoleCmds.ConsoleHelp.Text()}{Environment.NewLine}"; return; }
+            if (_console is null) throw new InvalidOperationException("Not connected (type help for the command list)");
             var result = await _console.ExecuteAsync(input);
             ConsoleOutput += $"> {input}{Environment.NewLine}{result}{Environment.NewLine}";
             if (result.StartsWith("BLOCKED")) EventLog.Message(LogEventLevel.Warning, "Console", $"{input}: {result}");
         }, () => new (string, object?)[] { ("command", ConsoleInput) });
         _ = RefreshPortsCommand.ExecuteAsync();
+        try { LoadSavedProfiles(); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Vehicles", "Could not load saved vehicle profiles", ex); }
         LoadModules();
+        StartLedTimer();
         _initializing = false;
     }
 
@@ -375,7 +488,9 @@ public sealed class MainViewModel : ObservableObject
     private void LoadModules()
     {
         Modules.Clear();
-        foreach (var m in VehicleProfiles.ModulesFor(SelectedVehicle)) Modules.Add(new ModuleRow { Def = m });
+        var defs = _profiles.TryGetValue(SelectedVehicle, out var p) && p.Modules.Count > 0 ? p.ToModuleDefinitions() : VehicleProfiles.ModulesFor(SelectedVehicle);
+        if (p != null) { _current = p; if (p.Vin.Length == 17) _vin = p.Vin; VehicleInfo = DescribeProfile(p); }
+        foreach (var m in defs) Modules.Add(new ModuleRow { Def = m });
     }
 
     private async Task DisconnectAsync()
@@ -405,7 +520,7 @@ public sealed class MainViewModel : ObservableObject
                 Baud = sel.Kind == PortKind.Bluetooth ? "n/a (BT SPP)" : $"{found.Baud} bps";
             }
             var link = new ElmLink(t);
-            link.Traffic += (d, s) => EventLog.Traffic(d, s);
+            link.Traffic += (d, s) => { Leds.OnTraffic(d, s); EventLog.Traffic(d, s); };
             _session = new AdapterSession(link, initial: sel.Kind == PortKind.Virtual ? AdapterProfiles.OtherStn : AdapterProfiles.ForPort(sel.Kind));
             Connection = ConnectionStatus.Connecting(sel, "Initializing");
             var info = await _session.InitializeAsync();

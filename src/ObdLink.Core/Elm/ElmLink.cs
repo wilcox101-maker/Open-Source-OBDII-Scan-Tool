@@ -77,6 +77,7 @@ public sealed class ElmLink : IAsyncDisposable
             // Recovery: a stray CR aborts most in-progress ELM operations; we then resync on next command.
             _log.Warning("Timeout waiting for prompt on {Cmd}; partial={Partial}", command, sb.ToString());
             try { await _transport.WriteAsync("\r", CancellationToken.None).ConfigureAwait(false); } catch { }
+            Traffic?.Invoke("!!", $"TIMEOUT {command}");
             throw new ElmTimeoutException(command, timeout);
         }
         var raw = sb.ToString();

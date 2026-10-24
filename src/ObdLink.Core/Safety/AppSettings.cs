@@ -11,6 +11,10 @@ public sealed class AppSettings
     /// <summary>"Light", "Dark" or "System" (follow Windows app mode).</summary>
     public string Theme { get; set; } = "System";
     public DiscoveryOptions Discovery { get; set; } = new();
+    /// <summary>Opt-in: Identify vehicle may send the VIN to NHTSA vPIC (vpic.nhtsa.dot.gov) for an online decode. Default OFF.</summary>
+    public bool OnlineVinDecode { get; set; }
+    /// <summary>Header logo: "Auto" (variant 1 on light, 2 on dark), or "1", "2", "3".</summary>
+    public string HeaderIcon { get; set; } = "Auto";
 
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
     public static AppSettings Load(string path)

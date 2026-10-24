@@ -16,9 +16,11 @@ public sealed class SimulatedAdapter
     /// <summary>Host baud the simulated UART accepts (EX only; Bluetooth ignores it). Used by CreateTransportAtBaud.</summary>
     public int UartBaud { get; set; } = 115200;
     public double Voltage { get; set; } = 12.6;
-    public string Vin { get; set; } = "1FTDEMX9SXM000001"; // synthetic, valid VIN alphabet so redaction can be seen working (not a real vehicle)
+    public string Vin { get; set; } = "1FTDEMX95HF000001"; // synthetic (check digit valid, MY2017, plant F), valid VIN alphabet so redaction can be seen working (not a real vehicle)
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
     public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x726, 0x720 };
+    /// <summary>Modules that answer only while the MS-CAN preset (STP53) is selected; used by the Identify vehicle demo.</summary>
+    public HashSet<uint> MsCanModules { get; } = new() { 0x727 };
     /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>
     public Dictionary<uint, List<(uint Dtc, byte Status)>> UdsDtcs { get; } = new();
     public bool CorruptWrites { get; set; }
@@ -37,6 +39,21 @@ public sealed class SimulatedAdapter
             for (int b = 0; b < 8; b++)
                 d.TryAdd((ushort)(0xDE00 + b), Enumerable.Range(0, 15).Select(i => (byte)((m + b * 17 + i * 31) & 0xFF)).ToArray());
         }
+        // SYNTHETIC identification DIDs (made-up Ford-style part numbers) for the Identify vehicle demo.
+        var ids = new (uint M, string F188, string F111, string F113, string F124)[]
+        {
+            (0x7E0, "DEMO-14C204-AA", "DEMO-12A650-AA", "DEMO-12A650-AB", "DEMO-14C204-AC"),
+            (0x720, "DEMO-14C026-AA", "DEMO-10849-AA", "DEMO-10849-AB", "DEMO-14C088-AA"),
+            (0x726, "DEMO-14C184-AA", "DEMO-14B476-AA", "DEMO-14B476-AB", "DEMO-14C184-AB"),
+            (0x727, "DEMO-14D099-AA", "DEMO-18C815-AA", "DEMO-18C815-AB", "DEMO-14D099-AB"),
+        };
+        foreach (var (m, f188, f111, f113, f124) in ids)
+        {
+            if (!sim.Dids.TryGetValue(m, out var d)) sim.Dids[m] = d = new();
+            d.TryAdd(0xF188, System.Text.Encoding.ASCII.GetBytes(f188)); d.TryAdd(0xF111, System.Text.Encoding.ASCII.GetBytes(f111));
+            d.TryAdd(0xF113, System.Text.Encoding.ASCII.GetBytes(f113)); d.TryAdd(0xF124, System.Text.Encoding.ASCII.GetBytes(f124));
+        }
+
     }
     public string? Protocol { get; private set; }
     private uint _header = 0x7DF;
@@ -93,7 +110,7 @@ public sealed class SimulatedAdapter
 
     private string Uds(uint tx, byte[] r, bool padded = false)
     {
-        if (!PresentModules.Contains(tx)) return "NO DATA";
+        if (!PresentModules.Contains(tx) && !(Protocol == "53" && MsCanModules.Contains(tx))) return "NO DATA";
         uint rx = tx + 8;
         byte[] resp = r[0] switch
         {
@@ -113,6 +130,7 @@ public sealed class SimulatedAdapter
     }
 
     private byte[] Read(uint tx, ushort did) =>
+        tx == 0x7E0 && did == 0xF190 ? new byte[] { 0x62, 0xF1, 0x90 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray() :
         Dids.TryGetValue(tx, out var d) && d.TryGetValue(did, out var v) ? new byte[] { 0x62, (byte)(did >> 8), (byte)did }.Concat(v).ToArray() : new byte[] { 0x7F, 0x22, 0x31 };
 
     private byte[] Write(uint tx, ushort did, byte[] data)

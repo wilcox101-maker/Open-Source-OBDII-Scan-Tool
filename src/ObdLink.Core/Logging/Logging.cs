@@ -79,6 +79,7 @@ public sealed class RawConsoleService
         var cmd = input.Trim();
         History.Add(cmd);
         var compact = cmd.Replace(" ", "").ToUpperInvariant();
+        if (compact is "HELP" or "?" or "/?" or "/HELP") return ObdLink.Core.ConsoleCmds.ConsoleHelp.Text();
         if (ReadOnlyMode && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))
             return "BLOCKED: read-only test mode is ON (Settings) - state-changing services disabled";
         if (!AllowWrites && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))

@@ -1,7 +1,8 @@
-OBDLink Diag - TEST BUILD (win-x64)  2026-10-23
-================================================
-UNSIGNED, UNTESTED ON WINDOWS. This build was compiled on Linux and has never been run on a
-Windows PC. Expect rough edges.
+OBDLink Diag - TEST BUILD v0.1.5 (win-x64)  2026-10-24
+=======================================================
+UNSIGNED TEST BUILD. Compiled on Linux. v0.1.3/v0.1.4 were run and tested by Dale on
+Windows 11 Pro 24H2 in simulator/demo mode. Real-vehicle testing is still pending, and
+v0.1.5's new features (LEDs, Identify vehicle, dialog folders) still need checking on Windows.
 
 HOW TO RUN
 1. Unzip the WHOLE folder somewhere, e.g. C:\OBDLinkDiag. Keep the *_cor3.dll files next to the exe.
@@ -39,15 +40,33 @@ HOW TO CAPTURE LOGS (please do this on each truck)
 LOGS
 The bottom panel has three tabs: Events (everything you clicked, with outcome), Messages (Info/Warn/Error),
 and Adapter traffic. Each tab has Export (.txt/.csv), and VINs are redacted by default. Files are in
-Data\logs.
+Data\exports (the Save dialog starts there).
+
 DATA FOLDER (v0.1.4+)
 ---------------------
 Everything the app writes lives in a "Data" folder next to OBDLinkDiag.exe:
   Data\settings.json, Data\logs\ (events-/app-/traffic-*.log, crash-*.txt),
-  Data\captures\ (diagnostics zips), Data\backups\ (As-Built backups).
+  Data\captures\ (diagnostics zips), Data\backups\ (As-Built backups),
+  Data\exports\ (exported Events/Messages/Traffic .txt/.csv - v0.1.5),
+  Data\asbuilt\ (.abt exports/imports, factory .ab files - v0.1.5),
+  Data\vehicles\ (vehicle profiles from Identify vehicle - v0.1.5).
+v0.1.5 fix: in v0.1.4 the Save/Open dialogs had no start folder, so Windows offered the folder
+it used last (e.g. the folder ABOVE the app) and exports / 7E0.abt landed there. Every dialog
+now starts in the matching Data subfolder, and the full saved path is shown in the Events log.
 The path is shown in the status bar and on the Guide tab; "Open data folder" opens it.
 On first run, anything in the old %LOCALAPPDATA%\OBDLinkDiag folder is moved into Data\
 (each file copied, verified by size + SHA-256, then the original removed; a file is never
 overwritten by an older one). A MIGRATED.txt note is left in the old folder.
 If the app folder is not writable (e.g. Program Files), the app keeps using
 %LOCALAPPDATA%\OBDLinkDiag and tells you once. Put the app folder in Documents or on a USB stick.
+
+NEW IN v0.1.5
+-------------
+- Console: type "help" for the command list (also on the Guide tab), "cls" to clear.
+- Header LEDs: LINK (connected), TX (sent), RX (reply), ERR (timeout / NO DATA / ? / 7F NRC).
+- Vehicle tab -> "Identify vehicle / scan new vehicle" (read-only): VIN, offline decode,
+  optional online decode (NHTSA vPIC, tick the box; only the VIN is sent), HS-CAN + MS-CAN
+  module sweep with part numbers. Saved to Data\vehicles and added to the Vehicle drop-down.
+- "Get factory As-Built (Motorcraft)" opens motorcraftservice.com/AsBuilt in your browser and
+  copies the VIN (Ford needs a sign-in + captcha). Then "Import downloaded .ab".
+Try all of it on DEMO-MX+ first.

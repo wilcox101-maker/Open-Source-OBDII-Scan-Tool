@@ -7,13 +7,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OBDLinkDiag</AssemblyName>
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>
+    <ApplicationIcon>..\..\assets\icons\icon-3.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup><EmbeddedResource Include="..\..\docs\GUIDE.md" LogicalName="GUIDE.md" /></ItemGroup>
+  <ItemGroup>
+    <Resource Include="..\..\assets\icons\icon-*.png" Link="Assets\%(Filename)%(Extension)" />
+    <Resource Include="..\..\assets\icons\icon-3.ico" Link="Assets\icon-3.ico" />
+  </ItemGroup>
   <ItemGroup><ProjectReference Include="..\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
 </Project>

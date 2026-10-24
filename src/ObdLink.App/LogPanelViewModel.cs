@@ -37,10 +37,12 @@ public sealed class LogPanelViewModel : ObservableObject
         });
         ExportCommand = new($"{title} log: Export", log, _ =>
         {
-            var dlg = new SaveFileDialog { Filter = "Text|*.txt|CSV|*.csv", FileName = $"{channel.ToString().ToLowerInvariant()}-{DateTime.Now:yyyyMMdd-HHmmss}.txt" };
+            // v0.1.5: always start in Data\exports (v0.1.4 had no InitialDirectory, so Windows used the last/working folder = outside the app folder).
+            var dlg = new SaveFileDialog { Filter = "Text|*.txt|CSV|*.csv", FileName = $"{channel.ToString().ToLowerInvariant()}-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+                InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(ObdLink.Core.Storage.AppPaths.Current.ExportsDir), RestoreDirectory = true };
             if (dlg.ShowDialog() != true) throw new UserCancelledException("Save dialog cancelled");
             LogExporter.Export(Entries.ToList(), dlg.FileName, RedactOnExport);
-            _log.Message(LogEventLevel.Information, "Export log", $"{Entries.Count} {title} entries exported to {Path.GetFileName(dlg.FileName)} (VIN redaction {(RedactOnExport ? "on" : "off")})");
+            _log.Message(LogEventLevel.Information, "Export log", $"{Entries.Count} {title} entries exported to {dlg.FileName} (VIN redaction {(RedactOnExport ? "on" : "off")})");
         });
     }
 

@@ -19,7 +19,13 @@ public sealed class AppPaths
     public string LogsDir => Path.Combine(DataDir, "logs");
     public string CapturesDir => Path.Combine(DataDir, "captures");
     public string BackupsDir => Path.Combine(DataDir, "backups");
+    public string ExportsDir => Path.Combine(DataDir, "exports");
+    public string AsBuiltDir => Path.Combine(DataDir, "asbuilt");
+    public string VehiclesDir => Path.Combine(DataDir, "vehicles");
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
+    public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles" };
+    /// <summary>Returns <paramref name="dir"/> after making sure it exists (for Save/Open dialog InitialDirectory).</summary>
+    public static string Ensure(string dir) { try { Directory.CreateDirectory(dir); } catch { } return dir; }
 
     private AppPaths(string dataDir, bool portable, string? reason) { DataDir = dataDir; IsPortable = portable; FallbackReason = reason; }
 
@@ -38,11 +44,12 @@ public sealed class AppPaths
             Directory.CreateDirectory(portable);
             var probe = Path.Combine(portable, $".write-test-{Guid.NewGuid():N}");
             File.WriteAllText(probe, "ok"); File.Delete(probe);
-            foreach (var d in new[] { "logs", "captures", "backups" }) Directory.CreateDirectory(Path.Combine(portable, d));
+            foreach (var d in SubFolders) Directory.CreateDirectory(Path.Combine(portable, d));
             return new AppPaths(portable, true, null);
         }
         catch (Exception ex) { reason = $"{exeDir} is not writable ({ex.GetType().Name}: {ex.Message})"; }
         Directory.CreateDirectory(legacyDir);
+        foreach (var d in SubFolders) try { Directory.CreateDirectory(Path.Combine(legacyDir, d)); } catch { }
         return new AppPaths(legacyDir, false, reason);
     }
 

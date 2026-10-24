@@ -55,7 +55,7 @@ public partial class App : Application
         get { try { return ObdLink.Core.Storage.AppPaths.Current.LogsDir; } catch { return Path.Combine(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir, "logs"); } }
     }
 
-    /// <summary>Writes &lt;data folder&gt;\logs\crash-*.txt and crash.txt next to the exe, then shows a MessageBox.</summary>
+    /// <summary>Writes &lt;data folder&gt;\logs\crash-*.txt (crash.txt next to the exe only if that fails), then shows a MessageBox.</summary>
     public static void Report(string source, Exception? ex, bool fatal)
     {
         var text = new StringBuilder()
@@ -67,7 +67,8 @@ public partial class App : Application
             .AppendLine().AppendLine(ex?.ToString() ?? "(no exception object)").ToString();
         var paths = new List<string>();
         try { Directory.CreateDirectory(CrashDir); var p = Path.Combine(CrashDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { }
-        try { var p = Path.Combine(AppContext.BaseDirectory, "crash.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { }
+        // Last resort only (v0.1.5: crash files live in Data\logs; the exe folder is written only if that failed).
+        if (paths.Count == 0) try { var p = Path.Combine(AppContext.BaseDirectory, "crash.txt"); File.WriteAllText(p, text); paths.Add(p); } catch { }
         try { Serilog.Log.Fatal(ex, "Unhandled exception from {Source}", source); Serilog.Log.CloseAndFlush(); } catch { }
         if (!fatal && Interlocked.Exchange(ref _reported, 1) == 1) return;
         try

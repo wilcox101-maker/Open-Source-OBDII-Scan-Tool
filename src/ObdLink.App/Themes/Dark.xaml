@@ -28,6 +28,13 @@
   <SolidColorBrush x:Key="BannerBorder" Color="#E0B050"/>
   <SolidColorBrush x:Key="BannerFg" Color="#FFC56B"/>
   <SolidColorBrush x:Key="ChipIdle" Color="#3A3E45"/>
+  <!-- v0.1.5 activity LEDs -->
+  <SolidColorBrush x:Key="LedOff" Color="#3A3F47"/>
+  <SolidColorBrush x:Key="LedTx" Color="#2EE66B"/>
+  <SolidColorBrush x:Key="LedRx" Color="#FFB020"/>
+  <SolidColorBrush x:Key="LedErr" Color="#FF4D4D"/>
+  <SolidColorBrush x:Key="LedConn" Color="#3DA5FF"/>
+  <SolidColorBrush x:Key="LedRim" Color="#15181C"/>
   <SolidColorBrush x:Key="ChipOk" Color="#1E5C3A"/>
   <SolidColorBrush x:Key="ChipBad" Color="#5C1E22"/>
   <SolidColorBrush x:Key="ChipWarn" Color="#5C4A1E"/>

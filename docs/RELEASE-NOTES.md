@@ -1,5 +1,20 @@
 # Release notes
 
+## v0.1.5-test
+
+**Tested on Windows 11 Pro 24H2 (demo mode); real-vehicle testing pending.** Dale ran and tested v0.1.3/v0.1.4 on Windows 11 Pro 24H2 in simulator/demo mode. The exe is still **unsigned**.
+
+- **Fix: exports and `.abt` files were saved outside the app folder.** In v0.1.4 the Save/Open dialogs had no `InitialDirectory`, so Windows offered its last-used/working folder (the parent of the app folder). Every dialog now starts in a `Data\` subfolder and the full chosen path is logged. Data paths themselves were correct: Dale's v0.1.4 log shows `data folder ...\ObdLinkApp-test-win-x64-v0.1.4\Data (portable)` and `Data migration: Moved 11 file(s)`.
+- New `Data\exports\` (log exports), `Data\asbuilt\` (`.abt`, factory `.ab`) and `Data\vehicles\` (vehicle profiles). `crash.txt` next to the exe is now written only if `Data\logs` is not writable.
+- Static test: no source file uses `Environment.CurrentDirectory`/`Directory.GetCurrentDirectory`, and every file dialog sets `InitialDirectory`.
+- **Console command reference** on the Guide tab (syntax, examples, blocked services, NRC meanings); `help`/`?` prints it in the console, `cls` clears.
+- **Activity LEDs** in the header: LINK, TX, RX, ERR (timeout, NO DATA, `?`, 7F NRC). 120 ms hold (errors 600 ms), sampled every 30 ms; light/dark theme colours.
+- **Identify vehicle / scan new vehicle** (Vehicle tab, read-only): VIN via `09 02` (fallback `22 F190`), offline VIN decode (WMI, model year, Ford plant, check digit), opt-in online decode via NHTSA vPIC (10 s timeout, offline-safe, logged), HS-CAN + MS-CAN sweep 0x700-0x7E7 with `3E 00`, part-number DIDs F188/F111/F113/F124/F18C and DE00 presence. Saved to `Data\vehicles\<masked VIN>.json` and selectable in the Vehicle drop-down.
+- **App icon / logo** from Dale's artwork (assets/icons, 3 variants, multi-size .ico). The exe and window use variant 3 (legible at 16 px on light and dark taskbars). The header logo switches with the theme (black variant 1 on Light, yellow variant 2 on Dark), and you can override it with the small 1/2/3 picker in the header.
+- **Ford products only**: Identify vehicle checks the VIN's WMI against Ford Motor Co. brands (Ford, Lincoln, Mercury, incl. Ford trucks and Canada/Mexico/Europe/Australia/Brazil plants) and stops after the VIN read for anything else, with a "Ford products only" message in Events. No profile is saved and no modules are scanned.
+- **Motorcraft As-Built**: Ford's site needs a sign-in and captcha, so the button opens it in the browser and copies the VIN; **Import downloaded .ab** copies it into `Data\asbuilt` and links it to the profile.
+- Simulator: check-digit-valid demo VIN `1FTDEMX95HF000001`, synthetic part-number DIDs, and an MS-CAN-only demo module (ACM 0x727) for the identify flow.
+
 ## v0.1.4-test
 
 - **Portable data folder.** Settings, logs, crash files, captures and As-Built backups now live in `Data\` next to the exe (paths from `AppContext.BaseDirectory`, centralized in `AppPaths`). On first run the old `%LOCALAPPDATA%\OBDLinkDiag` contents are moved in: copy, verify (size + SHA-256), then remove the original; newer files are never overwritten; a `MIGRATED.txt` note is left behind. If the app folder isn't writable the app falls back to `%LOCALAPPDATA%\OBDLinkDiag` with a one-time notice.
