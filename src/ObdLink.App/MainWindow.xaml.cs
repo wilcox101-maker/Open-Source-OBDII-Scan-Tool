@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
 namespace ObdLink.App;
@@ -63,6 +64,30 @@ public partial class MainWindow : Window
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/" + ObdLink.Core.Diagnostics.UpdateChecker.Repo) { UseShellExecute = true });
     }
     private void About_Click(object s, RoutedEventArgs e) { _vm.EventLog.UserAction("About shown"); MessageBox.Show(this, _vm.AboutText, "About OBDLink Diag", MessageBoxButton.OK, MessageBoxImage.Information); }
+    // ---- dashboard customize: drag & drop reorder ----
+    private Point _dragStart; private DashItemVm? _dragItem;
+    private void DashItem_MouseDown(object sender, MouseButtonEventArgs e)
+    { _dragStart = e.GetPosition(this); _dragItem = (sender as FrameworkElement)?.DataContext as DashItemVm; }
+    private void DashItem_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _dragItem is null || DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
+        if (e.OriginalSource is DependencyObject d && FindParent<ButtonBase>(d) is not null) return;
+        if (e.OriginalSource is DependencyObject d2 && FindParent<ComboBox>(d2) is not null) return;
+        var p = e.GetPosition(this);
+        if (Math.Abs(p.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(p.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        var item = _dragItem; _dragItem = null;
+        DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(typeof(DashItemVm), item), DragDropEffects.Move);
+    }
+    private void DashItem_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is MainViewModel vm && e.Data.GetData(typeof(DashItemVm)) is DashItemVm src && (sender as FrameworkElement)?.DataContext is DashItemVm dst && src != dst)
+            vm.Dashboard.MoveItem(src, dst);
+    }
+    private static T? FindParent<T>(DependencyObject d) where T : DependencyObject
+    {
+        for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x) ?? LogicalTreeHelper.GetParent(x)) if (x is T t) return t;
+        return null;
+    }
 }
 
 /// <summary>Attached property: keeps a ListBox/ListView scrolled to the newest item while enabled.</summary>
@@ -84,5 +109,6 @@ public static class AutoScroll
                 if (e.Action == NotifyCollectionChangedAction.Add && GetEnabled(lb) && lb.Items.Count > 0)
                     lb.Dispatcher.BeginInvoke(() => lb.ScrollIntoView(lb.Items[^1]), System.Windows.Threading.DispatcherPriority.Background);
             };
-    }
+    
+}
 }

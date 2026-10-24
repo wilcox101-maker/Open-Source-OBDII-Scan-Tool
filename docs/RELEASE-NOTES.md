@@ -1,5 +1,37 @@
 # Release notes
 
+## v0.2.1-test
+
+**UNTESTED ON WINDOWS.** Compiled on Linux. **v0.2.0-test is confirmed running on Windows 11 Pro 24H2** (Dale, simulator/demo mode); this v0.2.1 build has not been run on Windows yet. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.
+
+- **As-Built workflow.**
+  - The As-Built page has its own module picker. Each entry shows the acronym, full name, CAN address, bus, scan result and the date of the newest backup.
+  - The list shows only modules that have As-Built (DE..) blocks: factory .ab evidence, an existing backup, or a Ford module that normally has them. Tick "Show all modules" to see every module.
+  - Selecting a module on any page (Modules, DTCs, As-Built) selects it everywhere, and the app remembers the last module you used.
+  - No more "Select a module first" error. If you are not connected, the app asks whether to connect. If no scan has been run, it scans first. If no module is selected, it picks the last-used module (or the first one that answered) and says so on the page.
+  - **Read all blocks** reads every block of the selected module (stopping at the first block the module does not have) and saves it to `Data\asbuilt\<yyyy-MM-dd>\<masked VIN>_<addr>_<time>.asbuilt.json`.
+  - **Read all modules (backup)** does the same for every As-Built module that answered the scan, with a progress bar and a Cancel button. If one module fails, the backup carries on with the next one, and a summary at the end lists each module's result.
+  - MS-CAN modules switch the adapter to MS-CAN 125k (MX+ / EX) and back automatically.
+  - The Modules list has an "As-Built backup" column.
+- **DTCs.** The DTCs page uses the same module picker and auto-connect / auto-scan / auto-pick flow. A new **Read all modules** button reads 19 02 from every module that answered, with progress and cancel.
+- **Tyre pressures (TPMS)**, **UNVERIFIED**.
+  - Read from BCM 0x726 Mode 22 DIDs 2813 (LF), 2814 (RF), 2815 (RR) and 2816 (LR), using the community Torque Pro Ford PIDs (kPa = raw/3 + 22/3). DID 2817 (spare) is a guess.
+  - All five entries are in `Data\ford-enhanced-pids.json`, so you can edit them.
+  - The dashboard shows a top-view truck widget with the four tyres and the spare.
+  - Pressures are shown in psi or kPa, per Settings. A tyre below the Settings threshold (default 30 psi / 207 kPa) turns red and lights the "Low tyre" lamp.
+  - A tyre that never answers is shown as "unsupported".
+  - The simulator reports about 36 psi (RR a little low) and has no spare sensor, so you can see the "unsupported" case.
+- **Dashboard customization.**
+  - **Customize** button: add any item from a catalog of the supported Mode 01 PIDs (after connecting), the Ford Mode 22 DIDs, TPMS, gear, battery (ATRV), MIL and DTC count. Remove items with the ✕ button.
+  - Choose a display type per item (dial, bar, numeric tile or lamp) and a Large size.
+  - Reorder items by dragging them or with the ▲ ▼ buttons.
+  - Reset to the default layout.
+  - Save multiple named layouts and switch between them from the Layout box.
+  - Layouts are saved to `Data\settings.json`. v0.2.0 gauge lists are migrated.
+  - **Only the items on the dashboard are polled.**
+  - Items that the vehicle does not support show "unsupported".
+- **Settings.** The free-text gauge list is replaced by Customize. There is a new low-tyre threshold.
+
 ## v0.2.0-test
 
 **UNTESTED ON WINDOWS.** Compiled on Linux. Earlier builds (v0.1.3/v0.1.4) were run and tested by Dale on Windows 11 Pro 24H2 in simulator/demo mode, but this build has not been run on Windows yet. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.

@@ -107,7 +107,12 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
 - Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
-- Units, refresh rate and the gauge list are on the **Settings** page.
+- **Tyre pressures**: a truck top-view shows LF/RF/RR/LR (+ spare) from BCM 0x726 DIDs 2813-2817 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tyre threshold (Settings, default 30 psi) a tyre turns red and the "Low tyre" lamp lights. "unsupported" means the BCM did not answer.
+- **Customize**: click Customize, then add items from the catalog, remove them (✕), pick dial/bar/tile/lamp and Large, and drag or use ▲ ▼ to reorder. "Save as" stores a named layout; pick layouts from the Layout box; Reset restores the default. Only the items on the dashboard are polled.
+- Units and refresh rate are on the **Settings** page.
+
+## As-Built backup
+Open **As-Built** and pick a module (only modules with As-Built blocks are listed unless "Show all modules" is ticked). If you are not connected the app offers to connect, and it scans first if needed. **Read all blocks** saves the module to `Data\asbuilt\<date>\`; **Read all modules (backup)** backs up every As-Built module that answered, with progress and Cancel. Everything is read-only. The DTCs page has the same picker and **Read all modules**.
 
 ## Keyboard shortcuts
 Ctrl+O open factory .ab, F5 connect, Shift+F5 disconnect, Ctrl+Shift+D capture, Ctrl+F find in logs, Ctrl+L log panel, Ctrl +/-/0 zoom, F11 full screen, F1 this guide.

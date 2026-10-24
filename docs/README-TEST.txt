@@ -1,8 +1,8 @@
-OBDLink Diag - TEST BUILD v0.2.0 (win-x64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.2.1 (win-x64)  2026-10-24
 =======================================================
-UNSIGNED TEST BUILD. Compiled on Linux. UNTESTED ON WINDOWS: v0.1.3/v0.1.4 were run and tested
-by Dale on Windows 11 Pro 24H2 in simulator/demo mode, but v0.2.0 (new menus, nav rail, Settings
-page, Dashboard) has not been run on Windows yet. Real-vehicle testing is still pending.
+UNSIGNED TEST BUILD. Compiled on Linux. UNTESTED ON WINDOWS: v0.2.0 is confirmed running on
+Windows 11 Pro 24H2 (Dale, demo mode), but v0.2.1 (As-Built workflow, TPMS, dashboard
+customization) has not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
 
 HOW TO RUN
@@ -60,6 +60,17 @@ On first run, anything in the old %LOCALAPPDATA%\OBDLinkDiag folder is moved int
 overwritten by an older one). A MIGRATED.txt note is left in the old folder.
 If the app folder is not writable (e.g. Program Files), the app keeps using
 %LOCALAPPDATA%\OBDLinkDiag and tells you once. Put the app folder in Documents or on a USB stick.
+
+NEW IN v0.2.1
+- As-Built page: module picker (acronym, name, address, bus, last backup), filtered to modules
+  with As-Built blocks ("Show all modules" to see all). No more "select a module first": the app
+  offers to connect, scans if needed and picks the last-used module. "Read all blocks" and
+  "Read all modules (backup)" save to Data\asbuilt\<date>\ with progress and Cancel. READ-ONLY.
+- DTCs page: same picker, plus "Read all modules".
+- Dashboard: tyre pressures (BCM DIDs 2813-2816, UNVERIFIED) with a truck top-view and a low-tyre
+  lamp (threshold on Settings). Tyres that do not answer show "unsupported".
+- Dashboard -> Customize: add/remove items, dial/bar/tile/lamp, Large, drag or up/down to
+  reorder, Reset, save named layouts. Only items shown are polled.
 
 NEW IN v0.2.0
 -------------
