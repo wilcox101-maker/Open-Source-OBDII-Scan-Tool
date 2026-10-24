@@ -1,6 +1,6 @@
 # OpenDiag-MX: Technical Design Plan
 
-Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 chipset). Target vehicles: Ford / Lincoln / Mercury, and Chrysler / Dodge / Jeep / Ram (FCA / Stellantis).
+Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 chipset). Target vehicles: **Ford only** (primary: 2017 F-150). Chrysler/Ram support was dropped in v0.1.1.
 
 **Status:** draft v0.1 (2026-10-22, America/New_York).  
 Anything marked **[UNKNOWN]** must be confirmed on a real vehicle or against a published public spec before implementation. Do not invent protocol bytes.
@@ -94,7 +94,7 @@ From FRPM [S1][S2]:
 | MS-CAN ISO 15765, 29-bit, 125k | `STP 54` | |
 | MS-CAN raw ISO 11898, 11-bit, 125k | `STP 51` | |
 | SW-CAN (GM) | `STP 61`–`64` | Out of scope for v1 |
-| J1850 PWM / VPW | `STP 11` / `12` | Legacy Ford / Chrysler (Phase 4) |
+| J1850 PWM / VPW | `STP 11` / `12` | Legacy Ford (Phase 4) |
 | ISO 9141 / KWP2000 | `STP 21`–`25` | Legacy (Phase 4) |
 
 - `STPO` / `STPC` open and close the protocol. `STPBR baud` / `STPBRR` change and report baud [S1].
@@ -144,7 +144,7 @@ Implement Mode A first; keep a Mode B ISO-TP state machine (SF / FF / CF / FC, B
 
 ### 4.2 Addressing
 
-- **Functional (broadcast):** e.g. `0x7DF` (11-bit) for legislated OBD; OEM functional IDs vary. **[UNKNOWN]** Ford/FCA functional IDs for enhanced diagnostics beyond OBD — confirm per platform.
+- **Functional (broadcast):** e.g. `0x7DF` (11-bit) for legislated OBD; OEM functional IDs vary. **[UNKNOWN]** Ford functional IDs for enhanced diagnostics beyond OBD — confirm per platform.
 - **Physical:** request ID N → response typically N+8 for many 11-bit HS layouts (e.g. `7E0`/`7E8`), but **OEM maps are not universal**. Always drive from a per-vehicle module table, not hardcoded +8 logic alone.
 - Use `ATSH` / `STPX h:` for Tx ID; `STCFCPA` to register FC pairs; filters (`STFPA` / `STFAC`) to reduce BT traffic [S1].
 
@@ -158,7 +158,7 @@ Implement Mode A first; keep a Mode B ISO-TP state machine (SF / FF / CF / FC, B
 |---|---|---|---|
 | `0x10` | DiagnosticSessionControl | Yes | Default `01`, extended `03`; programming `02` later / gated |
 | `0x11` | ECUReset | Later | Soft/key-off; warn user |
-| `0x14` | ClearDiagnosticInformation | Yes | Confirm dialog + SGW check on FCA |
+| `0x14` | ClearDiagnosticInformation | Yes | Confirm dialog |
 | `0x19` | ReadDTCInformation | Yes | Sub-functions `02`, `0A`, etc. |
 | `0x22` | ReadDataByIdentifier | Yes | VIN `F190`, As-Built DIDs, part numbers |
 | `0x2E` | WriteDataByIdentifier | Phase 2+ | Only after backup + SafetyGuard |
@@ -171,7 +171,7 @@ Negative responses: `0x7F SID NRC`. Surface common NRCs (`0x11` serviceNotSuppor
 
 ### 5.2 KWP2000
 
-Still present on older Ford/Chrysler ECUs (K-line and some CAN-wrapped variants). Reuse session / read / clear patterns with KWP SIDs where they differ. Phase 4 priority after CAN-UDS platforms are solid.
+Still present on older Ford ECUs (K-line and some CAN-wrapped variants). Reuse session / read / clear patterns with KWP SIDs where they differ. Phase 4 priority after CAN-UDS platforms are solid.
 
 ### 5.3 Legislated OBD-II (J1979) — always available
 
@@ -299,42 +299,16 @@ Some Ford powertrain unlock/programming flows historically needed FEPS voltage o
 
 ---
 
-## 9. Chrysler / FCA / Stellantis modules & SGW
+## 9. (Removed) Chrysler / FCA
 
-### 9.1 Diagnostic stack
-
-Modern FCA light-duty: UDS on CAN (11- and/or 29-bit). Older: ISO 9141 / KWP2000 / J1850 VPW. AlfaOBD-like feature targets (HVAC, BCM, RFH, PCM, SGW, …) need a module DB analogous to Ford’s, seeded from public service info and live discovery.
-
-**[UNKNOWN]** Exact physical request/response ID pairs per module/year — same discovery approach as Ford.
-
-### 9.2 Security Gateway (SGW) — hard constraint
-
-Starting with **most 2018 MY** (some 2017) FCA vehicles, an SGW firewall sits between the OBD connector and vehicle networks [S10][S11]:
-
-- **Allowed without auth:** diagnostic *data* reads (DTCs, many PIDs/DIDs) per FCA descriptions.
-- **Blocked without auth:** intrusive ops — clear DTCs, bidirectional controls, calibrations, relearns, programming.
-- **Legitimate unlock path:** **AutoAuth** (ETI / FCA program) — shop/user registration, tool manufacturer agreement, online challenge-response. Annual end-user fee (~$50/shop tier per public FAQ) [S11].
-- Only tool companies under FCA/Stellantis agreements can integrate the Authentication Bridge [S10].
-
-**OpenDiag-MX stance:**
-
-1. Detect probable SGW (NRC patterns / known year+model table / failed clear).
-2. Explain clearly; link to AutoAuth / OEM tooling.
-3. **Do not** implement OBD-port jumper “SGW bypass cable” workflows, credential spoofing, or MITM of the auth bridge.
-4. On pre-SGW vehicles, normal UDS write/clear paths apply with the same SafetyGuard as Ford.
-
-### 9.3 “Proxi” / car configuration
-
-FCA vehicles use central configuration (often called Proxi / PROXI alignment) stored across BCM and peers. Exact DID layout and alignment routines are **[UNKNOWN]** in public detail sufficient for safe automation. Phase 3+: read/backup first; write only with verified per-platform procedures in the community DB.
-
----
+As of v0.1.1 the project is **Ford-only**. Chrysler/Dodge/Ram/FCA support, including SGW handling, was dropped at the product owner's request. See the git history for the earlier research.
 
 ## 10. DTC lookup database
 
 ### 10.1 Layers
 
 1. **SAE generic (P0xxx, U0xxx, C0xxx, B0xxx)** — public definitions from SAE J2012 / EPA summaries; store code → short text → severity hint.
-2. **Manufacturer enhanced** — Ford/FCA-specific wording where legally redistributable (OEM service pubs the user owns, or community-submitted with source tag). Prefer linking to user-supplied FSM PDFs over redistributing copyrighted text.
+2. **Manufacturer enhanced** — Ford-specific wording where legally redistributable (OEM service pubs the user owns, or community-submitted with source tag). Prefer linking to user-supplied FSM PDFs over redistributing copyrighted text.
 3. **Status bits** — decode UDS `0x19` status availability masks (testFailed, confirmed, pending, …).
 
 ### 10.2 Schema (SQLite sketch)
@@ -365,7 +339,7 @@ Ship a baseline SAE pack; OEM packs as optional downloads.
 
 ## 11. Community programming database
 
-Shareable **configuration mods** (As-Built bit flips, FCA feature flags), not firmware.
+Shareable **configuration mods** (As-Built bit flips), not firmware.
 
 ### 11.1 Goals
 
@@ -438,7 +412,6 @@ Store bundles under `%LocalAppData%/OpenDiagMX/backups/` and offer copy-to-USB.
 | Session validity | Extended session + TesterPresent active |
 | Backup exists | Required, age \< 30 min or same session |
 | Read-back verify | After every write, `0x22` must match; else restore prompt |
-| SGW (FCA) | Block mutating ops if locked; show AutoAuth guidance |
 | User confirmation | Typed challenge for high-risk community mods |
 | Rate limit | Back off on NRC lockouts (`0x37`/`0x36` etc.) |
 
@@ -505,11 +478,10 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 - Read-back verification + restore.
 - Motorcraft `.AB` import/compare.
 
-### Phase 3 — Community DB + FCA read depth
+### Phase 3 — Community DB depth
 
 - YAML mod format + Git sync + risk UI.
 - Broader Ford module decode packs.
-- FCA module scan / DTC / read-config on **pre-SGW** vehicles; SGW detection UX on 2018+.
 - Live data PID/DID browser.
 
 ### Phase 4 — Legacy & advanced
@@ -539,10 +511,9 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 
 ## 17. Open questions for the product owner
 
-1. Which exact vehicles / model years / engines will you test on first (Ford and/or FCA)?
+1. Which exact vehicles / model years / engines will you test on first (Ford)?
 2. Do those vehicles expose the modules you care about on MS-CAN @ 125k from a stock MX+, or do you already use a modified cable / OBD splitter?
 3. Is Sync/APIM As-Built editing a day-one Phase 2 goal, or is PCM/BCM DTC work enough?
-4. For FCA 2018+, is read-only acceptable, or is AutoAuth OEM-tool partnership eventually in scope (likely out of reach for a pure OSS volunteer app)?
 5. Preferred license (GPL-3.0 vs MIT)?
 6. Do you need Spanish/English UI from the start?
 7. Any requirement to also support OBDLink EX (USB STN223x, MS-CAN) with the same codebase?

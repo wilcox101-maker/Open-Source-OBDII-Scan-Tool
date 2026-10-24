@@ -1,0 +1,455 @@
+{
+ "meta": {
+  "source": "FORScan Programming Modules Acronyms-Abbreviations.xlsx (community list, 'Updated May-20-2019')",
+  "note": "Names/descriptions only. UNVERIFIED community data; does not change any module CAN address.",
+  "count": 74,
+  "uniqueCodes": 74,
+  "duplicateOrConflictCount": 0
+ },
+ "acronyms": [
+  {
+   "code": "ABS",
+   "name": "Antilock Braking System Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "ACM",
+   "name": "Audio Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "APIM",
+   "name": "Accessory Protocol Interface Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "ASS",
+   "name": "Auto Stop Start",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "BdyCM",
+   "name": "Also BCM Body Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "BECMB",
+   "name": "Battery Energy Control Module B",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "C-CM",
+   "name": "Cruise Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "Can",
+   "name": "Controller Area Network",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "CCM",
+   "name": "Cruise Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "CEI",
+   "name": "Configuration Engine Immobilizer",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "CEL",
+   "name": "Check Engine Light",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "CKP",
+   "name": "Crankshaft Position Sensor",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "CMP",
+   "name": "Camshaft Position Sensor",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DACMC",
+   "name": "Digital Audio Control Module C",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DCDC",
+   "name": "DC to DC Converter Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "DCSM",
+   "name": "Front Seat Climate Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DDM",
+   "name": "Drivers Door Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "DEPS",
+   "name": "Digital Engine Position Sensor",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DIS",
+   "name": "Distributor-less Ignition System",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DLC",
+   "name": "Data Link Connector",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "DSM",
+   "name": "Driver's Seat Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "DSP",
+   "name": "(Audio) Digital Signal Processing Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "DTC",
+   "name": "Diagnostic Trouble Codes (can clear them)",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "ECM",
+   "name": "Engine Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "ECT",
+   "name": "Engine Coolant Temperature",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "ECU",
+   "name": "Electronic Control Unit",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "EEC",
+   "name": "Electronic Engine Control",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "EGR",
+   "name": "Exhaust Gas Recirculation",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "EM",
+   "name": "Engineering Mode for Dashboard Display",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "ESS",
+   "name": "Engine Stop-Start",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "EPB",
+   "name": "Electronic Parking Brake",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "FCIM",
+   "name": "Front Controls Interface Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "GWM",
+   "name": "Gateway Module A",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "HSWM",
+   "name": "Heated Steering Wheel Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "HUD",
+   "name": "Head Up Display",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "IPC",
+   "name": "Instrument Panel Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "IPMA",
+   "name": "Image Processing Module A",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "IPMB",
+   "name": "Image Processing Module B",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "MIL",
+   "name": "Malfunction Indicator Lamp",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "OBDII",
+   "name": "On Board Diagnostic II",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "OCS",
+   "name": "Occupant Classification System Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "OHP",
+   "name": "ELM Configurator for Forscan OBDII",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "OSC",
+   "name": "Oxygen Storage Capacity",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "PAM",
+   "name": "Parking Aid Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "PATS",
+   "name": "Passive Anti-Theft System",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "PCM",
+   "name": "Powertrain Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "PDM",
+   "name": "Passenger's Door Control Unit",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "PSCM",
+   "name": "Power Steering Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "RBM",
+   "name": "Running Board Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "RCM",
+   "name": "Restraint Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "RTM",
+   "name": "Radio Transceiver Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "SCCM",
+   "name": "Steering Column Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "SCM",
+   "name": "Steering Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "SCME",
+   "name": "Seat Control Module E",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "SCMG",
+   "name": "Seat Control Module G",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "SCMH",
+   "name": "Seat Control Module H",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "SES",
+   "name": "Service Engine Soon",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "SODL",
+   "name": "Side Obstacle Detection Control Module Left",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "SODR",
+   "name": "Side Obstacle Detection Control Module Right",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TBM",
+   "name": "Trailer Brake Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "TCCM",
+   "name": "Transfer Case Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TCM",
+   "name": "Transmission Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TCU",
+   "name": "Telematic Control Unit Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TPS",
+   "name": "Throttle Position Sensor",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "TrlrBM",
+   "name": "Trailer Brake Control Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TRM",
+   "name": "Trailer Module",
+   "seenIn2019F150Log": true,
+   "ambiguous": false
+  },
+  {
+   "code": "TWC",
+   "name": "Three Way Catalyst",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "UART",
+   "name": "Universal Asychronious Receive & Transmit",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "VCM",
+   "name": "Vehicle Control Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "VCP",
+   "name": "Virtual COM Port",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "VIM",
+   "name": "Vehicle Interface Module",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "VPW",
+   "name": "Variable Pulse Width",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "VSS",
+   "name": "Vehicle Speed Sensor",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  },
+  {
+   "code": "WOT",
+   "name": "Wide Open Throttle",
+   "seenIn2019F150Log": false,
+   "ambiguous": false
+  }
+ ]
+}

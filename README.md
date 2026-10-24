@@ -1,6 +1,6 @@
 # OBDLink MX+ Diagnostics (open source, MIT)
 
-A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. Priority vehicles are the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built) and the **2008 Dodge Ram 1500**. See `PLAN.md` for the design.
+A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built) and the **2008 Dodge Ram 1500**. See `PLAN.md` for the design.
 
 > ⚠ Writing module configuration can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
 
@@ -34,9 +34,20 @@ On Windows, choose **DEMO (simulated)** in the Port box to try the UI without an
 ## Unverified / stubbed (see code comments marked [UNVERIFIED]/[STUB]/[TODO])
 - As-Built block → UDS DID mapping `0xDE00 + (block-1)` and 5 data bytes per line come from community convention. Confirm both with a capture before writing.
 - F-150 2017 module addresses and bus assignments come from community reports (each row has a `Confidence`). The scanner probes both buses.
-- 2008 Ram: only generic OBD-II over CAN is modelled. Chrysler PCI (J1850 VPW) body modules are stubbed.
 - Multi-frame transmit uses host-side ISO-TP with `ATCAF0`. It hasn't been timed on real MX+ hardware over Bluetooth.
 - UDS 0x78 (response pending): the client re-requests only for idempotent services. A write that gets 0x78 is reported as an error, and read-back verify catches the outcome.
 - 0x27 SecurityAccess is only an interface (`ISeedKeyProvider`). No proprietary algorithms are included.
 - The DTC DB is a small stub of SAE generic titles.
 - The battery threshold of 12.5 V is a project default, not an OEM specification.
+
+## v0.1.1 additions
+- **Ford-only.** Chrysler/Ram support was removed.
+- **Logging.** The bottom panel has Events, Messages, and Adapter traffic tabs, each with filter, search, copy, and export (.txt/.csv; VINs redacted by default). Rolling files go to `%LOCALAPPDATA%\OBDLinkDiag\logs` (`events-`, `app-`, and `traffic-YYYYMMDD.log`) and are included in the Diagnostics capture zip.
+- **Module names.** Full names come from `community-db/ford-module-acronyms` (74 entries) and appear in the grid, the As-Built view, DTCs, and logs. Names only; CAN addresses are not changed.
+- **Community data.**
+  - `f150-asbuilt` (2015-20, Livnitup sheet).
+  - `f150-2021plus-asbuilt` (2021+, **not for 2017**).
+  - `livnitup-forscan-tutorial`.
+  - Read-only reference; there is no in-app feature browser yet.
+- **Guide.** docs/GUIDE.md and the in-app Guide tab (credit: Livnitup).
+- **Themes.** Light, Dark, or Follow Windows. They switch live and the choice is saved in settings.

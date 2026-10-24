@@ -63,26 +63,6 @@ public static class FordF150_2017
     };
 }
 
-/// <summary>
-/// 2008 Dodge Ram 1500 (DR/DH), per docs/CHRYSLER-NETWORKS.md:
-/// - Diagnostic CAN C, 500 kbps, 11-bit, on DLC pins 6/14, through the TIPM/CGW gateway.
-///   Bus/pins are HIGH confidence; the 11-bit format is MED. STP 33 / ATSP6 is MED confidence.
-/// - CAN B is not reachable at the DLC.
-/// - PCM 0x7E0/0x7E8 is generic ISO 15765-4.
-/// Every other ID in 0x7E1-0x7EF is a SWEEP SLOT, not a known module [UNVERIFIED].
-/// Chrysler enhanced IDs (e.g. 0x620 reported for a BCM, LOW confidence) are found with <see cref="ObdLink.Core.Diagnostics.DiscoverySweep"/>.
-/// </summary>
-public static class DodgeRam1500_2008
-{
-    public const string ProfileNote = "Ram 2008 profile [UNVERIFIED]: diag CAN C 500k 11-bit, pins 6/14, STP 33 / ATSP6";
-    public static readonly IReadOnlyList<ModuleDefinition> Modules =
-        new[] { new ModuleDefinition("PCM", "Powertrain Control Module (OBD-II)", Bus.HsCan, 0x7E0, 0x7E8, Confidence.Standard, "ISO 15765-4 7E0/7E8; CAN C 6/14 (CHRYSLER-NETWORKS.md)") }
-        .Concat(Enumerable.Range(0x7E1, 0x7EF - 0x7E1 + 1).Select(id => new ModuleDefinition(
-            $"ID{id:X3}", $"Sweep slot 0x{id:X3}", Bus.HsCan, (uint)id, (uint)id + 8, Confidence.Unverified,
-            id <= 0x7E7 ? "ISO 15765-4 OBD slot; module identity unknown [UNVERIFIED]" : "Physical ID 0x7E8-0x7EF are normally RESPONSE IDs; probed anyway for discovery [UNVERIFIED]")))
-        .ToList();
-}
-
 public sealed record ScanResult(ModuleDefinition Module, bool Responded, string? Detail);
 
 /// <summary>Probes each CAN module with UDS TesterPresent (0x3E 00), falling back to 0x22 F190 (VIN DID, ISO 14229).</summary>
@@ -124,4 +104,12 @@ public sealed class ModuleScanner
         }
         return results;
     }
+}
+
+/// <summary>Vehicle choices shown in the UI. The project is Ford-only (Chrysler/Ram support was dropped in v0.1.1).</summary>
+public static class VehicleProfiles
+{
+    public const string F150_2017 = "2017 Ford F-150";
+    public static IReadOnlyList<string> All { get; } = new[] { F150_2017 };
+    public static IReadOnlyList<ModuleDefinition> ModulesFor(string? vehicle) => FordF150_2017.Modules;
 }

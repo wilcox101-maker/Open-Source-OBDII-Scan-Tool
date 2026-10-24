@@ -1,0 +1,94 @@
+{
+ "note": "Cross-reference vs community-db/f150-asbuilt (2015-2020). Nothing overwritten.",
+ "results": [
+  {
+   "feature": "Double Horn Honk disable",
+   "address": "726-41-02",
+   "pattern": [
+    "xxx0",
+    "xxxx",
+    "xxxx"
+   ],
+   "status": "merged (same address+position in f150-asbuilt; value text not compared automatically)",
+   "f150_asbuilt_match": {
+    "sheet": "BCM (JU5T)",
+    "pattern": [
+     "xxx*",
+     "xxxx",
+     "xxxx"
+    ],
+    "description": "LostPK Exterior Notification Enable Cfg (Double Horn Honk)",
+    "values": [
+     "0=Disabled, 1=Enabled"
+    ]
+   }
+  },
+  {
+   "feature": "Autofold Mirrors",
+   "address": "740-03-01",
+   "pattern": [
+    "x8xx",
+    "xx"
+   ],
+   "status": "merged (same address+position in f150-asbuilt; value text not compared automatically)",
+   "f150_asbuilt_match": {
+    "sheet": "DDMPDM",
+    "pattern": [
+     "x*xx",
+     "xx"
+    ],
+    "description": "Autofold Config (AF) & X-Motor Direction (XMD) & Y-Motor Direction (YMD) & X-Sensor Direction (XSD)",
+    "values": [
+     "0=AF: not configured & XMD: normal & YMD: normal & XSD: normal",
+     "8=AF: configured & XMD: normal & YMD: normal & XSD: normal",
+     "1=AF: not configured & XMD: normal & YMD: normal & XSD: inverse",
+     "9=AF: configured & XMD: normal & YMD: normal & XSD: inverse",
+     "2=AF: not configured & XMD: normal & YMD: inverse & XSD: normal",
+     "A=AF: configured & XMD: normal & YMD: inverse & XSD: normal"
+    ]
+   }
+  },
+  {
+   "feature": "Autofold Mirrors",
+   "address": "740-12-01",
+   "pattern": [
+    "Fxxx"
+   ],
+   "status": "merged (same address+position in f150-asbuilt; value text not compared automatically)",
+   "f150_asbuilt_match": {
+    "sheet": "DDMPDM",
+    "pattern": [
+     "*xxx"
+    ],
+    "description": "AutoFold Setting Factory (AFSF) & AutoFold Setting Vehicle (AFSV) & AutoFold Setting Person1 (AFP1) & AutoFold Setting Person2 (AFP2)",
+    "values": [
+     "0=AFSF not configured & AFSV not configured & AFP1 not configured & AFP2 not configured",
+     "8=AFSF configured & AFSV not configured & AFP1 not configured & AFP2 not configured",
+     "1=AFSF not configured & AFSV not configured & AFP1 not configured & AFP2 configured",
+     "9=AFSF configured & AFSV not configured & AFP1 not configured & AFP2 configured",
+     "2=AFSF not configured & AFSV not configured & AFP1 configured & AFP2 not configured",
+     "A=AFSF configured & AFSV not configured & AFP1 configured & AFP2 not configured"
+    ]
+   }
+  },
+  {
+   "feature": "Autofold Mirrors",
+   "address": "741-03-01",
+   "pattern": [
+    "x8xx",
+    "xx"
+   ],
+   "status": "new",
+   "f150_asbuilt_match": null
+  },
+  {
+   "feature": "Autofold Mirrors",
+   "address": "741-12-01",
+   "pattern": [
+    "Fxxx"
+   ],
+   "status": "new",
+   "f150_asbuilt_match": null
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+code,name,seenIn2019F150Log,ambiguous
+ABS,Antilock Braking System Module,True,False
+ACM,Audio Control Module,True,False
+APIM,Accessory Protocol Interface Module,True,False
+ASS,Auto Stop Start,False,False
+BdyCM,Also BCM Body Control Module,True,False
+BECMB,Battery Energy Control Module B,True,False
+C-CM,Cruise Control Module,True,False
+Can,Controller Area Network,False,False
+CCM,Cruise Control Module,False,False
+CEI,Configuration Engine Immobilizer,False,False
+CEL,Check Engine Light,False,False
+CKP,Crankshaft Position Sensor,False,False
+CMP,Camshaft Position Sensor,False,False
+DACMC,Digital Audio Control Module C,False,False
+DCDC,DC to DC Converter Control Module,True,False
+DCSM,Front Seat Climate Control Module,False,False
+DDM,Drivers Door Module,True,False
+DEPS,Digital Engine Position Sensor,False,False
+DIS,Distributor-less Ignition System,False,False
+DLC,Data Link Connector,False,False
+DSM,Driver's Seat Module,True,False
+DSP,(Audio) Digital Signal Processing Module,True,False
+DTC,Diagnostic Trouble Codes (can clear them),False,False
+ECM,Engine Control Module,False,False
+ECT,Engine Coolant Temperature,False,False
+ECU,Electronic Control Unit,False,False
+EEC,Electronic Engine Control,False,False
+EGR,Exhaust Gas Recirculation,False,False
+EM,Engineering Mode for Dashboard Display,False,False
+ESS,Engine Stop-Start,False,False
+EPB,Electronic Parking Brake,False,False
+FCIM,Front Controls Interface Module,True,False
+GWM,Gateway Module A,True,False
+HSWM,Heated Steering Wheel Module,True,False
+HUD,Head Up Display,False,False
+IPC,Instrument Panel Control Module,True,False
+IPMA,Image Processing Module A,True,False
+IPMB,Image Processing Module B,True,False
+MIL,Malfunction Indicator Lamp,False,False
+OBDII,On Board Diagnostic II,True,False
+OCS,Occupant Classification System Module,True,False
+OHP,ELM Configurator for Forscan OBDII,False,False
+OSC,Oxygen Storage Capacity,False,False
+PAM,Parking Aid Module,True,False
+PATS,Passive Anti-Theft System,False,False
+PCM,Powertrain Control Module,True,False
+PDM,Passenger's Door Control Unit,True,False
+PSCM,Power Steering Control Module,True,False
+RBM,Running Board Control Module,True,False
+RCM,Restraint Control Module,True,False
+RTM,Radio Transceiver Module,True,False
+SCCM,Steering Column Control Module,True,False
+SCM,Steering Control Module,False,False
+SCME,Seat Control Module E,True,False
+SCMG,Seat Control Module G,False,False
+SCMH,Seat Control Module H,True,False
+SES,Service Engine Soon,False,False
+SODL,Side Obstacle Detection Control Module Left,True,False
+SODR,Side Obstacle Detection Control Module Right,True,False
+TBM,Trailer Brake Control Module,False,False
+TCCM,Transfer Case Control Module,True,False
+TCM,Transmission Control Module,True,False
+TCU,Telematic Control Unit Module,True,False
+TPS,Throttle Position Sensor,False,False
+TrlrBM,Trailer Brake Control Module,True,False
+TRM,Trailer Module,True,False
+TWC,Three Way Catalyst,False,False
+UART,Universal Asychronious Receive & Transmit,False,False
+VCM,Vehicle Control Module,False,False
+VCP,Virtual COM Port,False,False
+VIM,Vehicle Interface Module,False,False
+VPW,Variable Pulse Width,False,False
+VSS,Vehicle Speed Sensor,False,False
+WOT,Wide Open Throttle,False,False

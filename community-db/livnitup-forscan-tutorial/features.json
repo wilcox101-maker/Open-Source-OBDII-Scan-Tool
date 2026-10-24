@@ -1,0 +1,144 @@
+{
+ "source": "Livnitup, 'FORScan Tutorial' Google Doc (updated 6/14/26), https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/",
+ "credit": "Livnitup",
+ "confidence": "CommunityReported - UNVERIFIED on Dale's truck",
+ "entries": [
+  {
+   "sheet": "FORScan Tutorial",
+   "feature": "Double Horn Honk disable",
+   "module": "BCM",
+   "address": "726-41-02",
+   "pattern": [
+    "xxx0",
+    "xxxx",
+    "xxxx"
+   ],
+   "description": "Double horn honk (lock confirm) - 4th nibble 0 = disabled",
+   "values": [
+    "0=Disabled"
+   ],
+   "model_years": "2015-2020",
+   "sync": null,
+   "prerequisites": [],
+   "warnings": [
+    "Ignore 'incorrect checksum' prompt in FORScan; checksum is recomputed",
+    "Cycle key after BCM change"
+   ],
+   "confidence": "CommunityReported"
+  },
+  {
+   "sheet": "FORScan Tutorial",
+   "feature": "Autofold Mirrors",
+   "module": "DDM",
+   "address": "740-03-01",
+   "pattern": [
+    "x8xx",
+    "xx"
+   ],
+   "description": "Autofold mirrors (part 1 of 4)",
+   "values": [
+    "8=Enabled"
+   ],
+   "model_years": "2015-2020",
+   "sync": null,
+   "prerequisites": [
+    "Power-fold mirror hardware"
+   ],
+   "warnings": [
+    "Make all 4 changes (DDM+PDM) before 'Write all'"
+   ],
+   "confidence": "CommunityReported"
+  },
+  {
+   "sheet": "FORScan Tutorial",
+   "feature": "Autofold Mirrors",
+   "module": "DDM",
+   "address": "740-12-01",
+   "pattern": [
+    "Fxxx"
+   ],
+   "description": "Autofold mirrors (part 2 of 4)",
+   "values": [
+    "F=Enabled"
+   ],
+   "model_years": "2015-2020",
+   "sync": null,
+   "prerequisites": [
+    "Power-fold mirror hardware"
+   ],
+   "warnings": [],
+   "confidence": "CommunityReported"
+  },
+  {
+   "sheet": "FORScan Tutorial",
+   "feature": "Autofold Mirrors",
+   "module": "PDM",
+   "address": "741-03-01",
+   "pattern": [
+    "x8xx",
+    "xx"
+   ],
+   "description": "Autofold mirrors (part 3 of 4)",
+   "values": [
+    "8=Enabled"
+   ],
+   "model_years": "2015-2020",
+   "sync": null,
+   "prerequisites": [
+    "Power-fold mirror hardware"
+   ],
+   "warnings": [],
+   "confidence": "CommunityReported"
+  },
+  {
+   "sheet": "FORScan Tutorial",
+   "feature": "Autofold Mirrors",
+   "module": "PDM",
+   "address": "741-12-01",
+   "pattern": [
+    "Fxxx"
+   ],
+   "description": "Autofold mirrors (part 4 of 4)",
+   "values": [
+    "F=Enabled"
+   ],
+   "model_years": "2015-2020",
+   "sync": null,
+   "prerequisites": [
+    "Power-fold mirror hardware"
+   ],
+   "warnings": [],
+   "confidence": "CommunityReported"
+  }
+ ],
+ "mentioned_without_values": [
+  {
+   "feature": "Heated/cooled seat & heated wheel icons on SYNC 2/3 home screen",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "12V Powerpoint timeout",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "Engine/trans temps above gauge",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "Global window open/close",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "Heated steering wheel full hot",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "Radio on with vehicle off (2015)",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  },
+  {
+   "feature": "Text messages / NAV entry in motion",
+   "status": "UNVERIFIED - doc names the mod but gives no address/value; see the 2015-20 spreadsheet (already imported as f150-asbuilt)"
+  }
+ ]
+}

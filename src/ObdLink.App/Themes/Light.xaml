@@ -1,0 +1,45 @@
+<!-- Light.xaml: palette only. Templates live in Controls.xaml and use DynamicResource, so ThemeManager can swap this dictionary live. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="Bg" Color="#F3F4F6"/>
+  <SolidColorBrush x:Key="Panel" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Surface2" Color="#F7F8FA"/>
+  <SolidColorBrush x:Key="Field" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Control" Color="#EEF0F3"/>
+  <SolidColorBrush x:Key="Row" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="RowAlt" Color="#F6F7F9"/>
+  <SolidColorBrush x:Key="Fg" Color="#1D1F23"/>
+  <SolidColorBrush x:Key="FgDim" Color="#5C6370"/>
+  <SolidColorBrush x:Key="FgDisabled" Color="#9AA0A8"/>
+  <SolidColorBrush x:Key="Accent" Color="#2563EB"/>
+  <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Border" Color="#D4D8DE"/>
+  <SolidColorBrush x:Key="Hover" Color="#E3E7ED"/>
+  <SolidColorBrush x:Key="Selected" Color="#CFE0FF"/>
+  <SolidColorBrush x:Key="SelFg" Color="#0B1F44"/>
+  <SolidColorBrush x:Key="Thumb" Color="#C2C7CF"/>
+  <SolidColorBrush x:Key="ThumbHover" Color="#A0A6B0"/>
+  <SolidColorBrush x:Key="Danger" Color="#C62828"/>
+  <SolidColorBrush x:Key="DangerBg" Color="#FDE8E8"/>
+  <SolidColorBrush x:Key="DangerFg" Color="#8E1B1B"/>
+  <SolidColorBrush x:Key="Warn" Color="#9A6700"/>
+  <SolidColorBrush x:Key="Err" Color="#C62828"/>
+  <SolidColorBrush x:Key="Debug" Color="#6B7280"/>
+  <SolidColorBrush x:Key="BannerBg" Color="#FFF4D6"/>
+  <SolidColorBrush x:Key="BannerBorder" Color="#D9A400"/>
+  <SolidColorBrush x:Key="BannerFg" Color="#7A4E00"/>
+  <SolidColorBrush x:Key="ChipIdle" Color="#E5E7EB"/>
+  <SolidColorBrush x:Key="ChipOk" Color="#D1F2DF"/>
+  <SolidColorBrush x:Key="ChipBad" Color="#FBD5D5"/>
+  <SolidColorBrush x:Key="ChipWarn" Color="#FCEFC7"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#CFE0FF"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0B1F44"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#CFE0FF"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0B1F44"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#1D1F23"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#EEF0F3"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#1D1F23"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.GrayTextBrushKey}" Color="#9AA0A8"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.MenuBrushKey}" Color="#F7F8FA"/>
+  <SolidColorBrush x:Key="{x:Static SystemColors.MenuTextBrushKey}" Color="#1D1F23"/>
+</ResourceDictionary>

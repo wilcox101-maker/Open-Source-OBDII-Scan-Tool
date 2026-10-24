@@ -8,7 +8,7 @@ namespace ObdLink.Core.Diagnostics;
 public sealed record DiscoveryHit(uint RequestId, string Probe, uint ResponseId, string PayloadHex);
 
 /// <summary>
-/// Sends read-only probes to each 11-bit ID in a range and logs which IDs answer. The receive filter is left OPEN (no ATCRA filter), so a reply from any ID is recorded. That's because Chrysler request/response pairing is [UNVERIFIED].
+/// Sends read-only probes to each 11-bit ID in a range and logs which IDs answer. The receive filter is left OPEN (no ATCRA filter), so a reply from any ID is recorded. That's because request/response pairing for non-standard IDs is [UNVERIFIED].
 /// The probes are 3E 00 (TesterPresent), 22 F1 90 (UDS read VIN) and 1A xx (KWP2000 ReadEcuIdentification). None of them changes ECU state.
 /// A negative response (7F ..) still counts as "responded".
 /// </summary>

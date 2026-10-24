@@ -253,7 +253,7 @@ public class ServiceTests
         var (sim, svc, _) = await AsBuiltSetup(true, 11.9);
         await Assert.ThrowsAsync<SafetyException>(() => svc.WriteBlockAsync("V", new AsBuiltBlock { Module = 0x726, Block = 1, Data = new byte[7] }));
         var (sim2, svc2, _) = await AsBuiltSetup(false);
-        await Assert.ThrowsAsync<SafetyException>(() => svc2.WriteBlockAsync("V", new AsBuiltBlock { Module = 0x726, Block = 1, Data = new byte[7] }));
+        await Assert.ThrowsAsync<UserDeclinedException>(() => svc2.WriteBlockAsync("V", new AsBuiltBlock { Module = 0x726, Block = 1, Data = new byte[7] }));
         Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7 }, sim2.Dids[0x726][0xDE00]);
     }
 

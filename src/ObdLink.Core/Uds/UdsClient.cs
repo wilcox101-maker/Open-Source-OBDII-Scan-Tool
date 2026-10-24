@@ -5,9 +5,25 @@ namespace ObdLink.Core.Uds;
 public enum UdsSession : byte { Default = 0x01, Programming = 0x02, Extended = 0x03 }
 public enum ResetType : byte { Hard = 0x01, KeyOffOn = 0x02, Soft = 0x03 }
 
-public sealed class UdsNegativeResponseException(byte sid, byte nrc)
-    : Exception($"NRC 0x{nrc:X2} ({UdsNrc.Describe(nrc)}) for service 0x{sid:X2}")
-{ public byte Service { get; } = sid; public byte Nrc { get; } = nrc; }
+public sealed class UdsNegativeResponseException : Exception
+{
+    public byte Service { get; }
+    public byte Nrc { get; }
+    public uint? Target { get; }
+    public byte[]? Request { get; }
+    public UdsNegativeResponseException(byte sid, byte nrc, uint? target = null, byte[]? request = null)
+        : base(Build(sid, nrc, target, request)) { Service = sid; Nrc = nrc; Target = target; Request = request; }
+
+    /// <summary>e.g. "Module 0x7E0 rejected ReadDataByIdentifier (0x22) DID 0xDE00: NRC 0x31 requestOutOfRange - ... [request 22DE00, response 7F 22 31]".</summary>
+    private static string Build(byte sid, byte nrc, uint? target, byte[]? req)
+    {
+        var who = target is uint t ? $"Module 0x{t:X3}" : "Module";
+        var what = UdsNrc.ServiceName(sid) + $" (0x{sid:X2})";
+        if (req is { Length: >= 3 } && sid is 0x22 or 0x2E) what += $" DID 0x{req[1]:X2}{req[2]:X2}";
+        var raw = (req is null ? "" : $"request {Convert.ToHexString(req)}, ") + $"response 7F {sid:X2} {nrc:X2}";
+        return $"{who} rejected {what}: NRC 0x{nrc:X2} {UdsNrc.Describe(nrc)} - {UdsNrc.Explain(nrc, sid)} [{raw}]";
+    }
+}
 
 public static class UdsNrc
 {
@@ -21,6 +37,39 @@ public static class UdsNrc
         0x37 => "requiredTimeDelayNotExpired", 0x72 => "generalProgrammingFailure",
         0x78 => "requestCorrectlyReceived-ResponsePending", 0x7E => "subFunctionNotSupportedInActiveSession",
         0x7F => "serviceNotSupportedInActiveSession", _ => "unknown"
+    };
+
+    /// <summary>Plain-English meaning of an NRC for the message log / error dialogs.</summary>
+    public static string Explain(byte n, byte sid = 0) => n switch
+    {
+        0x10 => "the module rejected the request without a specific reason",
+        0x11 => "the module does not support this service",
+        0x12 => "the module does not support this sub-function",
+        0x13 => "the request length or format is wrong for this module",
+        0x14 => "the response would be too long for the transport",
+        0x21 => "the module is busy; try again",
+        0x22 => "conditions are not correct (e.g. ignition/engine state or wrong session)",
+        0x24 => "request sequence error (a prerequisite step was skipped)",
+        0x31 => sid == 0x22 || sid == 0x2E
+            ? "the module does not support this data identifier (wrong block number, or this module has no As-Built block at that DID)"
+            : "a parameter is out of the range the module accepts",
+        0x33 => "security access is required (module is locked)",
+        0x35 => "the security key was wrong",
+        0x36 => "too many security attempts; wait before retrying",
+        0x37 => "the security delay has not expired yet",
+        0x72 => "the module reported a programming failure",
+        0x78 => "the module is still processing (response pending)",
+        0x7E => "sub-function not supported in the current diagnostic session",
+        0x7F => "service not supported in the current diagnostic session (an extended session may be required)",
+        _ => "manufacturer-specific or unknown negative response",
+    };
+
+    public static string ServiceName(byte sid) => sid switch
+    {
+        0x01 => "OBD mode 01", 0x03 => "OBD mode 03", 0x09 => "OBD mode 09",
+        0x10 => "DiagnosticSessionControl", 0x11 => "ECUReset", 0x14 => "ClearDiagnosticInformation", 0x19 => "ReadDTCInformation",
+        0x1A => "KWP ReadEcuIdentification", 0x22 => "ReadDataByIdentifier", 0x27 => "SecurityAccess", 0x2E => "WriteDataByIdentifier",
+        0x2F => "InputOutputControl", 0x31 => "RoutineControl", 0x3E => "TesterPresent", _ => "service",
     };
 }
 
@@ -65,9 +114,9 @@ public sealed class UdsClient
                 // 0x78 response-pending: the ELM text interface returns once the first frame arrives,
                 // so we can only re-issue the request. [LIMITATION] Not safe for non-idempotent services; see README.
                 if ((r[2] == 0x78 || r[2] == 0x21) && i < PendingRetries && IsIdempotent(req[0])) { await Task.Delay(200, ct); continue; }
-                throw new UdsNegativeResponseException(r[1], r[2]);
+                throw new UdsNegativeResponseException(r[1], r[2], TargetTxId, req);
             }
-            throw new InvalidDataException($"Unexpected response {Convert.ToHexString(r)}");
+            throw new InvalidDataException($"Unexpected response from 0x{TargetTxId:X3} to {Convert.ToHexString(req)}: {Convert.ToHexString(r)}");
         }
     }
 

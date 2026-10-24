@@ -22,6 +22,22 @@ public sealed class SimulatedAdapter
     /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>
     public Dictionary<uint, List<(uint Dtc, byte Status)>> UdsDtcs { get; } = new();
     public bool CorruptWrites { get; set; }
+
+    public SimulatedAdapter() => SeedDemoAsBuilt(this);
+
+    /// <summary>
+    /// SYNTHETIC As-Built blocks DE00-DE07 for the F-150 demo modules (PCM 7E0, IPC 720, BCM 726) so "Read" works in demo mode.
+    /// Values are made up (not from any real vehicle). Each block is 3 lines of 5 data bytes.
+    /// </summary>
+    public static void SeedDemoAsBuilt(SimulatedAdapter sim)
+    {
+        foreach (var m in new uint[] { 0x7E0, 0x720, 0x726 })
+        {
+            if (!sim.Dids.TryGetValue(m, out var d)) sim.Dids[m] = d = new();
+            for (int b = 0; b < 8; b++)
+                d.TryAdd((ushort)(0xDE00 + b), Enumerable.Range(0, 15).Select(i => (byte)((m + b * 17 + i * 31) & 0xFF)).ToArray());
+        }
+    }
     public string? Protocol { get; private set; }
     private uint _header = 0x7DF;
     private bool _caf = true;

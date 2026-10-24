@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OBDLinkDiag</AssemblyName>
+    <Version>0.1.1</Version>
   </PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="..\..\docs\GUIDE.md" LogicalName="GUIDE.md" /></ItemGroup>
   <ItemGroup><ProjectReference Include="..\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
 </Project>

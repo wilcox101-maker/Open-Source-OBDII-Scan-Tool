@@ -13,9 +13,9 @@ public enum AdapterCapabilities
     None = 0,
     HsCan = 1,         // STP 31-36
     MsCan = 2,         // STP 51-54, MS-CAN transceiver (FRPM: "typically pins 3 and 11")
-    SwCan = 4,         // STP 61-64, pin 1 (GMLAN) - not used for Ford/Ram here
+    SwCan = 4,         // STP 61-64, pin 1 (GMLAN) - not used for Ford here
     J1850Pwm = 8,      // Ford SCP
-    J1850Vpw = 16,     // Chrysler PCI (Ram 2008 body)
+    J1850Vpw = 16,     // GM/Chrysler class 2/PCI (not used by this Ford-only app)
     StnCommands = 32,  // ST* command set
     HighUartBaud = 64, // physical UART/USB link where the host baud rate matters
 }
@@ -27,7 +27,7 @@ public enum AdapterCapabilities
 /// - The EX defaulting to 115200 bps: ScanTool support article ("Baud rate is set to 115.2 Kbps" + FORScan "Auto-increase") [VERIFIED-DOC].
 /// - 2,000,000 bps for the EX: seen in Dale's FORScan log after FORScan's auto-increase [VERIFIED-FROM-LOG]. It is not the power-on default.
 /// - J1850 PWM/VPW on the EX and MX+: the FORScan compatibility table lists "Ford SCP/J1850 PWM: Yes" for both.
-///   VPW (needed for the Ram) is [UNVERIFIED] on the EX.
+///   VPW is [UNVERIFIED] on the EX (not used by this app).
 /// - Timeouts are engineering estimates [UNVERIFIED]; tune them using the logged round-trip times.
 /// </summary>
 public sealed record AdapterProfile(
@@ -57,7 +57,7 @@ public static class AdapterProfiles
         new[] { 115200 }, // SPP virtual COM: the host baud is nominal
         TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(6),
         StnBase | AdapterCapabilities.MsCan | AdapterCapabilities.SwCan | AdapterCapabilities.J1850Pwm | AdapterCapabilities.J1850Vpw,
-        "Bluetooth SPP: the baud setting has no effect; higher latency, so timeouts are longer. J1850 VPW is from the product listing [UNVERIFIED on Ram]");
+        "Bluetooth SPP: the baud setting has no effect; higher latency, so timeouts are longer. J1850 VPW is from the product listing");
 
     public static readonly AdapterProfile OtherStn = new(AdapterKind.OtherStn, "Other STN adapter", PortKind.Unknown,
         new[] { 115200, 500000, 38400, 9600 }, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5), StnBase,

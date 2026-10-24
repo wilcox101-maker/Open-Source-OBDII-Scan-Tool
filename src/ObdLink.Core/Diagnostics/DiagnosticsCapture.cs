@@ -25,7 +25,8 @@ public sealed class DiagnosticsCapture
     private readonly StringBuilder _raw = new(); private readonly StringBuilder _sum = new();
     public DiagnosticsCapture(AdapterSession s, IDiagChannel ch) { _s = s; _ch = ch; }
 
-    public sealed record Options(string Vehicle, IReadOnlyList<ModuleDefinition> Modules, StnProtocol ScanProtocol, char ElmFallback, DiscoveryOptions? Discovery, string AppVersion, string? ExtraNote = null);
+    public sealed record Options(string Vehicle, IReadOnlyList<ModuleDefinition> Modules, StnProtocol ScanProtocol, char ElmFallback, DiscoveryOptions? Discovery, string AppVersion, string? ExtraNote = null,
+        IReadOnlyList<(string Name, string Text)>? ExtraFiles = null, bool RedactVins = false);
 
     public async Task<string> RunAsync(Options o, string outDir, IProgress<string>? progress = null, CancellationToken ct = default)
     {
@@ -73,10 +74,12 @@ public sealed class DiagnosticsCapture
         var path = Path.Combine(outDir, $"obdlink-capture-{started:yyyyMMdd-HHmmss}.zip");
         using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
         {
-            void Add(string n, string text) { using var w = new StreamWriter(zip.CreateEntry(n).Open()); w.Write(text); }
+            void Add(string n, string text) { using var w = new StreamWriter(zip.CreateEntry(n).Open()); w.Write(o.RedactVins ? Logging.VinRedactor.Redact(text) : text); }
             Add("summary.txt", _sum.ToString());
             Add("raw-traffic.log", _raw.ToString());
             Add("options.json", JsonSerializer.Serialize(new { o.Vehicle, ScanProtocol = o.ScanProtocol.ToString(), o.ElmFallback, o.Discovery, o.AppVersion, Modules = o.Modules.Select(m => $"{m.Acronym} {m.TxId:X3}") }, AppSettings.Json));
+            // App logs (events, app messages, traffic) so the user's actions leading up to a problem are included.
+            foreach (var (n, text) in o.ExtraFiles ?? Array.Empty<(string, string)>()) Add("logs/" + Path.GetFileName(n), text);
         }
         P($"Saved {path}");
         return path;

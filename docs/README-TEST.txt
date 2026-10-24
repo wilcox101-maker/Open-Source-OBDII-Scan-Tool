@@ -11,7 +11,7 @@ HOW TO RUN
    tick "Unblock" -> OK.
 4. Try it first with no truck: pick "DEMO-MX+" or "DEMO-EX" as the port and click Connect.
 5. Real adapter: pair the OBDLink MX+ (Bluetooth) or plug in the EX (USB), click Refresh, pick its
-   COM port, choose the vehicle (2017 Ford F-150 / 2008 Dodge Ram 1500), Connect, ignition ON.
+   COM port, choose the vehicle (Ford F-150; this build is Ford-only), Connect, ignition ON.
 
 READ-ONLY BY DEFAULT
 "Read-only test mode" is ON when the app starts. While it is on:
@@ -29,12 +29,14 @@ HOW TO CAPTURE LOGS (please do this on each truck)
    - protocol probes: ATSP6 + 0100, ATSP2 + 0100, STP 53 test
    - a module scan
    It takes about 1-2 minutes.
-   Optional: under "Discovery sweep" tick "Include sweep in Diagnostics capture" (Ram).
+   Optional: under "Discovery sweep" tick "Include sweep in Diagnostics capture".
    The default ID range 0x700-0x7EF takes several minutes, and the range is adjustable.
 3. A zip is saved to %LOCALAPPDATA%\OBDLinkDiag\captures\obdlink-capture-<date>.zip and Explorer
    opens on it. Send that zip back, along with %LOCALAPPDATA%\OBDLinkDiag\logs\ if something crashed.
-   The zip is NOT redacted. It may contain your VIN and the adapter serial.
+   Logs (events/app/traffic) are included in the zip. VINs are redacted when "Redact VINs
+   in capture" is ticked (on by default). Raw adapter replies may still contain the serial.
 
-RAM 2008 NOTES (UNVERIFIED)
-Diag CAN C 500k 11-bit on DLC pins 6/14 (STP 33 / ATSP6). The scan probes 0x7E0-0x7EF. Only the
-PCM at 0x7E0/7E8 is standard. Other module IDs are unknown, so the discovery sweep is there to find them.
+LOGS
+The bottom panel has three tabs: Events (everything you clicked, with outcome), Messages (Info/Warn/Error),
+and Adapter traffic. Each tab has Export (.txt/.csv), and VINs are redacted by default. Files are in
+%LOCALAPPDATA%\OBDLinkDiag\logs.

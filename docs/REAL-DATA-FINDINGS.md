@@ -5,7 +5,7 @@
 - **Adapter:** FORScan used an **OBDLink EX** (r2.2.1 STN2231, firmware v5.10.3 and v5.13.0), FTDI USB on COM4 at 2,000,000 bps, min delay 14 ms. It is not an MX+. FORScan tried Bluetooth first and that failed. The first vehicle connect failed with "ignition key ON".
 - **Modules found (20):** OBD2_PCM, PCM, APIM, BdyCM, FCIM, FCDIM, OCS, TCCM, ABS, PBM, RTM, PDM, DDM, RCM, PSCM, ACM, SCCM, IPC, GWM, GPSM.
 - **What the logs contain:** part numbers and strategies, DTCs with FORScan's `code:FTB-status` notation, KOEO/KOER self-tests and Mode 6 results, and PBM service procedures.
-- **What the logs don't contain:** CAN IDs, bus assignment, AT/ST commands, STP values, raw frames, As-Built data, session/security exchanges, multi-frame timing, or anything from the Ram. None of those can be verified from these files.
+- **What the logs don't contain:** CAN IDs, bus assignment, AT/ST commands, STP values, raw frames, As-Built data, session/security exchanges, multi-frame timing. None of those can be verified from these files.
 - **The `.fsl` file:** FORScan's binary live-data stream. It isn't parsed and isn't committed.
 
 ## Reference files
@@ -22,7 +22,6 @@
   - `complete-lines.json`: 249 fully specified lines. 239 pass the checksum; the 10 that fail are hand-edited examples.
 - **Module address changes from the spreadsheet:** TRM is 0x791 (was 0x775), FCDIM is 0x7A5 (new).
 - **Other addresses in the spreadsheet:** HSWM 714, SCME 776, DSP 783, IPMB 7B1, TCU 754, SCMG/SCMH 712.
-- **Ram:** no data in any file.
 
 ## Gaps against PLAN.md / the build
 - We need a FORScan debug log or a raw STN capture to verify buses, CAN IDs and timing.
@@ -49,4 +48,4 @@ Originals are in `samples/real-logs/` (git-ignored). Redacted fixtures are `Fixt
 - DTCs: PCM P0722 (output shaft speed sensor, previously set; the freeze frame shows OSS 0 rpm at 47 mph), FCIM B1081, PBM C2005:77 (present, MIL on), PSCM U3003, SCCM B1380 and U2101. The PBM C1034/U0415 and PSCM U0415 codes from session 1 are gone.
 - Odometer 187,537 mi. FORScan labels SYNC as "SYNC 1.1", although the APIM strategy is E1BT-14D205 (open question).
 
-**Still not provided:** FORScan *debug* log (raw CAN IDs, bus, STP/AT commands, timing), the .abt As-Built backup (so there is no current-vs-factory As-Built **data** comparison yet), any 2008 Ram data, raw MX+ ATI/STI/STDI replies, and a real spec.
+**Still not provided:** FORScan *debug* log (raw CAN IDs, bus, STP/AT commands, timing), the .abt As-Built backup (so there is no current-vs-factory As-Built **data** comparison yet), raw MX+ ATI/STI/STDI replies, and a real spec.

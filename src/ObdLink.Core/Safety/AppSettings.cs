@@ -8,6 +8,8 @@ namespace ObdLink.Core.Safety;
 public sealed class AppSettings
 {
     public bool ReadOnlyTestMode { get; set; } = true;
+    /// <summary>"Light", "Dark" or "System" (follow Windows app mode).</summary>
+    public string Theme { get; set; } = "System";
     public DiscoveryOptions Discovery { get; set; } = new();
 
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
@@ -40,7 +42,7 @@ public sealed class DiscoveryOptions
     public uint RxOffset { get; set; } = 8;
     public bool TesterPresent { get; set; } = true;
     public bool ReadVinF190 { get; set; } = true;
-    /// <summary>KWP2000 ReadEcuIdentification (0x1A) with this option byte. 0x87 is a commonly cited identifier [UNVERIFIED for Chrysler].</summary>
+    /// <summary>KWP2000 ReadEcuIdentification (0x1A) with this option byte. 0x87 is a commonly cited identifier [UNVERIFIED].</summary>
     public bool Kwp1A { get; set; } = true;
     public byte Kwp1AOption { get; set; } = 0x87;
     public int TimeoutMs { get; set; } = 150;

@@ -59,12 +59,10 @@ public class TestBuildTests
     }
 
     [Fact]
-    public void Ram_profile_sweeps_7E0_to_7EF_on_hs_can()
+    public void Vehicle_list_is_ford_only()
     {
-        var m = DodgeRam1500_2008.Modules;
-        Assert.Equal(Enumerable.Range(0x7E0, 16).Select(i => (uint)i), m.Select(x => x.TxId));
-        Assert.All(m, x => Assert.Equal(Bus.HsCan, x.Bus));
-        Assert.All(m.Skip(1), x => Assert.Equal(Confidence.Unverified, x.Confidence));
+        Assert.Equal(new[] { "2017 Ford F-150" }, VehicleProfiles.All);
+        Assert.Same(FordF150_2017.Modules, VehicleProfiles.ModulesFor(VehicleProfiles.F150_2017));
     }
 
     [Fact]
@@ -84,7 +82,7 @@ public class TestBuildTests
     {
         var (_, s, ch) = await Setup();
         var dir = Path.Combine(Path.GetTempPath(), "cap_" + Guid.NewGuid());
-        var path = await new DiagnosticsCapture(s, ch).RunAsync(new("2008 Dodge Ram 1500", DodgeRam1500_2008.Modules, StnProtocol.HsCan11_500, '6',
+        var path = await new DiagnosticsCapture(s, ch).RunAsync(new("2017 Ford F-150", FordF150_2017.Modules, StnProtocol.HsCan11_500, '6',
             new DiscoveryOptions { StartId = 0x7E0, EndId = 0x7E1 }, "test"), dir);
         using var z = ZipFile.OpenRead(path);
         Assert.Equal(new[] { "options.json", "raw-traffic.log", "summary.txt" }, z.Entries.Select(e => e.Name).OrderBy(x => x));

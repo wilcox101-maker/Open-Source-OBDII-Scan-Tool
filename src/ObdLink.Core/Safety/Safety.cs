@@ -17,6 +17,22 @@ public sealed class AutoConfirm(bool answer) : IConfirmationProvider
 }
 
 public class SafetyException(string m) : Exception(m);
+/// <summary>The user answered No / Cancel to a confirmation. Logged as "Cancelled", not as an error.</summary>
+public sealed class UserDeclinedException(string title) : SafetyException($"User declined: {title}") { public string Title { get; } = title; }
+
+/// <summary>Wraps a confirmation provider and records every dialog in the event log as shown / accepted / cancelled.</summary>
+public sealed class LoggingConfirmationProvider(IConfirmationProvider inner, Logging.IEventLog log) : IConfirmationProvider
+{
+    public async Task<bool> ConfirmAsync(ConfirmationStep step, CancellationToken ct = default)
+    {
+        var op = log.Begin("Confirmation dialog", ("title", step.Title), ("typed", step.TypedPhrase is not null));
+        bool ok;
+        try { ok = await inner.ConfirmAsync(step, ct); }
+        catch (Exception ex) { op.Failed(ex); throw; }
+        if (ok) op.Succeeded("Accepted: " + step.Title); else op.Cancelled(step.TypedPhrase is null ? "User answered No" : "Typed phrase not entered");
+        return ok;
+    }
+}
 
 public sealed class SafetyOptions
 {
@@ -48,7 +64,7 @@ public sealed class SafetyGuard
         Gate.Require(list.FirstOrDefault()?.Title ?? "write");
         steps = list;
         foreach (var s in steps)
-            if (!await _confirm.ConfirmAsync(s, ct)) throw new SafetyException($"User declined: {s.Title}");
+            if (!await _confirm.ConfirmAsync(s, ct)) throw new UserDeclinedException(s.Title);
     }
 
     public static IEnumerable<ConfirmationStep> WriteSteps(string what) => new[]

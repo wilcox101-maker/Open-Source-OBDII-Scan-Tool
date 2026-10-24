@@ -1,0 +1,175 @@
+{
+ "meta": {
+  "source": "FORScan Programming Modules Acronyms-Abbreviations.xlsx (community list, 'Updated May-20-2019')",
+  "note": "Names/descriptions only. UNVERIFIED community data; does not change any module CAN address.",
+  "count": 74,
+  "uniqueCodes": 74,
+  "duplicateOrConflictCount": 0
+ },
+ "issues": [],
+ "appNameComparison": [
+  {
+   "code": "PCM",
+   "appName": "Powertrain Control Module",
+   "spreadsheetName": "Powertrain Control Module",
+   "status": "same"
+  },
+  {
+   "code": "TCM",
+   "appName": "Transmission Control Module",
+   "spreadsheetName": "Transmission Control Module",
+   "status": "same"
+  },
+  {
+   "code": "ABS",
+   "appName": "Anti-lock Brake System",
+   "spreadsheetName": "Antilock Braking System Module",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "RCM",
+   "appName": "Restraint Control Module",
+   "spreadsheetName": "Restraint Control Module",
+   "status": "same"
+  },
+  {
+   "code": "PSCM",
+   "appName": "Power Steering Control Module",
+   "spreadsheetName": "Power Steering Control Module",
+   "status": "same"
+  },
+  {
+   "code": "BCM",
+   "appName": "Body Control Module",
+   "spreadsheetName": null,
+   "status": "missing-from-list"
+  },
+  {
+   "code": "IPC",
+   "appName": "Instrument Panel Cluster",
+   "spreadsheetName": "Instrument Panel Control Module",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "APIM",
+   "appName": "SYNC Accessory Protocol Interface",
+   "spreadsheetName": "Accessory Protocol Interface Module",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "ACM",
+   "appName": "Audio Control Module",
+   "spreadsheetName": "Audio Control Module",
+   "status": "same"
+  },
+  {
+   "code": "HVAC",
+   "appName": "Climate Control Module",
+   "spreadsheetName": null,
+   "status": "missing-from-list"
+  },
+  {
+   "code": "PAM",
+   "appName": "Parking Aid Module",
+   "spreadsheetName": "Parking Aid Module",
+   "status": "same"
+  },
+  {
+   "code": "IPMA",
+   "appName": "Image Processing Module A (camera)",
+   "spreadsheetName": "Image Processing Module A",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "GWM",
+   "appName": "Gateway Module",
+   "spreadsheetName": "Gateway Module A",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "DDM",
+   "appName": "Driver Door Module",
+   "spreadsheetName": "Drivers Door Module",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "PDM",
+   "appName": "Passenger Door Module",
+   "spreadsheetName": "Passenger's Door Control Unit",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "SCCM",
+   "appName": "Steering Column Control Module",
+   "spreadsheetName": "Steering Column Control Module",
+   "status": "same"
+  },
+  {
+   "code": "TRM",
+   "appName": "Trailer Module",
+   "spreadsheetName": "Trailer Module",
+   "status": "same"
+  },
+  {
+   "code": "FCIM",
+   "appName": "Front Controls Interface Module",
+   "spreadsheetName": "Front Controls Interface Module",
+   "status": "same"
+  },
+  {
+   "code": "DSM",
+   "appName": "Driver Seat Module",
+   "spreadsheetName": "Driver's Seat Module",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "GPSM",
+   "appName": "GPS Module",
+   "spreadsheetName": null,
+   "status": "missing-from-list"
+  },
+  {
+   "code": "SODL",
+   "appName": "Side Obstacle Detection Left",
+   "spreadsheetName": "Side Obstacle Detection Control Module Left",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "SODR",
+   "appName": "Side Obstacle Detection Right",
+   "spreadsheetName": "Side Obstacle Detection Control Module Right",
+   "status": "wording-differs (same meaning, app name kept)"
+  },
+  {
+   "code": "TCCM",
+   "appName": "Transfer Case Control Module",
+   "spreadsheetName": "Transfer Case Control Module",
+   "status": "same"
+  },
+  {
+   "code": "RTM",
+   "appName": "Radio Transceiver Module",
+   "spreadsheetName": "Radio Transceiver Module",
+   "status": "same"
+  },
+  {
+   "code": "PBM",
+   "appName": "Park Brake Control Module",
+   "spreadsheetName": null,
+   "status": "missing-from-list"
+  },
+  {
+   "code": "OCS",
+   "appName": "Occupant Classification System Module",
+   "spreadsheetName": "Occupant Classification System Module",
+   "status": "same"
+  },
+  {
+   "code": "FCDIM",
+   "appName": "Front Control/Display Interface Module",
+   "spreadsheetName": null,
+   "status": "missing-from-list"
+  }
+ ],
+ "conclusion": "No duplicate codes and no conflicting meanings inside the spreadsheet; vs. app module table only wording differences. CAN addresses untouched."
+}
