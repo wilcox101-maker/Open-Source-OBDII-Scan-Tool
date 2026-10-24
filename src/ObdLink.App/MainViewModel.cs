@@ -193,7 +193,10 @@ public sealed class MainViewModel : ObservableObject
 
     public MainViewModel(IConfirmationProvider confirm)
     {
-        EventLog = LogSetup.CreateEventLog(LogDir);
+        EventLogService log;
+        try { log = LogSetup.CreateEventLog(LogDir); }
+        catch (Exception ex) { log = LogSetup.CreateEventLog(Path.Combine(Path.GetTempPath(), "OBDLinkDiag", "logs")); log.Message(LogEventLevel.Warning, "App", $"Log dir {LogDir} unusable; logging to temp", ex); }
+        EventLog = log;
         _confirm = new LoggingConfirmationProvider(confirm, EventLog);
         EventsPanel = new("Events", LogChannel.Events, EventLog, LogEventLevel.Verbose);
         MessagesPanel = new("Messages", LogChannel.Messages, EventLog, LogEventLevel.Information);
@@ -212,8 +215,10 @@ public sealed class MainViewModel : ObservableObject
         (string, object?)[] Mod() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address) };
         (string, object?)[] ModBlk() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address), ("block", AsBuiltBlockNo) };
 
-        _settings = AppSettings.Load(SettingsPath);
-        ThemeManager.Apply(_settings.Theme);
+        try { _settings = AppSettings.Load(SettingsPath); }
+        catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
+        try { ThemeManager.Apply(_settings.Theme); }
+        catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         RefreshPortsCommand = C("Refresh ports", () =>
         {
             Ports.Clear(); Ports.Add(DemoMx); Ports.Add(DemoEx); foreach (var p in PortEnumerator.List()) Ports.Add(p);

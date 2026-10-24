@@ -27,17 +27,26 @@ public static class ThemeManager
         Effective = Mode == "System" ? (WindowsUsesLight() ? "Light" : "Dark") : Mode;
         var app = Application.Current;
         if (app == null) return Effective;
-        var dicts = app.Resources.MergedDictionaries;
-        var pal = new ResourceDictionary { Source = new Uri($"pack://application:,,,/OBDLinkDiag;component/Themes/{Effective}.xaml") };
-        var old = dicts.FirstOrDefault(d => d.Source?.OriginalString.EndsWith("Light.xaml") == true || d.Source?.OriginalString.EndsWith("Dark.xaml") == true);
-        if (old != null) dicts[dicts.IndexOf(old)] = pal; else dicts.Insert(0, pal);
+        try
+        {
+            var dicts = app.Resources.MergedDictionaries;
+            var pal = new ResourceDictionary { Source = new Uri($"pack://application:,,,/OBDLinkDiag;component/Themes/{Effective}.xaml", UriKind.Absolute) };
+            var old = dicts.FirstOrDefault(d => d.Source?.OriginalString.EndsWith("Light.xaml") == true || d.Source?.OriginalString.EndsWith("Dark.xaml") == true);
+            if (old != null) dicts[dicts.IndexOf(old)] = pal; else dicts.Insert(0, pal);
+        }
+        catch (Exception ex)
+        {
+            // Keep whatever palette is loaded (App.xaml ships Dark as the built-in default).
+            Serilog.Log.Warning(ex, "Theme {Theme} failed to load; keeping built-in default palette", Effective);
+            Effective = "Dark";
+        }
         if (!_hooked)
         {
             _hooked = true;
-            SystemEvents.UserPreferenceChanged += (_, e) =>
+            try { SystemEvents.UserPreferenceChanged += (_, e) =>
             {
                 if (Mode == "System" && e.Category == UserPreferenceCategory.General) app.Dispatcher.BeginInvoke(() => Apply("System"));
-            };
+            }; } catch (Exception ex) { Serilog.Log.Warning(ex, "Could not hook Windows theme change notifications"); }
         }
         return Effective;
     }
