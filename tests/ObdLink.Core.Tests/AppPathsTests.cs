@@ -72,7 +72,7 @@ public class AppPathsTests
         var t = b.Single(x => x.Kind == MdKind.Table);
         Assert.Equal(2, t.Rows!.Count); Assert.Equal(new[] { "1", "2" }, t.Rows[1]);
         Assert.Contains(MarkdownBlocks.Inline("a **b** `c`"), r => r.Bold && r.Text == "b");
-        Assert.DoesNotContain(b, x => x.Text.Contains("|") || x.Text.StartsWith("#"));
+        Assert.DoesNotContain(b, x => x.Text.Contains('|') || x.Text.StartsWith("#"));
     }
 
     [Fact]

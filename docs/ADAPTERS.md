@@ -11,7 +11,7 @@
 
 Other STN adapters (for example the LX) and generic ELM327 clones get conservative profiles. MS-CAN requests on those throw `NotSupportedException`.
 
-Port labels come from WMI `Win32_PnPEntity` on Windows: `BTHENUM\…` or a name containing "Bluetooth" is labelled BT; `FTDIBUS\…`, `USB\…` or a name containing "USB" is labelled USB. On other operating systems the label falls back to the plain port name.
+Port labels come from WMI `Win32_PnPEntity` on Windows: `BTHENUM\…` or a name containing "Bluetooth" is labeled BT; `FTDIBUS\…`, `USB\…` or a name containing "USB" is labeled USB. On other operating systems the label falls back to the plain port name.
 
 Not implemented: switching the EX to a higher UART rate during a session (STBR/STSBR handshake). Read the FRPM before adding it.
 

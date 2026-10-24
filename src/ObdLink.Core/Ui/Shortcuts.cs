@@ -47,7 +47,7 @@ public static class Shortcuts
     public static Shortcut Get(string id) => All.First(s => s.Id == id);
     public static string Gesture(string id) => Get(id).Gesture;
 
-    /// <summary>Normalised gesture for a key press, e.g. ("D", ctrl, shift, alt) -> "Ctrl+Shift+D". Key names: "F5", "Delete", "Tab", "`", ",", "+", "-", "0", "1".</summary>
+    /// <summary>Normalized gesture for a key press, e.g. ("D", ctrl, shift, alt) -> "Ctrl+Shift+D". Key names: "F5", "Delete", "Tab", "`", ",", "+", "-", "0", "1".</summary>
     public static string Format(string key, bool ctrl, bool shift, bool alt) => (ctrl ? "Ctrl+" : "") + (shift ? "Shift+" : "") + (alt ? "Alt+" : "") + key;
 
     /// <summary>Resolves a pressed gesture to a shortcut id (page shortcuts return "page:N"). <paramref name="inText"/>: focus is in a text box.</summary>

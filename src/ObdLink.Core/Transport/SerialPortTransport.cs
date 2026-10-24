@@ -22,7 +22,11 @@ public sealed class SerialPortTransport : ITransport
 
     public Task OpenAsync(CancellationToken ct = default)
     {
-        _port = new SerialPort(_portName, _baud, Parity.None, 8, StopBits.One)
+        // v0.3.4 audit: re-open must not leak the previous handle, and a failed Open must not leave a half-built port behind
+        try { _port?.Close(); } catch { }
+        _port?.Dispose();
+        _port = null;
+        var port = new SerialPort(_portName, _baud, Parity.None, 8, StopBits.One)
         {
             Encoding = Encoding.ASCII,
             ReadTimeout = SerialPort.InfiniteTimeout,
@@ -31,7 +35,9 @@ public sealed class SerialPortTransport : ITransport
             DtrEnable = true,
             RtsEnable = true,
         };
-        _port.Open();
+        try { port.Open(); }
+        catch { port.Dispose(); throw; }
+        _port = port;
         return Task.CompletedTask;
     }
 

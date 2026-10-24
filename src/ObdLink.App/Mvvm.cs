@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using ObdLink.Core.Logging;
+using Serilog.Events;
 using ObdLink.Core.Safety;
 
 namespace ObdLink.App;
@@ -31,7 +32,11 @@ public sealed class AsyncCommand : ICommand
     public string Name => _name;
     public event EventHandler? CanExecuteChanged;
     public bool CanExecute(object? p) => !_busy;
-    public async void Execute(object? p) => await ExecuteAsync();
+    public async void Execute(object? p)
+    {
+        // v0.3.4 audit: async void must never throw (an exception here would crash the dispatcher)
+        try { await ExecuteAsync(); } catch (Exception ex) { try { _log.Message(LogEventLevel.Error, _name, "Unhandled command error", ex); } catch { } }
+    }
     public async Task ExecuteAsync()
     {
         _busy = true; CanExecuteChanged?.Invoke(this, EventArgs.Empty);

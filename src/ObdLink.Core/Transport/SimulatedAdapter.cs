@@ -18,7 +18,7 @@ public sealed class SimulatedAdapter
     public double Voltage { get; set; } = 12.6;
     public string Vin { get; set; } = "1FTDEMX95HF000001"; // synthetic (check digit valid, MY2017, plant F), valid VIN alphabet so redaction can be seen working (not a real vehicle)
     public Dictionary<uint, Dictionary<ushort, byte[]>> Dids { get; } = new();
-    public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x726, 0x720 };
+    public HashSet<uint> PresentModules { get; } = new() { 0x7E0, 0x7E1, 0x726, 0x720 };
     /// <summary>Modules that answer only while the MS-CAN preset (STP53) is selected; used by the Identify vehicle demo.</summary>
     public HashSet<uint> MsCanModules { get; } = new() { 0x727 };
     /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>
@@ -138,6 +138,7 @@ public sealed class SimulatedAdapter
     private byte[] Read(uint tx, ushort did) =>
         tx == 0x7E0 && did == 0x1E12 ? new byte[] { 0x62, 0x1E, 0x12, (byte)DriveCycle.At(Clock()).Gear } :
         tx == 0x7E0 && did == 0x1E1C ? Tft() :
+        tx == 0x7E1 && did == 0x1E13 ? Oss() :
         tx == 0x726 && did is >= 0x2813 and <= 0x2816 ? Tire(did) :
         tx == 0x7E0 && did == 0xF190 ? new byte[] { 0x62, 0xF1, 0x90 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray() :
         Dids.TryGetValue(tx, out var d) && d.TryGetValue(did, out var v) ? new byte[] { 0x62, (byte)(did >> 8), (byte)did }.Concat(v).ToArray() : new byte[] { 0x7F, 0x22, 0x31 };
@@ -150,6 +151,9 @@ public sealed class SimulatedAdapter
         var raw = (ushort)Math.Round((kpa - 22.0 / 3) * 3);
         return new byte[] { 0x62, (byte)(did >> 8), (byte)did, (byte)(raw >> 8), (byte)raw };
     }
+    /// <summary>SYNTHETIC OSS on the TCM (7E1) only, so DEMO exercises the PCM-then-TCM fallback: speed / tire circumference x 3.55 axle.</summary>
+    public static double OssRpm(double kmh) => kmh / 3.6 / 2.6 * 60 * 3.55;
+    private byte[] Oss() { var raw = (ushort)Math.Round(OssRpm(DriveCycle.At(Clock()).SpeedKmh) * 4); return new byte[] { 0x62, 0x1E, 0x13, (byte)(raw >> 8), (byte)raw }; }
     private byte[] Tft() { var raw = (short)Math.Round(DriveCycle.At(Clock()).TftC * 16); return new byte[] { 0x62, 0x1E, 0x1C, (byte)(raw >> 8), (byte)raw }; }
 
     private byte[] Write(uint tx, ushort did, byte[] data)

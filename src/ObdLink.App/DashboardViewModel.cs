@@ -254,7 +254,7 @@ public sealed class DashboardViewModel : ObservableObject
     public void Update(bool pageVisible, bool connected)
     {
         LinkOk = connected;
-        if (pageVisible && connected && _cts is null) { _cts = new(); _ = RunAsync(_cts.Token); }
+        if (pageVisible && connected && _cts is null) { _cts = new(); _run = RunAfterAsync(_run, _cts.Token); }
         else if ((!pageVisible || !connected) && _cts != null) { _cts.Cancel(); _cts = null; }
     }
 
@@ -269,6 +269,15 @@ public sealed class DashboardViewModel : ObservableObject
         Info = $"{_engine.Supported.Count} Mode 01 PIDs supported; polling {_engine.Scheduler.Items.Count} displayed items (read-only: services 01 and 22).";
         _log.Message(LogEventLevel.Information, "Dashboard", Info + " Polling: " + string.Join(" ", _engine.Scheduler.Items.Select(i => i.Key)) + "; supported: " + string.Join(" ", _engine.Supported.Select(p => p.ToString("X2"))));
         _reconfigure = false;
+    }
+
+    private Task _run = Task.CompletedTask;
+    /// <summary>v0.3.4 audit: a quick hide/show (or reconnect) used to start a second polling loop while the old one was still
+    /// winding down; both shared _engine and the old loop's finally cleared Active for the new one. Now the new loop waits for the old.</summary>
+    private async Task RunAfterAsync(Task previous, CancellationToken ct)
+    {
+        try { await previous; } catch { /* the previous loop already logged its own failure */ }
+        if (!ct.IsCancellationRequested) await RunAsync(ct);
     }
 
     private async Task RunAsync(CancellationToken ct)

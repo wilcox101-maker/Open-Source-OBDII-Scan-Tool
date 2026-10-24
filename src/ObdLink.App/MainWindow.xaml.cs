@@ -11,7 +11,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        var vm = new MainViewModel(new WpfConfirmationProvider(this));
+        var vm = new MainViewModel(new WpfConfirmationProvider());
         DataContext = vm;
         try { GuideViewer.Document = MarkdownView.Build(vm.GuideText); }
         catch (Exception ex) { GuideViewer.Document = new System.Windows.Documents.FlowDocument(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(vm.GuideText))); vm.EventLog.Message(Serilog.Events.LogEventLevel.Warning, "Guide", "Guide markdown render failed; showing plain text", ex); }
@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         const int WM_DEVICECHANGE = 0x0219, DBT_DEVNODES_CHANGED = 0x0007, DBT_DEVICEARRIVAL = 0x8000, DBT_DEVICEREMOVECOMPLETE = 0x8004;
-        if (msg == WM_DEVICECHANGE && (int)wParam is DBT_DEVICEARRIVAL or DBT_DEVICEREMOVECOMPLETE or DBT_DEVNODES_CHANGED) RequestRescan();
+        if (msg == WM_DEVICECHANGE && wParam.ToInt64() is DBT_DEVICEARRIVAL or DBT_DEVICEREMOVECOMPLETE or DBT_DEVNODES_CHANGED) RequestRescan();
         return IntPtr.Zero;
     }
     private void RequestRescan()
@@ -224,11 +224,11 @@ public partial class MainWindow : Window
 /// <summary>Attached property: keeps a ListBox/ListView scrolled to the newest item while enabled.</summary>
 public static class AutoScroll
 {
+    private static readonly Dictionary<ListBox, bool> _hooked = new();
     public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached("Enabled", typeof(bool), typeof(AutoScroll),
         new PropertyMetadata(false, (d, e) => { if (d is ListBox lb && !_hooked.ContainsKey(lb)) Hook(lb); }));
-    public static bool GetEnabled(DependencyObject d) => (bool)d.GetValue(EnabledProperty);
+    public static bool GetEnabled(DependencyObject d) => d.GetValue(EnabledProperty) is true;
     public static void SetEnabled(DependencyObject d, bool v) => d.SetValue(EnabledProperty, v);
-    private static readonly Dictionary<ListBox, bool> _hooked = new();
 
     private static void Hook(ListBox lb)
     {

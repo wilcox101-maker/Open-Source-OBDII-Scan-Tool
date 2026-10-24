@@ -1,0 +1,4 @@
+[codespell]
+skip = ./.git,*/bin/*,*/obj/*,./samples,./community-db,*.ab,*.abt,*.csv,./captures
+# OBD / ELM / STN / Ford terms that look like typos
+ignore-words-list = stpo,caf,hsa,anc,ser,ot,te,fo,nd,ue,ba,hsi,mis,sav,ans,tre,ect,iif,ist,parm,inout,rela,afe,pres,dur,crate,thru,acn,cas,od,mor,vas,atst,stpbr,atsh,atcra,pcm,ipc,acm,bcm,apim,tpms,vin

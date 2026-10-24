@@ -20,7 +20,7 @@ public class SafetyException(string m) : Exception(m);
 /// <summary>The user answered No / Cancel to a confirmation. Logged as "Cancelled", not as an error.</summary>
 public sealed class UserDeclinedException(string title) : SafetyException($"User declined: {title}") { public string Title { get; } = title; }
 
-/// <summary>Wraps a confirmation provider and records every dialog in the event log as shown / accepted / cancelled.</summary>
+/// <summary>Wraps a confirmation provider and records every dialog in the event log as shown / accepted / canceled.</summary>
 public sealed class LoggingConfirmationProvider(IConfirmationProvider inner, Logging.IEventLog log) : IConfirmationProvider
 {
     public async Task<bool> ConfirmAsync(ConfirmationStep step, CancellationToken ct = default)

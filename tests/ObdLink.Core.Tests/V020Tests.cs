@@ -99,7 +99,7 @@ public class V020Tests
         Assert.Null(err); Assert.True(File.Exists(path)); Assert.NotEmpty(t.Pids);
         File.WriteAllText(path, "{\"pids\":[{\"key\":\"x\",\"did\":\"1234\",\"bytes\":2,\"scale\":0.5,\"offset\":-10}]}");
         var t2 = EnhancedPidTable.LoadOrCreate(dir).Table;
-        Assert.Equal(-10 + 0x0102 * 0.5, t2.Pids.Single().Decode(new byte[] { 1, 2 }));
+        Assert.Equal(-10 + 0x0102 * 0.5, t2.Pids.Single(p => p.Key == "x").Decode(new byte[] { 1, 2 }));
         File.WriteAllText(path, "{ broken");
         var (t3, _, err3) = EnhancedPidTable.LoadOrCreate(dir);
         Assert.NotNull(err3); Assert.Contains(t3.Pids, p => p.Key == "gear");

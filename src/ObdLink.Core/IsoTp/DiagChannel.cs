@@ -15,7 +15,7 @@ public interface IDiagChannel
 /// Diagnostic channel over an ELM/STN adapter with CAN auto-formatting on (ATCAF1, default):
 /// the adapter performs ISO-TP segmentation/flow-control on transmit; with ATH1 + ATS0 it prints
 /// each received frame as "&lt;id&gt;&lt;PCI&gt;&lt;data&gt;", which we reassemble host-side with IsoTpReassembler.
-/// [UNVERIFIED on MX+ hardware] exact multi-frame output formatting with ATS0/ATH1; verified only against ELM327 datasheet behaviour.
+/// [UNVERIFIED on MX+ hardware] exact multi-frame output formatting with ATS0/ATH1; verified only against ELM327 datasheet behavior.
 /// </summary>
 public sealed class ElmDiagChannel : IDiagChannel
 {
@@ -39,7 +39,7 @@ public sealed class ElmDiagChannel : IDiagChannel
 
     /// <summary>
     /// Host-side ISO-TP transmit: ATCAF0, send First Frame, wait for Flow Control, send Consecutive Frames,
-    /// collect the response, then restore ATCAF1. Honours FC STmin (ms range) only coarsely; ignores BS&gt;0 waits.
+    /// collect the response, then restore ATCAF1. Honors FC STmin (ms range) only coarsely; ignores BS&gt;0 waits.
     /// [UNVERIFIED on MX+]: STN firmware may support native multi-frame TX with CAF1 (see FRPM); timing of
     /// per-frame ATST waits over Bluetooth not measured.
     /// </summary>

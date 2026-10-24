@@ -15,6 +15,9 @@ public sealed class DashboardEngine
     public PollScheduler Scheduler { get; } = new();
     public HashSet<byte> Supported { get; private set; } = new();
     public Dictionary<string, EnhancedPid> Enhanced { get; } = new();
+    private readonly Dictionary<string, uint> _answered = new();
+    /// <summary>Module (request id) that answered each enhanced key, once known.</summary>
+    public IReadOnlyDictionary<string, uint> AnsweredBy => _answered;
     public event Action<string>? Sent;
 
     public DashboardEngine(IDiagChannel ch, Func<long>? nowMs = null)
@@ -72,8 +75,13 @@ public sealed class DashboardEngine
                 }
                 else if (Enhanced.TryGetValue(item.Key, out var e))
                 {
-                    var r = (await Send(e.TxId, e.TxId + 8, e.Request, ct)).FirstOrDefault(x => x.Payload.Length >= 3 + e.Bytes && x.Payload[0] == 0x62);
-                    if (r != null) { res[item.Key] = e.Decode(r.Payload); ok = true; }
+                    // v0.3.4: try the module that answered last time first, then the others (PCM 7E0 / TCM 7E1 for OSS)
+                    var order = _answered.TryGetValue(e.Key, out var known) ? new[] { known }.Concat(e.Candidates.Where(c => c != known)) : e.Candidates;
+                    foreach (var tx in order)
+                    {
+                        var r = (await Send(tx, tx + 8, e.Request, ct)).FirstOrDefault(x => x.Payload.Length >= 3 + e.Bytes && x.Payload[0] == 0x62);
+                        if (r != null) { res[item.Key] = e.Decode(r.Payload); _answered[e.Key] = tx; ok = true; break; }
+                    }
                 }
             }
             catch (OperationCanceledException) { throw; }

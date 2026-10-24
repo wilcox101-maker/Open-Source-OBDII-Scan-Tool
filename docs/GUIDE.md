@@ -136,6 +136,7 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
 - **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
+- **Output shaft speed (OSS, v0.3.4)**: add "Output shaft speed (OSS)" from the Customize catalog (not on the default layout). Shown in rpm from a Ford Mode 22 DID (**unverified**: 1E13, raw/4), asked of the PCM 0x7E0 first and the TCM 0x7E1 if the PCM does not answer. "unsupported" means neither answered; fix the DID in `Data\ford-enhanced-pids.json`. Read-only. DEMO shows a simulated value.
 - **Customize**: click Customize, then add items from the catalog, remove them (✕), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
 - **Rearranging (v0.3.3)**:
   - Click **Customize** on the Dashboard. Each card gets a toolbar.
@@ -221,7 +222,7 @@ Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next
 - Pic: https://drive.google.com/file/d/0B3jKTCd57R6ycml3X2JtemtkaTA/view
 
 ## Licensing
-FORScan's As-Built editing needs a FORScan extended licence. Get one from forscan.org; a free trial licence is available. This repo does not include any licence procedure or workaround.
+FORScan's As-Built editing needs a FORScan extended license. Get one from forscan.org; a free trial license is available. This repo does not include any license procedure or workaround.
 
 ## Helpful links (from the tutorial)
 - FORScan download: https://forscan.org/download.html

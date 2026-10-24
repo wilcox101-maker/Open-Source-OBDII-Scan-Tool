@@ -1,3 +1,21 @@
+## v0.3.4-test
+
+**Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.4.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.4.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**New: Output shaft speed (OSS) dashboard item.** Click **Customize** and add "Output shaft speed (OSS)" (it is not on the default layout). It shows rpm from a Ford Mode 22 DID that is **unverified** (1E13, raw/4). The app asks the PCM (0x7E0) first, then the TCM (0x7E1), and remembers which one answered. Read-only. DEMO shows a simulated value. An existing `Data\ford-enhanced-pids.json` keeps your edits and gains the new entry.
+
+**Code audit** (full report in docs/AUDIT.md):
+- Links and folders are only opened if they are https links to known sites (GitHub, Motorcraft, OBDLink/ScanTool), Explorer, or a full local path.
+- A button's background task can no longer crash the app if its error handler fails.
+- Hiding and showing the dashboard quickly no longer starts two polling loops at once.
+- A COM port that fails to open is closed and released right away (it no longer stays "in use").
+- Online VIN decode releases its network connection after each Identify.
+- Clearing the default port in Settings no longer writes an empty (null) value to settings.json.
+- Device-change messages are read safely on 64-bit Windows.
+- Compiler nullable warnings fixed; American spelling throughout (canceled, labeled, license, color, behavior); codespell runs clean with `.codespellrc`.
+
 ## v0.3.3-test
 
 **Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
@@ -23,7 +41,7 @@ Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at 
 
 **Fix: a DEMO vehicle profile stayed selected after connecting the real EX** (Identify/Vehicle showed VIN ...000001, F188=DEMO-..., and only IPC/BCM/PCM/ACM).
 - Cause: "Identify vehicle" on the DEMO adapter saved a profile to Data\vehicles and selected it. That stayed selected when you switched to COM4, so the module list (and the buses they were tried on) came from the simulator.
-- Profiles are now tagged as demo (and v0.3.1 demo profiles are recognised by the synthetic VIN / DEMO part numbers) and shown as "[DEMO] ...". When a real adapter connects, a demo profile is dropped, the built-in Ford module table is loaded, and the module list is rebuilt on every connect. All services (identify, scan, DTCs, As-Built) always use the connected adapter.
+- Profiles are now tagged as demo (and v0.3.1 demo profiles are recognized by the synthetic VIN / DEMO part numbers) and shown as "[DEMO] ...". When a real adapter connects, a demo profile is dropped, the built-in Ford module table is loaded, and the module list is rebuilt on every connect. All services (identify, scan, DTCs, As-Built) always use the connected adapter.
 
 **Fix: the Module box showed "ObdLink.App.ModuleRow"** - it now shows the module name, address and bus everywhere.
 
@@ -193,7 +211,7 @@ Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at 
   - Warning lamps: MIL, DTC count, link, low voltage and overheat.
   - Min, max and average for each gauge, with warning thresholds.
   - Pause, reset stats and CSV recording to `Data\logs\dashboard-*.csv`.
-- **Gear.** The current gear comes from a Ford DID when one is enabled in `Data\ford-enhanced-pids.json`. Those DIDs are **UNVERIFIED** and off by default. Otherwise the gear is estimated from RPM, speed, gear ratios and tire size, and labelled "est.".
+- **Gear.** The current gear comes from a Ford DID when one is enabled in `Data\ford-enhanced-pids.json`. Those DIDs are **UNVERIFIED** and off by default. Otherwise the gear is estimated from RPM, speed, gear ratios and tire size, and labeled "est.".
 - Gauges are drawn by the app itself, with no third-party gauge libraries.
 - The simulator plays a drive cycle (idle, accelerate, cruise, brake), so the dashboard moves in DEMO mode.
 - **Help menu.** It has the Guide, Console help, Check for updates (asks before going online unless you turned on automatic checks), the GitHub page and About.
@@ -206,7 +224,7 @@ Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at 
 - New `Data\exports\` (log exports), `Data\asbuilt\` (`.abt`, factory `.ab`) and `Data\vehicles\` (vehicle profiles). `crash.txt` next to the exe is now written only if `Data\logs` is not writable.
 - Static test: no source file uses `Environment.CurrentDirectory`/`Directory.GetCurrentDirectory`, and every file dialog sets `InitialDirectory`.
 - **Console command reference** on the Guide tab (syntax, examples, blocked services, NRC meanings); `help`/`?` prints it in the console, `cls` clears.
-- **Activity LEDs** in the header: LINK, TX, RX, ERR (timeout, NO DATA, `?`, 7F NRC). 120 ms hold (errors 600 ms), sampled every 30 ms; light/dark theme colours.
+- **Activity LEDs** in the header: LINK, TX, RX, ERR (timeout, NO DATA, `?`, 7F NRC). 120 ms hold (errors 600 ms), sampled every 30 ms; light/dark theme colors.
 - **Identify vehicle / scan new vehicle** (Vehicle tab, read-only): VIN via `09 02` (fallback `22 F190`), offline VIN decode (WMI, model year, Ford plant, check digit), opt-in online decode via NHTSA vPIC (10 s timeout, offline-safe, logged), HS-CAN + MS-CAN sweep 0x700-0x7E7 with `3E 00`, part-number DIDs F188/F111/F113/F124/F18C and DE00 presence. Saved to `Data\vehicles\<masked VIN>.json` and selectable in the Vehicle drop-down.
 - **App icon / logo** from Dale's artwork (assets/icons, 3 variants, multi-size .ico). The exe and window use variant 3 (legible at 16 px on light and dark taskbars). The header logo switches with the theme (black variant 1 on Light, yellow variant 2 on Dark), and you can override it with the small 1/2/3 picker in the header.
 - **Ford products only**: Identify vehicle checks the VIN's WMI against Ford Motor Co. brands (Ford, Lincoln, Mercury, incl. Ford trucks and Canada/Mexico/Europe/Australia/Brazil plants) and stops after the VIN read for anything else, with a "Ford products only" message in Events. No profile is saved and no modules are scanned.
@@ -218,7 +236,7 @@ Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at 
 - **Portable data folder.** Settings, logs, crash files, captures and As-Built backups now live in `Data\` next to the exe (paths from `AppContext.BaseDirectory`, centralized in `AppPaths`). On first run the old `%LOCALAPPDATA%\OBDLinkDiag` contents are moved in: copy, verify (size + SHA-256), then remove the original; newer files are never overwritten; a `MIGRATED.txt` note is left behind. If the app folder isn't writable the app falls back to `%LOCALAPPDATA%\OBDLinkDiag` with a one-time notice.
 - The data folder path is shown in the status bar and on the Guide tab, with an **Open data folder** button.
 - Guide tab renders Markdown (headings, lists, bold, tables) instead of raw `##` / `|` text.
-- Light theme: selected / hovered grid rows used white text on a light-blue row (nearly invisible); they now use the theme's selection text colour.
+- Light theme: selected / hovered grid rows used white text on a light-blue row (nearly invisible); they now use the theme's selection text color.
 - Port picker widened (min 300 px) with a tooltip showing the full port name.
 - Module grid shows "not scanned" instead of "?" until you run Scan modules.
 - Events log: the "Text / error" column no longer repeats the action name.

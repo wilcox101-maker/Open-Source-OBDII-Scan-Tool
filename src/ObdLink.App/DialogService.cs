@@ -57,7 +57,7 @@ public static class DialogService
         return r;
     });
 
-    /// <summary>Owned text prompt (replaces Microsoft.VisualBasic.Interaction.InputBox, which has no owner). Null when cancelled.</summary>
+    /// <summary>Owned text prompt (replaces Microsoft.VisualBasic.Interaction.InputBox, which has no owner). Null when canceled.</summary>
     public static string? Prompt(string message, string title, string initial = "") => OnUi(() =>
     {
         var box = new TextBox { Text = initial, Margin = new Thickness(0, 8, 0, 8), MinWidth = 320 };
@@ -78,11 +78,13 @@ public static class DialogService
     /// <summary>Opens a URL, file or folder in its default app. Focus moving to Explorer/the browser is expected here; nothing else is touched.</summary>
     public static void OpenExternal(string target, string? args = null)
     {
+        // v0.3.4 audit: only https links to known hosts, explorer.exe, or absolute local paths
+        if (!ObdLink.Core.Security.ExternalTargets.IsAllowed(target)) throw new InvalidOperationException($"Refused to open \"{target}\": not an allowed link or local path.");
         var psi = args is null ? new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true } : new System.Diagnostics.ProcessStartInfo(target, args) { UseShellExecute = true };
         System.Diagnostics.Process.Start(psi);
     }
 
-    /// <summary>v0.3.1: starts OBDLink's official firmware updater via ShellExecute so Windows shows its own UAC prompt. Returns false if the user cancelled UAC.</summary>
+    /// <summary>v0.3.1: starts OBDLink's official firmware updater via ShellExecute so Windows shows its own UAC prompt. Returns false if the user canceled UAC.</summary>
     public static bool RunUpdater(string exe)
     {
         try

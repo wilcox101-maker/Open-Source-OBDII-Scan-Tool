@@ -4,7 +4,7 @@ using ObdLink.Core.Safety;
 namespace ObdLink.App;
 
 /// <summary>Multi-step confirmation via message boxes; typed phrases use a simple input prompt.</summary>
-public sealed class WpfConfirmationProvider(Window owner) : IConfirmationProvider
+public sealed class WpfConfirmationProvider : IConfirmationProvider
 {
     public Task<bool> ConfirmAsync(ConfirmationStep step, CancellationToken ct = default)
     {

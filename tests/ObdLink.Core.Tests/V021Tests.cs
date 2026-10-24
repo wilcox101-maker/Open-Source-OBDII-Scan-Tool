@@ -23,7 +23,7 @@ public class V021Tests
         {
             var e = t.Pids.Single(p => p.Key == k);
             Assert.Equal("726", e.Header); Assert.Equal(did, e.Did); Assert.False(e.Verified); Assert.True(e.Enabled);
-            Assert.Equal("Pressure", e.Quantity.ToString());
+            Assert.Equal("Pressure", e.Quantity?.ToString());
         }
         // raw 0x02DA = 730 -> 730/3 + 22/3 = 250.67 kPa = 36.4 psi
         var lf = t.Pids.Single(p => p.Key == "tpms_lf");

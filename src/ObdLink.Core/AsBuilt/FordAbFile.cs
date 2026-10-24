@@ -15,7 +15,7 @@ public sealed class FordAbFile
 {
     public string Vin { get; set; } = "";
     public List<AsBuiltLine> Lines { get; } = new();
-    /// <summary>PCM rows are labelled "PCM n" with no module address.</summary>
+    /// <summary>PCM rows are labeled "PCM n" with no module address.</summary>
     public List<(string Label, byte[] Bytes)> PcmLines { get; } = new();
     public byte[] VehicleData { get; set; } = Array.Empty<byte>();
     /// <summary>Module id -> DID (e.g. "F188") -> value. Includes modules that have no As-Built lines (e.g. PCM 7E0).</summary>
@@ -71,7 +71,7 @@ public sealed class FordAbFile
         return el;
     }
 
-    /// <summary>Serialises back to the same layout. PCM_MODULE is written twice, as in the original. The output is compact like the original, so the CODE grouping round-trips.</summary>
+    /// <summary>Serializes back to the same layout. PCM_MODULE is written twice, as in the original. The output is compact like the original, so the CODE grouping round-trips.</summary>
     public string ToXml()
     {
         XElement Pcm() => new("PCM_MODULE", PcmLines.Select(p => Data(p.Label, p.Bytes)));

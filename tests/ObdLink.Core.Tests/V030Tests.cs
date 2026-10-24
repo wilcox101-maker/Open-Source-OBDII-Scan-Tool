@@ -41,7 +41,7 @@ public class V030Tests
         var xaml = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainWindow.xaml"));
         foreach (var id in new[] { "identify", "scan", "dtcs", "dtcsAll", "clearDtcs", "readAb", "readAllAb", "backup", "write", "open", "export", "capture", "exportLogs", "firmware", "shortcuts" })
             Assert.Contains($"InputGestureText=\"{Shortcuts.Gesture(id)}\"", xaml);
-        Assert.True(Regex.Matches(xaml, "Command=\"\\{Binding IdentifyVehicleCommand\\}\" Style").Count >= 2); // header + dashboard empty state
+        Assert.True(Regex.Count(xaml, "Command=\"\\{Binding IdentifyVehicleCommand\\}\" Style") >= 2); // header + dashboard empty state
     }
 
     [Theory]

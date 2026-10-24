@@ -81,11 +81,11 @@ public class AbtTests
         var bcm = Assert.Single(AsBuiltDiff.Compare(ab.Lines, Abt("726-bcm").Lines, 0x726), x => x.Kind != DiffKind.Same);
         Assert.Equal("726-18-02", bcm.Address.ToString());
         string Meaning(IEnumerable<AsBuiltLine> l) => FeatureDecoder.Decode(l.Where(x => x.Address.ToString() == "726-18-02"), json)
-            .First(x => x.Tab == "BCM (BdyCM)-old" && x.Description.Contains("Stage Unlock") && x.Pattern == "xxxxxxxxx*xx").Meaning;
+            .First(x => x.Tab == "BCM (BdyCM)-old" && x.Description.Contains("Stage Unlock") && x.Pattern == "xxxxxxxxx*xx").Meaning ?? "";
         Assert.Equal("two stage", Meaning(ab.Lines));
         Assert.Equal("one stage", Meaning(Abt("726-bcm").Lines));
         string Dsp(IEnumerable<AsBuiltLine> l) => FeatureDecoder.Decode(l.Where(x => x.Address.ToString() == "7D0-01-01"), json)
-            .First(x => x.Tab == "APIM Sync 3" && x.Description.StartsWith("Smart DSP")).Meaning;
+            .First(x => x.Tab == "APIM Sync 3" && x.Description.StartsWith("Smart DSP")).Meaning ?? "";
         Assert.StartsWith("DSP Disabled", Dsp(ab.Lines));
         Assert.StartsWith("DSP Enabled", Dsp(Abt("7d0-apim").Lines));
     }

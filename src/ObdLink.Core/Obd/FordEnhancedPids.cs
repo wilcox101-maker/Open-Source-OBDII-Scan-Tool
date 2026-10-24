@@ -16,6 +16,9 @@ public sealed class EnhancedPid
     public Dictionary<string, string>? Map { get; set; }
     public bool Enabled { get; set; } = true; public bool Verified { get; set; }
     public string? Source { get; set; }
+    /// <summary>v0.3.4: other modules to try when <see cref="Header"/> gives no positive answer (e.g. OSS on PCM 7E0, else TCM 7E1).</summary>
+    public List<string>? AltHeaders { get; set; }
+    [JsonIgnore] public IEnumerable<uint> Candidates => new[] { Header }.Concat(AltHeaders ?? new()).Select(h => Convert.ToUInt32(h, 16)).Distinct();
 
     [JsonIgnore] public uint TxId => Convert.ToUInt32(Header, 16);
     [JsonIgnore] public ushort DidValue => Convert.ToUInt16(Did, 16);
@@ -56,8 +59,18 @@ public sealed class EnhancedPidTable
         {
             Directory.CreateDirectory(dir);
             if (!File.Exists(path)) File.WriteAllText(path, DefaultJson());
-            return (Parse(File.ReadAllText(path)), path, null);
+            return (WithBuiltIns(Parse(File.ReadAllText(path))), path, null);
         }
         catch (Exception ex) { return (Parse(DefaultJson()), path, ex.Message); }
+    }
+
+    /// <summary>v0.3.4: a Data\pids file written by an older version keeps the user's edits but gains new built-in entries (e.g. "oss") in memory.</summary>
+    /// <summary>Only keys added after v0.2.0 are merged, so entries a user deliberately deleted stay deleted.</summary>
+    public static readonly IReadOnlySet<string> AddedLater = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "oss" };
+    public static EnhancedPidTable WithBuiltIns(EnhancedPidTable user)
+    {
+        foreach (var d in Parse(DefaultJson()).Pids.Where(d => AddedLater.Contains(d.Key)))
+            if (user.Pids.All(p => !string.Equals(p.Key, d.Key, StringComparison.OrdinalIgnoreCase))) user.Pids.Add(d);
+        return user;
     }
 }

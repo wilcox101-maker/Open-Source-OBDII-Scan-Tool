@@ -105,7 +105,7 @@ public sealed class LinearGauge : GaugeBase
         dc.DrawRoundedRectangle(TrackBrush, null, bar, 5, 5);
         if (!double.IsNaN(WarnHigh)) { var x = w * Fraction(WarnHigh); dc.DrawRectangle(WarnBrush, null, new Rect(x, 38, Math.Max(0, w - x), 2)); }
         if (!double.IsNaN(WarnLow)) dc.DrawRectangle(WarnBrush, null, new Rect(0, 38, w * Fraction(WarnLow), 2));
-        // centred bars for signed ranges (fuel trims)
+        // centered bars for signed ranges (fuel trims)
         var zero = Minimum < 0 && Maximum > 0 ? Fraction(0) : 0; var f = Fraction(Value);
         var x0 = w * Math.Min(zero, f); var x1 = w * Math.Max(zero, f);
         if (!double.IsNaN(Value) && x1 - x0 > 0.5) dc.DrawRoundedRectangle(IsWarn ? WarnBrush : FillBrush, null, new Rect(x0, 26, x1 - x0, 10), 5, 5);

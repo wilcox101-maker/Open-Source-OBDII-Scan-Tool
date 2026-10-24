@@ -71,7 +71,7 @@ internal static class UpdaterWindows
             Marshal.StructureToPtr(fi, pFi, false);
             var d = new TrustData { cbStruct = Marshal.SizeOf<TrustData>(), dwUIChoice = 2 /*NONE*/, fdwRevocationChecks = 0, dwUnionChoice = 1 /*FILE*/, pFile = pFi, dwStateAction = 1 /*VERIFY*/, dwProvFlags = 0x80 /*REVOCATION_CHECK_NONE*/ };
             int r = WinVerifyTrust(new IntPtr(-1), GenericVerifyV2, ref d);
-            d.dwStateAction = 2; /*CLOSE*/ WinVerifyTrust(new IntPtr(-1), GenericVerifyV2, ref d);
+            d.dwStateAction = 2; /*CLOSE*/ _ = WinVerifyTrust(new IntPtr(-1), GenericVerifyV2, ref d);
             return r;
         }
         catch { return -1; }

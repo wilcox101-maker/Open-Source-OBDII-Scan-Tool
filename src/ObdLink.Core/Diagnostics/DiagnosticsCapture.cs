@@ -43,7 +43,7 @@ public sealed class DiagnosticsCapture
             P("== Adapter identification ==");
             foreach (var c in new[] { "ATI", "STI", "STDI", "ATRV" }) await Cmd(c);
             P("== Protocol probes ==");
-            await Cmd("STPC"); // close any STN protocol so ATSP takes effect [STN behaviour UNVERIFIED]
+            await Cmd("STPC"); // close any STN protocol so ATSP takes effect [STN behavior UNVERIFIED]
             foreach (var c in new[] { "ATSH7DF", "ATSP6", "ATDP", "0100", "ATSP2", "ATDP", "0100" }) await Cmd(c);
             P("-- STP 53 (MS-CAN preset) test --");
             foreach (var c in new[] { "STP53", "STPO", "ATSH7DF", "0100", "STPC" }) await Cmd(c);

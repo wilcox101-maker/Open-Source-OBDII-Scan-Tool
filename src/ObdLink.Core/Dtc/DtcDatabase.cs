@@ -12,12 +12,13 @@ public sealed record DtcDefinition(string Code, string Description, string Sourc
 /// </summary>
 public sealed class DtcDatabase
 {
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
     private readonly Dictionary<string, DtcDefinition> _map;
     public DtcDatabase(IEnumerable<DtcDefinition> defs) => _map = defs.ToDictionary(d => d.Code.ToUpperInvariant());
     public static DtcDatabase LoadEmbedded()
     {
         using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("ObdLink.Core.Data.dtc_generic.json")!;
-        var defs = JsonSerializer.Deserialize<List<DtcDefinition>>(s, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var defs = JsonSerializer.Deserialize<List<DtcDefinition>>(s, JsonOpts)!;
         return new DtcDatabase(defs);
     }
     public int Count => _map.Count;

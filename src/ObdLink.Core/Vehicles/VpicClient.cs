@@ -7,7 +7,7 @@ namespace ObdLink.Core.Vehicles;
 /// NHTSA vPIC online decoder (free, no key): GET https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/{vin}?format=json.
 /// Opt-in only; the caller logs the request. Returns null on any network/parse failure (offline-safe).
 /// </summary>
-public sealed class VpicClient
+public sealed class VpicClient : IDisposable
 {
     public const string BaseUrl = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/";
     public static readonly string[] Fields = { "Make", "Model", "ModelYear", "Trim", "Series", "BodyClass", "DriveType", "EngineModel", "EngineConfiguration",
@@ -18,6 +18,8 @@ public sealed class VpicClient
         _http = new HttpClient(handler ?? new HttpClientHandler()) { Timeout = timeout ?? TimeSpan.FromSeconds(10) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("OBDLinkDiag (open-source)");
     }
+
+    public void Dispose() => _http.Dispose();
 
     public static Uri UrlFor(string vin) => new(BaseUrl + Uri.EscapeDataString(VinDecoder.Normalize(vin)) + "?format=json");
 

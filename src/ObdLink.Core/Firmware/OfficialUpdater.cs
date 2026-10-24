@@ -22,6 +22,7 @@ public enum UpdaterTrust { TrustedSignature, KnownHash, Unverified, Rejected }
 /// </summary>
 public static class OfficialUpdater
 {
+    private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
     public const string PageUrl = "https://www.scantool.net/downloads/updates/firmware_updater/";
     /// <summary>Direct installer link found on the page on 2026-10-24 (v2.4.2.0, 15,613,628 bytes, UNSIGNED Inno Setup 6.1).</summary>
     public const string KnownInstallerUrl = "https://www.scantool.net/scantool/downloads/740/Install-StnFirmwareUpdater.exe";
@@ -233,7 +234,7 @@ public static class OfficialUpdater
             if (t == UpdaterTrust.Rejected) throw new InvalidDataException($"Installer signature is not from OBD Solutions/ScanTool (publisher: {sig.Publisher ?? "none"}, valid: {sig.TrustValid}). Not saved.");
             File.Move(tmp, file, true);
             var m = new UpdaterManifest(url, name, bytes.LongLength, sha, ReadVersion(bytes), lm, etag, sig.HasSignature, sig.TrustValid, sig.Publisher, KnownGoodSha256.ContainsKey(sha), DateTime.UtcNow);
-            File.WriteAllText(Path.Combine(dir, ManifestName), JsonSerializer.Serialize(m, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, ManifestName), JsonSerializer.Serialize(m, IndentedJson));
             return (m, t, false);
         }
         catch { try { File.Delete(tmp); } catch { } throw; }

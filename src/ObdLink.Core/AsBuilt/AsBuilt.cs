@@ -50,7 +50,7 @@ public sealed record AsBuiltLine(AsBuiltAddress Address, byte[] Data, byte Check
     public static AsBuiltLine Parse(string line)
     {
         var m = Regex.Match(line.Trim(), @"^([0-9A-Fa-f]{3}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})\s*[:=]?\s*([0-9A-Fa-f\s]+)$");
-        if (!m.Success) throw new FormatException($"Unrecognised As-Built line '{line}'");
+        if (!m.Success) throw new FormatException($"Unrecognized As-Built line '{line}'");
         var hex = Regex.Replace(m.Groups[2].Value, @"\s", "");
         if (hex.Length < 4 || hex.Length % 2 != 0) throw new FormatException("As-Built data must be whole bytes incl. checksum");
         var bytes = Convert.FromHexString(hex);

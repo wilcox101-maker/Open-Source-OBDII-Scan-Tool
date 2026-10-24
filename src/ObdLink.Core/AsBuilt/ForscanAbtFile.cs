@@ -40,7 +40,7 @@ public sealed class ForscanAbtFile
             if (c.Success) { idx = int.Parse(c.Groups[1].Value); continue; }
             if (l.StartsWith(';')) continue;
             var m = Regex.Match(l, @"^([0-9A-Fa-f]{3})([G-V][0-9A-F])([G-V][0-9A-F])((?:[0-9A-Fa-f]{2})+)$");
-            if (!m.Success) throw new FormatException($"Unrecognised .abt line '{l}'");
+            if (!m.Success) throw new FormatException($"Unrecognized .abt line '{l}'");
             var a = new AsBuiltAddress(Convert.ToUInt16(m.Groups[1].Value, 16), DecodeCode(m.Groups[2].Value), DecodeCode(m.Groups[3].Value));
             var b = Convert.FromHexString(m.Groups[4].Value);
             var line = new AsBuiltLine(a, b[..^1], b[^1]);

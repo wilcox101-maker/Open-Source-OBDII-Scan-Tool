@@ -221,7 +221,7 @@ public sealed class MainViewModel : ObservableObject
     public string PressureUnit { get => _settings.Units.Pressure; set { S(() => _settings.Units.Pressure = value, "pressure unit", value, nameof(PressureUnit)); Dashboard.ApplyUnits(); OnPropertyChanged(nameof(TpmsLowThreshold)); } }
     public string LogLevelSetting { get => _settings.LogLevel; set => S(() => _settings.LogLevel = value, "log level (applies on restart)", value, nameof(LogLevelSetting)); }
     public int LogRetentionDays { get => _settings.LogRetentionDays; set => S(() => _settings.LogRetentionDays = value, "log retention days", value, nameof(LogRetentionDays)); }
-    public string AdapterDefaultPort { get => _settings.Adapter.Port ?? ""; set => S(() => _settings.Adapter.Port = string.IsNullOrWhiteSpace(value) ? null : value.Trim(), "default port", value, nameof(AdapterDefaultPort)); }
+    public string AdapterDefaultPort { get => _settings.Adapter.Port ?? ""; set => S(() => _settings.Adapter.Port = string.IsNullOrWhiteSpace(value) ? "" : value.Trim(), "default port", value, nameof(AdapterDefaultPort)); }
     public string AdapterKind { get => _settings.Adapter.Kind; set => S(() => _settings.Adapter.Kind = value, "adapter kind", value, nameof(AdapterKind)); }
     public int AdapterTimeoutMs { get => _settings.Adapter.TimeoutMs; set => S(() => _settings.Adapter.TimeoutMs = value, "adapter timeout ms", value, nameof(AdapterTimeoutMs)); }
     public int DashboardRefreshMs { get => _settings.Dashboard.RefreshMs; set => S(() => _settings.Dashboard.RefreshMs = value, "dashboard refresh ms (applies when the dashboard restarts)", value, nameof(DashboardRefreshMs)); }
@@ -321,7 +321,7 @@ public sealed class MainViewModel : ObservableObject
         return sb.ToString();
     }
 
-    /// <summary>Yes/No dialog that is recorded in the event log (shown / accepted / cancelled).</summary>
+    /// <summary>Yes/No dialog that is recorded in the event log (shown / accepted / canceled).</summary>
     private bool Ask(string title, string message, MessageBoxImage icon = MessageBoxImage.Question)
     {
         var op = EventLog.Begin("Confirmation dialog", ("title", title));
@@ -335,14 +335,14 @@ public sealed class MainViewModel : ObservableObject
     private string OpenFile(string purpose, string filter, string initialDir)
     {
         var dlg = new OpenFileDialog { Filter = filter, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
-        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: open dialog cancelled");
+        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: open dialog canceled");
         EventLog.UserAction("File chosen for import", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
     private string SaveFile(string purpose, string filter, string name, string initialDir)
     {
         var dlg = new SaveFileDialog { Filter = filter, FileName = name, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
-        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: save dialog cancelled");
+        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: save dialog canceled");
         EventLog.UserAction("File chosen for export", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
@@ -437,7 +437,7 @@ public sealed class MainViewModel : ObservableObject
         ReadAllModuleDtcsCommand = C("Read DTCs from all modules", ReadAllModuleDtcsAsync);
         ReadAllBlocksCommand = C("Read all As-Built blocks", ReadAllBlocksAsync, Mod);
         ReadAllModulesAsBuiltCommand = C("Back up As-Built of all modules", ReadAllModulesAsBuiltAsync);
-        CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Cancelling after the current module…"; });
+        CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Canceling after the current module…"; });
         ClearModuleDtcsCommand = C("Clear module DTCs", async () =>
         {
             await Safety().RequireAsync(new[] { new ConfirmationStep("Clear DTCs", $"Clear all DTCs in {SelectedModule?.Label}? Freeze-frame data will be lost.") });
@@ -521,7 +521,7 @@ public sealed class MainViewModel : ObservableObject
         IdentifyVehicleCommand = C("Identify vehicle", async () =>
         {
             if (_session is null) throw new InvalidOperationException("Connect first (use a DEMO port to try it without a vehicle)");
-            var vpic = OnlineVinDecode ? new VpicClient() : null;
+            using var vpic = OnlineVinDecode ? new VpicClient() : null;
             VehicleProfile prof;
             try { prof = await new VehicleIdentifier(_session, Ch, vpic).RunAsync(new IdentifyOptions { OnlineDecode = OnlineVinDecode, SweepMsCan = MsCanAvailable },
                 new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Identify vehicle", m))); }
@@ -831,10 +831,10 @@ public sealed class MainViewModel : ObservableObject
             + "\u2022 This app never flashes firmware; the official updater does all of it.\n"
             + (fwNote is not null ? $"\nAlready-downloaded firmware package(s): {fwNote}\n(The official updater normally fetches firmware itself; this folder is there if it asks for a file.)\n" : "")
             + $"\nStart:\n{exe}\n\nContinue?";
-        if (!DialogService.YesNo(msg, "Run official updater", System.Windows.MessageBoxImage.Warning)) { EventLog.Message(LogEventLevel.Information, "Updater", "User cancelled the updater launch"); return; }
+        if (!DialogService.YesNo(msg, "Run official updater", System.Windows.MessageBoxImage.Warning)) { EventLog.Message(LogEventLevel.Information, "Updater", "User canceled the updater launch"); return; }
         if (IsConnected) { EventLog.Message(LogEventLevel.Information, "Updater", "Auto-disconnecting the adapter before the official updater"); await DisconnectAsync(); }
         EventLog.Message(LogEventLevel.Information, "Updater", $"Launching official updater ({kind}): {exe}");
-        if (!DialogService.RunUpdater(exe!)) EventLog.Message(LogEventLevel.Warning, "Updater", "Launch cancelled (UAC declined)");
+        if (!DialogService.RunUpdater(exe!)) EventLog.Message(LogEventLevel.Warning, "Updater", "Launch canceled (UAC declined)");
         if (fwNote is not null) { try { DialogService.OpenExternal("explorer.exe", $"\"{fwNote}\""); } catch { } }
     }
 
@@ -1014,7 +1014,7 @@ public sealed class MainViewModel : ObservableObject
             return await AsBuiltBatch.RunAsync(mods.Select(m => m.Def).ToList(), (d, ct) => work(rows[d], ct),
                 new Progress<BatchProgress>(p => { BatchPercent = p.Percent; BatchText = $"{what}: {p.Text}"; }), _batchCts.Token);
         }
-        catch (OperationCanceledException) { BatchText = $"{what}: cancelled"; EventLog.Message(LogEventLevel.Warning, what, "Cancelled by user"); return new(); }
+        catch (OperationCanceledException) { BatchText = $"{what}: canceled"; EventLog.Message(LogEventLevel.Warning, what, "Cancelled by user"); return new(); }
         finally { BatchRunning = false; _batchCts.Dispose(); _batchCts = null; }
     }
 
