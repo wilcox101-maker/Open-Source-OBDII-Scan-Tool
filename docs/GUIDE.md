@@ -13,6 +13,21 @@ When you connect, the app reads the adapter firmware (STI) and, if you are onlin
 
 The app **never flashes firmware**. Use OBDLink's official updater. To turn the check off, untick Settings → "Check adapter firmware on connect".
 
+## Updating adapter firmware
+This app **never flashes firmware** and does **not** include OBDLink's updater. It can fetch the official one for you:
+- **Get official updater** (firmware banner, or Tools → Adapter firmware) downloads OBDLink's *STN Firmware Update Utility* installer (`Install-StnFirmwareUpdater.exe`) from https://www.scantool.net/downloads/updates/firmware_updater/ into `Data\firmware\updater\`. Only https links on scantool.net are accepted, including redirects.
+  - OBDLink publishes this installer **without a digital signature**. The app records its SHA-256 in `updater.json` and accepts it when the hash matches a known official build (v2.4.2.0: `2bc969d3ad639171449d3451e458e00587e591d3da8c9aaee3d2236f32a29fcf`).
+  - If OBDLink ever signs it, the signature must be valid and the publisher must be OBD Solutions/ScanTool. Otherwise the file is rejected.
+  - If the installer is unsigned and its hash is unknown (for example, a new release), you are asked before it is kept.
+  - If a matching copy is already there, it is not downloaded again. The app checks the server's size/date and downloads again only when they change.
+- **Run official updater**:
+  - First it shows a checklist. The app then **disconnects the adapter** so the COM port/Bluetooth link is free. Keep USB and vehicle power stable. Updating an **MX+ over Bluetooth** is riskier, so stay close to it.
+  - If StnFirmwareUpdater is already installed (found via the Windows uninstall list or Program Files), you can start it directly. You can also run the downloaded installer again instead.
+  - Windows shows its own administrator (UAC) prompt for the installer. The updater is a normal installed program; this app stays portable.
+  - If you downloaded a firmware package earlier, its folder is opened as well.
+- Settings → **Firmware updater exe** lets you point to a specific `StnFirmwareUpdater.exe`. Leave it empty to auto-detect.
+- Every step is written to the Events log under "Updater".
+
 ## Where this app keeps its files
 
 | Item | Location (inside the `Data` folder next to the exe) |

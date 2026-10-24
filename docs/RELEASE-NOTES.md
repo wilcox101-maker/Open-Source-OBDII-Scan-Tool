@@ -1,5 +1,26 @@
 # Release notes
 
+## v0.3.1-test
+
+**Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.1.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.1.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+- **Official firmware updater support** (OBDLink's *STN Firmware Update Utility*, v2.4.2.0 when this was written). It is **not bundled**; the app downloads it only when you ask.
+  - **Get official updater** (firmware banner and Tools → Adapter firmware):
+    - Downloads `Install-StnFirmwareUpdater.exe` over https, from scantool.net only (each redirect is checked too), into `Data\firmware\updater\`.
+    - Records the SHA-256 and version in `updater.json`.
+    - Does not download again when you already have the current copy.
+  - **Verification.** OBDLink's installer has **no Authenticode signature**, so the known official SHA-256 is pinned.
+    - A signed file must be signed by OBD Solutions/ScanTool.
+    - An unknown unsigned file needs your OK.
+  - **Run official updater**:
+    - Shows a checklist first: auto-disconnect, stable power, MX+ Bluetooth risk.
+    - Disconnects the adapter, then starts the installed StnFirmwareUpdater.exe (found via the uninstall registry or Program Files) or the downloaded installer through Windows (UAC prompt).
+    - Opens the folder of a firmware package you downloaded earlier.
+  - Settings: optional path override for the updater exe. Events log entries under "Updater". New Guide section "Updating adapter firmware".
+- Tools menu: firmware items are grouped under **Adapter firmware**.
+
 ## v0.3.0-test
 
 **Untested on Windows (new build).** Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. The exe is still **unsigned**. Ford products only. Portable, no installer; Windows 10 1607+ / Windows 11, x64 and ARM64.

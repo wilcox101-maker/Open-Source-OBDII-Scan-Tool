@@ -223,7 +223,13 @@
         <MenuItem Header="Raw _console" InputGestureText="Ctrl+`" Click="Nav_Click" Tag="Console"/>
         <MenuItem Header="Diagnostics _capture" InputGestureText="Ctrl+Alt+C" Command="{Binding DiagnosticsCaptureCommand}"/>
         <MenuItem Header="Discovery _sweep (UNVERIFIED IDs)" Command="{Binding DiscoveryCommand}"/>
-        <MenuItem Header="Check adapter _firmware" InputGestureText="Ctrl+Alt+F" Command="{Binding CheckFirmwareCommand}"/>
+        <MenuItem Header="Adapter _firmware">
+          <MenuItem Header="Check adapter _firmware" InputGestureText="Ctrl+Alt+F" Command="{Binding CheckFirmwareCommand}"/>
+          <MenuItem Header="_Get official updater" Command="{Binding GetUpdaterCommand}" ToolTip="Downloads OBDLink's official STN Firmware Update Utility from scantool.net into Data\firmware\updater\ and checks it"/>
+          <MenuItem Header="_Run official updater…" Command="{Binding RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (UAC prompt)"/>
+          <MenuItem Header="Open firmware _folder" Command="{Binding OpenFirmwareFolderCommand}"/>
+          <MenuItem Header="Official updater _page" Command="{Binding OpenFirmwarePageCommand}"/>
+        </MenuItem>
         <MenuItem Header="Pause / resume dashboard" InputGestureText="Ctrl+P" Command="{Binding Dashboard.PauseCommand}"/>
         <MenuItem Header="Record dashboard CSV" InputGestureText="Ctrl+Shift+P" Command="{Binding Dashboard.RecordCommand}"/>
         <MenuItem Header="_Edit Ford enhanced PID table (JSON)…" Command="{Binding Dashboard.OpenPidTableCommand}"/>
@@ -305,6 +311,8 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <Button Command="{Binding DownloadFirmwareCommand}" IsEnabled="{Binding FirmwareCanDownload}" ToolTip="Downloads the official package (scantool.net) into Data\firmware\ and verifies it. Does not flash."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Download firmware"/></StackPanel></Button>
+          <Button Command="{Binding GetUpdaterCommand}" ToolTip="Downloads OBDLink's official updater from scantool.net (https only) into Data\firmware\updater\ and checks it. Never bundled with this app."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Get official updater"/></StackPanel></Button>
+          <Button Command="{Binding RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (Windows asks for permission)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run official updater"/></StackPanel></Button>
           <Button Command="{Binding OpenFirmwareFolderCommand}" Visibility="{Binding FirmwareHasFolder, Converter={StaticResource BoolVis}}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open folder"/></StackPanel></Button>
           <Button Command="{Binding OpenFirmwarePageCommand}" ToolTip="{Binding FirmwarePage}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Official updater page"/></StackPanel></Button>
           <Button Command="{Binding DismissFirmwareCommand}" ToolTip="Hide this notice"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/></Button>
@@ -549,6 +557,11 @@
                     <CheckBox Content="Online VIN decode (NHTSA vPIC)" IsChecked="{Binding OnlineVinDecode}" ToolTip="Opt-in. Sends ONLY the VIN to vpic.nhtsa.dot.gov"/>
                     <CheckBox Content="Check GitHub for updates at startup" IsChecked="{Binding UpdateCheckEnabled}" ToolTip="Opt-in. One GET to api.github.com; nothing is downloaded"/>
                     <CheckBox Content="Check adapter firmware on connect" IsChecked="{Binding FirmwareCheckEnabled}" ToolTip="Reads STI on connect and asks OBDLink's public firmware feed for the latest stable version. Silent when offline. Never flashes anything."/>
+                    <TextBlock Text="Firmware updater exe (optional override)" Margin="0,6,0,2"/>
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Content="Browse…" Command="{Binding BrowseUpdaterPathCommand}" Margin="4,0,0,0"/>
+                      <TextBox Text="{Binding FirmwareUpdaterPath, UpdateSourceTrigger=LostFocus}" ToolTip="Full path to StnFirmwareUpdater.exe. Empty = auto-detect (installed copy, then the one downloaded to Data\firmware\updater\)"/>
+                    </DockPanel>
                   </StackPanel>
                 </Border>
                 <Border Style="{StaticResource CardStyle}" Width="340">

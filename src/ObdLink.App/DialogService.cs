@@ -81,4 +81,15 @@ public static class DialogService
         var psi = args is null ? new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true } : new System.Diagnostics.ProcessStartInfo(target, args) { UseShellExecute = true };
         System.Diagnostics.Process.Start(psi);
     }
+
+    /// <summary>v0.3.1: starts OBDLink's official firmware updater via ShellExecute so Windows shows its own UAC prompt. Returns false if the user cancelled UAC.</summary>
+    public static bool RunUpdater(string exe)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = System.IO.Path.GetDirectoryName(exe) ?? "" });
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223) { return false; } // ERROR_CANCELLED (UAC "No")
+    }
 }

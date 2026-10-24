@@ -1,11 +1,11 @@
-OBDLink Diag - TEST BUILD v0.3.0 (win-x64 / win-arm64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.3.1 (win-x64 / win-arm64)  2026-10-24
 =======================================================
 UNSIGNED TEST BUILD. Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2
-(Dale, demo mode); this v0.3.0 build has not been run on Windows yet. Real-vehicle testing is still pending.
+(Dale, demo mode); this v0.3.1 build has not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
 
-WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.0.zip
-  ObdLinkApp-ARM64-only-v0.3.0.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.1.zip
+  ObdLinkApp-ARM64-only-v0.3.1.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
   (Running the ARM64 build on a normal Intel/AMD PC gives "This app can't run on your PC".)
   How to check: Settings > System > About > "System type".
     "64-bit operating system, x64-based processor"  -> x64 zip
@@ -14,6 +14,13 @@ WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.
 SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Windows 7, 8 and 8.1 are NOT
 supported: the exe will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in
 the Data folder.
+
+NEW IN v0.3.1
+- Firmware banner / Tools > Adapter firmware: "Get official updater" downloads OBDLink's official
+  STN Firmware Update Utility (scantool.net, https only) into Data\firmware\updater\ and checks its
+  SHA-256 (OBDLink ships it unsigned; the known official hash is pinned). Not bundled.
+- "Run official updater": checklist, auto-disconnects the adapter, then starts the installed updater
+  or the installer (Windows UAC prompt). Optional exe path in Settings. Guide: "Updating adapter firmware".
 
 NEW IN v0.3.0
 - Spare tire removed from the dashboard TPMS widget (its guessed DID is no longer polled).

@@ -23,6 +23,8 @@ public sealed class AppSettings
     public bool UpdateCheck { get; set; }
     /// <summary>v0.2.2: automatic adapter firmware check on connect (silent when offline). Default on.</summary>
     public bool FirmwareCheck { get; set; } = true;
+    /// <summary>v0.3.1: optional full path to StnFirmwareUpdater.exe (or the installer); empty = auto-detect.</summary>
+    public string? FirmwareUpdaterPath { get; set; }
     /// <summary>Default for "Redact VINs" in diagnostics captures and exports. Default ON.</summary>
     public bool RedactVinsDefault { get; set; } = true;
     public ObdLink.Core.Obd.UnitPrefs Units { get; set; } = new();
