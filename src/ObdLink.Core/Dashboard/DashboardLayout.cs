@@ -4,7 +4,8 @@ namespace ObdLink.Core.Dashboard;
 
 /// <summary>How one dashboard item is drawn. Tpms = the 4-tire top-view widget.</summary>
 public enum DisplayKind { Dial, Bar, Tile, Lamp, Tpms }
-public enum ItemSize { Small, Large }
+/// <summary>Card size. Saved by name in settings.json (Medium/Wide added in v0.3.3, so older files still load).</summary>
+public enum ItemSize { Small, Large, Medium, Wide }
 
 /// <summary>One item on a saved dashboard layout.</summary>
 public sealed class DashItem
@@ -52,6 +53,13 @@ public sealed class DashboardLayout
         var j = index + delta;
         if (index < 0 || index >= Items.Count || j < 0 || j >= Items.Count) return false;
         (Items[index], Items[j]) = (Items[j], Items[index]); return true;
+    }
+    /// <summary>v0.3.3 keyboard / button move: shifts by delta, clamped to the ends of the list.</summary>
+    public int MoveBy(int from, int delta)
+    {
+        if (from < 0 || from >= Items.Count || delta == 0) return -1;
+        var to = Math.Clamp(from + delta, 0, Items.Count - 1);
+        return MoveTo(from, to) ? to : -1;
     }
     public bool MoveTo(int from, int to)
     {

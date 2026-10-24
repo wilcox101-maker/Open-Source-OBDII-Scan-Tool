@@ -1,4 +1,19 @@
-# Release notes
+## v0.3.3-test
+
+**Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.3.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.3.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**New: rearrange the dashboard in Customize mode.**
+- Click **Customize** on the Dashboard. Each card gets a toolbar.
+- **Reorder:** drag a card (grab it by the ⠿ handle or any empty spot) and drop it on another card. Or use ◀ ▶ (one place) and ▲ ▼ (one row).
+- **Keyboard:** Tab to any button on a card's toolbar, then press Ctrl+Left/Right (one place), Ctrl+Up/Down (one row) or Ctrl+Home/End (first/last). Focus stays on the card, so you can keep pressing.
+- **Size:** each card has a size box: Small, Medium (20% bigger), Large, or Wide (two columns).
+- **Reset to default** puts back the built-in items, order and sizes for the current layout.
+- Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.
+- Click **Done** to leave Customize. The dashboard stays read-only; only the items shown are polled.
+
+Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at every start, demo vehicle profiles never used on the real adapter, HS-CAN2 bus fallback, friendly no-reply message).
 
 ## v0.3.2-test
 

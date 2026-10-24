@@ -168,6 +168,52 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel vm && e.Data.GetData(typeof(DashItemVm)) is DashItemVm src && (sender as FrameworkElement)?.DataContext is DashItemVm dst && src != dst)
             vm.Dashboard.MoveItem(src, dst);
     }
+    private void DashItem_DragOver(object sender, DragEventArgs e)
+    { e.Effects = e.Data.GetDataPresent(typeof(DashItemVm)) ? DragDropEffects.Move : DragDropEffects.None; e.Handled = true; }
+    /// <summary>v0.3.3: cards per row in the WrapPanel, so Up/Down moves one row.</summary>
+    private int DashRowSize(FrameworkElement card)
+    {
+        var w = card.ActualWidth + card.Margin.Left + card.Margin.Right;
+        return w <= 1 || DashItemsHost.ActualWidth <= 1 ? 1 : Math.Max(1, (int)(DashItemsHost.ActualWidth / w));
+    }
+    private void DashMove(FrameworkElement src, int delta)
+    {
+        if (DataContext is not MainViewModel vm || !vm.Dashboard.Customizing || src.DataContext is not DashItemVm it) return;
+        if (!vm.Dashboard.MoveBy(it, delta)) return;
+        // keep keyboard focus on the moved card so Ctrl+Arrow can be repeated
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (DashItemsHost.ItemContainerGenerator.ContainerFromItem(it) is FrameworkElement c && FindChild<ButtonBase>(c) is { } b) b.Focus();
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+    private static FrameworkElement? FindCard(DependencyObject d)
+    {
+        for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x)) if (x is Border { Name: "Card" } c) return c;
+        return null;
+    }
+    private void DashItemRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement b) DashMove(b, (b.Tag as string == "Up" ? -1 : 1) * DashRowSize(FindCard(b) ?? b));
+    }
+    private void DashItem_KeyDown(object sender, KeyEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || sender is not FrameworkElement card || e.OriginalSource is ComboBox) return;
+        var n = (DataContext as MainViewModel)?.Dashboard.Items.Count ?? 0;
+        int? d = DashKeyDelta(e.Key, DashRowSize(card), n);
+        if (d is null) return;
+        DashMove(card, d.Value); e.Handled = true;
+    }
+    /// <summary>Ctrl+Arrow mapping (public for tests): Left/Right = 1 place, Up/Down = one row, Home/End = to the ends.</summary>
+    public static int? DashKeyDelta(Key k, int row, int count) => k switch
+    {
+        Key.Left => -1, Key.Right => 1, Key.Up => -row, Key.Down => row, Key.Home => -count, Key.End => count, _ => null
+    };
+    private static T? FindChild<T>(DependencyObject d) where T : DependencyObject
+    {
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
+        { var c = System.Windows.Media.VisualTreeHelper.GetChild(d, i); if (c is T t) return t; if (FindChild<T>(c) is { } r) return r; }
+        return null;
+    }
     private static T? FindParent<T>(DependencyObject d) where T : DependencyObject
     {
         for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x) ?? LogicalTreeHelper.GetParent(x)) if (x is T t) return t;

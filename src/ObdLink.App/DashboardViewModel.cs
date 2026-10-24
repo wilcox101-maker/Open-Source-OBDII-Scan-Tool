@@ -60,7 +60,10 @@ public sealed class DashItemVm : ObservableObject
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
     public DisplayKind Display { get => Item.Display; set { if (Item.Display == value) return; Item.Display = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("display " + Key + " = " + value); } }
-    public bool IsLarge { get => Item.Size == ItemSize.Large; set { Item.Size = value ? ItemSize.Large : ItemSize.Small; OnPropertyChanged(); _owner.Changed("size " + Key + " = " + Item.Size); } }
+    public bool IsLarge { get => Item.Size is ItemSize.Large or ItemSize.Wide; set => Size = value ? ItemSize.Large : ItemSize.Small; }
+    private static readonly ItemSize[] AllSizes = { ItemSize.Small, ItemSize.Medium, ItemSize.Large, ItemSize.Wide }; public ItemSize[] Sizes => AllSizes;
+    public ItemSize Size { get => Item.Size; set { if (Item.Size == value) return; Item.Size = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("size " + Key + " = " + value); } }
+    public string MoveHint => $"{Title}: Ctrl+Left/Right moves one place, Ctrl+Up/Down one row, Ctrl+Home/End to first/last";
     public bool CanChangeDisplay => Displays.Length > 1;
 }
 
@@ -99,6 +102,8 @@ public sealed class DashboardViewModel : ObservableObject
     public RelayCommand RemoveCommand { get; }
     public RelayCommand AddCommand { get; }
     public RelayCommand ResetLayoutCommand { get; }
+    public RelayCommand MoveLeftCommand { get; }
+    public RelayCommand MoveRightCommand { get; }
     public RelayCommand SaveLayoutAsCommand { get; }
     public RelayCommand DeleteLayoutCommand { get; }
 
@@ -116,6 +121,8 @@ public sealed class DashboardViewModel : ObservableObject
         CustomizeCommand = new("Dashboard customize on/off", log, _ => Customizing = !Customizing);
         MoveUpCommand = new("Dashboard move item up", log, p => Move(p as DashItemVm, -1));
         MoveDownCommand = new("Dashboard move item down", log, p => Move(p as DashItemVm, +1));
+        MoveLeftCommand = new("Dashboard move item left", log, p => Move(p as DashItemVm, -1));
+        MoveRightCommand = new("Dashboard move item right", log, p => Move(p as DashItemVm, +1));
         RemoveCommand = new("Dashboard remove item", log, p => { if (p is DashItemVm it && Layout.Remove(it.Key)) { BuildGauges(); Changed("removed " + it.Key); } });
         AddCommand = new("Dashboard add item", log, p =>
         {
@@ -155,7 +162,13 @@ public sealed class DashboardViewModel : ObservableObject
 
     /// <summary>Called after any layout edit: persists settings and makes the poller pick up the new item list.</summary>
     internal void Changed(string what) { _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what); if (Customizing) RefreshCatalog(); }
-    private void Move(DashItemVm? it, int delta) { if (it is null) return; var i = Items.IndexOf(it); if (Layout.Move(i, delta)) { Items.Move(i, i + delta); Changed($"moved {it.Key}"); } }
+    private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
+    /// <summary>v0.3.3: move by any delta (buttons, Ctrl+Arrow). Clamped at the ends; returns false when nothing moved.</summary>
+    public bool MoveBy(DashItemVm? it, int delta)
+    {
+        if (it is null) return false; var i = Items.IndexOf(it); var to = Layout.MoveBy(i, delta);
+        if (to < 0) return false; Items.Move(i, to); Changed($"moved {it.Key} to position {to + 1}"); return true;
+    }
     /// <summary>Drag &amp; drop reorder from the view.</summary>
     public void MoveItem(DashItemVm src, DashItemVm dst)
     {

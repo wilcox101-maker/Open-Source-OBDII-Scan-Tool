@@ -136,7 +136,15 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
 - **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
-- **Customize**: click Customize, then add items from the catalog, remove them (✕), pick dial/bar/tile/lamp and Large, and drag or use ▲ ▼ to reorder. "Save as" stores a named layout; pick layouts from the Layout box; Reset restores the default. Only the items on the dashboard are polled.
+- **Customize**: click Customize, then add items from the catalog, remove them (✕), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
+- **Rearranging (v0.3.3)**:
+  - Click **Customize** on the Dashboard. Each card gets a toolbar.
+  - **Reorder:** drag a card (grab it by the ⠿ handle or any empty spot) and drop it on another card. Or use ◀ ▶ (one place) and ▲ ▼ (one row).
+  - **Keyboard:** Tab to any button on a card's toolbar, then press Ctrl+Left/Right (one place), Ctrl+Up/Down (one row) or Ctrl+Home/End (first/last). Focus stays on the card, so you can keep pressing.
+  - **Size:** each card has a size box: Small, Medium (20% bigger), Large, or Wide (two columns).
+  - **Reset to default** puts back the built-in items, order and sizes for the current layout.
+  - Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.
+  - Click **Done** to leave Customize. The dashboard stays read-only; only the items shown are polled.
 - Units and refresh rate are on the **Settings** page.
 
 ## As-Built backup
