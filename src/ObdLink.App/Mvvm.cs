@@ -56,6 +56,6 @@ public sealed class RelayCommand(string name, IEventLog? log, Action<object?> ru
         var op = log?.Begin(name);
         try { run(p); op?.Succeeded(); }
         catch (OperationCanceledException ex) { op?.Cancelled(ex.Message); }
-        catch (Exception ex) { op?.Failed(ex); System.Windows.MessageBox.Show(ErrorText.ForOperation(name, ex), "Error"); }
+        catch (Exception ex) { op?.Failed(ex); DialogService.Error(ErrorText.ForOperation(name, ex), "Error"); }
     }
 }

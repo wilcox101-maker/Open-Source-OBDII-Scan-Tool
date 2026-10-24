@@ -87,7 +87,7 @@
         <DataTrigger Binding="{Binding IsWarn}" Value="True"><Setter TargetName="L" Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
-    <DataTemplate x:Key="TyreBox" DataType="{x:Type local:GaugeVm}">
+    <DataTemplate x:Key="TireBox" DataType="{x:Type local:GaugeVm}">
       <Border x:Name="B" Width="74" Height="52" CornerRadius="8" BorderThickness="2" BorderBrush="{DynamicResource GaugeOk}" Background="{DynamicResource Field}" ToolTip="{Binding Note}">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
           <TextBlock x:Name="V" Text="{Binding ValueText}" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -102,7 +102,7 @@
     </DataTemplate>
     <DataTemplate x:Key="TpmsBody" DataType="{x:Type local:TpmsVm}">
       <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="TYRE PRESSURES (UNVERIFIED)" Style="{StaticResource SectionTitle}"/>
+        <TextBlock DockPanel.Dock="Top" Text="TIRE PRESSURES (UNVERIFIED)" Style="{StaticResource SectionTitle}"/>
         <Grid HorizontalAlignment="Center" Margin="0,4">
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="40"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -110,11 +110,10 @@
           <Border Grid.Column="1" Grid.RowSpan="3" Margin="6,0" CornerRadius="22,22,8,8" BorderThickness="2" BorderBrush="{DynamicResource FgDim}" Background="{DynamicResource Bg}">
             <TextBlock Text="FRONT" FontSize="9" HorizontalAlignment="Center" Margin="0,6,0,0" Foreground="{DynamicResource FgDim}"/>
           </Border>
-          <StackPanel Grid.Column="0" Grid.Row="0"><TextBlock Text="LF" FontSize="10" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding LF}" ContentTemplate="{StaticResource TyreBox}"/></StackPanel>
-          <StackPanel Grid.Column="2" Grid.Row="0"><TextBlock Text="RF" FontSize="10" HorizontalAlignment="Right" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding RF}" ContentTemplate="{StaticResource TyreBox}"/></StackPanel>
-          <StackPanel Grid.Column="0" Grid.Row="2"><TextBlock Text="LR" FontSize="10" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding LR}" ContentTemplate="{StaticResource TyreBox}"/></StackPanel>
-          <StackPanel Grid.Column="2" Grid.Row="2"><TextBlock Text="RR" FontSize="10" HorizontalAlignment="Right" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding RR}" ContentTemplate="{StaticResource TyreBox}"/></StackPanel>
-          <StackPanel Grid.Column="1" Grid.Row="3" HorizontalAlignment="Center" Margin="0,6,0,0"><TextBlock Text="SPARE" FontSize="10" HorizontalAlignment="Center" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding Spare}" ContentTemplate="{StaticResource TyreBox}"/></StackPanel>
+          <StackPanel Grid.Column="0" Grid.Row="0"><TextBlock Text="LF" FontSize="10" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding LF}" ContentTemplate="{StaticResource TireBox}"/></StackPanel>
+          <StackPanel Grid.Column="2" Grid.Row="0"><TextBlock Text="RF" FontSize="10" HorizontalAlignment="Right" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding RF}" ContentTemplate="{StaticResource TireBox}"/></StackPanel>
+          <StackPanel Grid.Column="0" Grid.Row="2"><TextBlock Text="LR" FontSize="10" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding LR}" ContentTemplate="{StaticResource TireBox}"/></StackPanel>
+          <StackPanel Grid.Column="2" Grid.Row="2"><TextBlock Text="RR" FontSize="10" HorizontalAlignment="Right" Foreground="{DynamicResource FgDim}"/><ContentControl Content="{Binding RR}" ContentTemplate="{StaticResource TireBox}"/></StackPanel>
         </Grid>
       </DockPanel>
     </DataTemplate>
@@ -165,23 +164,21 @@
     </DataTemplate>
   </Window.Resources>
   <Window.InputBindings>
-    <KeyBinding Key="F5" Command="{Binding ConnectCommand}"/>
-    <KeyBinding Key="F5" Modifiers="Shift" Command="{Binding DisconnectCommand}"/>
-    <KeyBinding Key="D" Modifiers="Ctrl+Shift" Command="{Binding DiagnosticsCaptureCommand}"/>
+    <!-- v0.3.0: all shortcuts are handled in MainWindow.OnShortcutKey from ObdLink.Core.Ui.Shortcuts -->
   </Window.InputBindings>
   <DockPanel x:Name="RootPanel">
     <Menu DockPanel.Dock="Top" x:Name="MainMenu">
       <MenuItem Header="_File">
         <MenuItem Header="_Open factory .ab…" InputGestureText="Ctrl+O" Command="{Binding ImportFactoryAbCommand}"/>
-        <MenuItem Header="Open FORScan .a_bt…" Command="{Binding ImportAbtCommand}"/>
+        <MenuItem Header="Open FORScan ._abt…" Command="{Binding ImportAbtCommand}"/>
         <MenuItem Header="_Export">
-          <MenuItem Header="Factory .ab (optionally redacted)…" Command="{Binding ExportFactoryAbCommand}"/>
+          <MenuItem Header="_Factory .ab (optionally redacted)…" InputGestureText="Ctrl+S" Command="{Binding ExportFactoryAbCommand}"/>
           <MenuItem Header="FORScan .abt…" Command="{Binding ExportAbtCommand}"/>
-          <MenuItem Header="Events log…" Command="{Binding EventsPanel.ExportCommand}"/>
+          <MenuItem Header="E_vents log…" InputGestureText="Ctrl+E" Command="{Binding EventsPanel.ExportCommand}"/>
           <MenuItem Header="Messages log…" Command="{Binding MessagesPanel.ExportCommand}"/>
           <MenuItem Header="Adapter traffic log…" Command="{Binding TrafficPanel.ExportCommand}"/>
         </MenuItem>
-        <MenuItem Header="_Save diagnostics capture (zip)" InputGestureText="Ctrl+Shift+D" Command="{Binding DiagnosticsCaptureCommand}"/>
+        <MenuItem Header="_Save diagnostics capture (zip)" InputGestureText="Ctrl+Alt+C" Command="{Binding DiagnosticsCaptureCommand}"/>
         <MenuItem Header="Open _data folder" Command="{Binding OpenDataFolderCommand}"/>
         <Separator/>
         <MenuItem Header="E_xit" InputGestureText="Alt+F4" Click="Exit_Click"/>
@@ -193,7 +190,7 @@
         <MenuItem Header="_Find in logs…" InputGestureText="Ctrl+F" Click="FindLogs_Click"/>
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="Theme">
+        <MenuItem Header="_Theme">
           <MenuItem Header="Light" Click="Theme_Click" Tag="Light"/>
           <MenuItem Header="Dark" Click="Theme_Click" Tag="Dark"/>
           <MenuItem Header="System" Click="Theme_Click" Tag="System"/>
@@ -202,31 +199,42 @@
         <Separator/>
         <MenuItem Header="Zoom _in" InputGestureText="Ctrl++" Click="ZoomIn_Click"/>
         <MenuItem Header="Zoom _out" InputGestureText="Ctrl+-" Click="ZoomOut_Click"/>
-        <MenuItem Header="Reset zoom" InputGestureText="Ctrl+0" Click="ZoomReset_Click"/>
+        <MenuItem Header="_Reset zoom" InputGestureText="Ctrl+0" Click="ZoomReset_Click"/>
         <MenuItem Header="_Full screen" InputGestureText="F11" Click="FullScreen_Click"/>
       </MenuItem>
       <MenuItem Header="V_ehicle">
         <MenuItem Header="_Connect" InputGestureText="F5" Command="{Binding ConnectCommand}"/>
         <MenuItem Header="_Disconnect" InputGestureText="Shift+F5" Command="{Binding DisconnectCommand}"/>
         <Separator/>
-        <MenuItem Header="_Identify vehicle" Command="{Binding IdentifyVehicleCommand}"/>
-        <MenuItem Header="_Scan modules" Command="{Binding ScanCommand}"/>
-        <MenuItem Header="Read OBD-II _DTCs" Command="{Binding ReadObdDtcsCommand}"/>
+        <MenuItem Header="_Identify vehicle" InputGestureText="Ctrl+I" Command="{Binding IdentifyVehicleCommand}" FontWeight="SemiBold"/>
+        <MenuItem Header="_Scan modules" InputGestureText="Ctrl+M" Command="{Binding ScanCommand}"/>
+        <MenuItem Header="Read OBD-II _DTCs" InputGestureText="Ctrl+D" Command="{Binding ReadObdDtcsCommand}"/>
+        <MenuItem Header="Read DTCs from _all modules" InputGestureText="Ctrl+Shift+D" Command="{Binding ReadAllModuleDtcsCommand}"/>
+        <MenuItem Header="C_lear DTCs (selected module)…" InputGestureText="Ctrl+Shift+Delete" Command="{Binding ClearModuleDtcsCommand}"/>
+        <Separator/>
+        <MenuItem Header="Read _As-Built (selected module)" InputGestureText="Ctrl+R" Command="{Binding ReadAsBuiltCommand}"/>
+        <MenuItem Header="Read all _modules (backup)" InputGestureText="Ctrl+Shift+R" Command="{Binding ReadAllModulesAsBuiltCommand}"/>
+        <MenuItem Header="_Backup As-Built" InputGestureText="Ctrl+B" Command="{Binding BackupAsBuiltCommand}"/>
+        <MenuItem Header="_Write + verify As-Built…" InputGestureText="Ctrl+W" Command="{Binding WriteAsBuiltCommand}"/>
         <MenuItem Header="Read _VIN" Command="{Binding ReadVinCommand}"/>
       </MenuItem>
       <MenuItem Header="_Tools">
-        <MenuItem Header="_Dashboard" Click="Nav_Click" Tag="Dashboard"/>
-        <MenuItem Header="Raw _console" Click="Nav_Click" Tag="Console"/>
-        <MenuItem Header="Diagnostics _capture" Command="{Binding DiagnosticsCaptureCommand}"/>
+        <MenuItem Header="_Dashboard" InputGestureText="Alt+1" Click="Nav_Click" Tag="Dashboard"/>
+        <MenuItem Header="Raw _console" InputGestureText="Ctrl+`" Click="Nav_Click" Tag="Console"/>
+        <MenuItem Header="Diagnostics _capture" InputGestureText="Ctrl+Alt+C" Command="{Binding DiagnosticsCaptureCommand}"/>
         <MenuItem Header="Discovery _sweep (UNVERIFIED IDs)" Command="{Binding DiscoveryCommand}"/>
-        <MenuItem Header="Edit Ford enhanced PID table (JSON)…" Command="{Binding Dashboard.OpenPidTableCommand}"/>
+        <MenuItem Header="Check adapter _firmware" InputGestureText="Ctrl+Alt+F" Command="{Binding CheckFirmwareCommand}"/>
+        <MenuItem Header="Pause / resume dashboard" InputGestureText="Ctrl+P" Command="{Binding Dashboard.PauseCommand}"/>
+        <MenuItem Header="Record dashboard CSV" InputGestureText="Ctrl+Shift+P" Command="{Binding Dashboard.RecordCommand}"/>
+        <MenuItem Header="_Edit Ford enhanced PID table (JSON)…" Command="{Binding Dashboard.OpenPidTableCommand}"/>
       </MenuItem>
-      <MenuItem Header="_Settings" Click="Nav_Click" Tag="Settings"/>
+      <MenuItem Header="_Settings" Click="Nav_Click" Tag="Settings" ToolTip="Settings (Ctrl+,)"/>
       <MenuItem Header="_Help">
         <MenuItem Header="_Guide" InputGestureText="F1" Click="Nav_Click" Tag="Guide"/>
+        <MenuItem Header="_Keyboard shortcuts" InputGestureText="Shift+F1" Click="Shortcuts_Click"/>
         <MenuItem Header="Console _commands" Click="ConsoleHelp_Click"/>
         <MenuItem Header="Check for _updates…" Command="{Binding CheckUpdatesCommand}"/>
-        <MenuItem Header="GitHub project page" Click="GitHub_Click"/>
+        <MenuItem Header="GitHub _project page" Click="GitHub_Click"/>
         <Separator/>
         <MenuItem Header="_About" Click="About_Click"/>
       </MenuItem>
@@ -272,6 +280,7 @@
           <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
           <ComboBox Width="210" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}" ToolTip="Vehicle profile"/>
           <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+          <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle: read VIN, scan modules, pick the profile (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
           <Button Command="{Binding DisconnectCommand}" ToolTip="Disconnect (Shift+F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/><TextBlock Text="Disconnect"/></StackPanel></Button>
           <Border ToolTip="{Binding Status}" MaxWidth="330">
             <Border.Style>
@@ -323,8 +332,8 @@
             <DockPanel DockPanel.Dock="Top">
               <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}"/>
               <Border Style="{StaticResource ChipStyle}" VerticalAlignment="Center"><TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/></Border>
-              <Button Command="{Binding PauseCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
-              <Button Command="{Binding RecordCommand}" ToolTip="Record every poll to Data\logs\dashboard-*.csv"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7C8;"/><TextBlock Text="{Binding RecordText}"/></StackPanel></Button>
+              <Button Command="{Binding PauseCommand}" ToolTip="Pause / resume (Ctrl+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
+              <Button Command="{Binding RecordCommand}" ToolTip="Record every poll to Data\logs\dashboard-*.csv (Ctrl+Shift+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7C8;"/><TextBlock Text="{Binding RecordText}"/></StackPanel></Button>
               <Button Command="{Binding ResetStatsCommand}" ><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
               <Button Command="{Binding CustomizeCommand}" ToolTip="Add, remove, reorder and restyle dashboard items"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE771;"/><TextBlock Text="{Binding CustomizeText}"/></StackPanel></Button>
               <TextBlock Text="Layout:" VerticalAlignment="Center" Margin="8,0,3,0"/>
@@ -332,6 +341,19 @@
               <TextBlock Text="{Binding RateText}" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource FgDim}" FontSize="11"/>
               <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0"/>
             </DockPanel>
+            <Border DockPanel.Dock="Top" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+              <Border.Style><Style TargetType="Border" BasedOn="{StaticResource CardStyle}"><Style.Triggers><DataTrigger Binding="{Binding IsConnected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button Command="{Binding ConnectCommand}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+                  <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock Text="Not connected" FontWeight="SemiBold" FontSize="14"/>
+                  <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="Plug the OBDLink into the truck, ignition ON, pick the COM port and Connect (F5). Then Identify vehicle (Ctrl+I) reads the VIN and modules and picks the right profile, so the dashboard shows only PIDs your truck supports."/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
             <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Visibility="{Binding Customizing, Converter={StaticResource BoolVis}}">
               <StackPanel>
                 <WrapPanel>
@@ -348,7 +370,7 @@
                 <TextBlock Margin="3,2,0,0" Foreground="{DynamicResource Warn}" Text="{Binding Hint}"/>
               </StackPanel>
             </Border>
-            <WrapPanel DockPanel.Dock="Top" Margin="6,2"><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Mode 01 PID 01 bit 7"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding MilOn}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Check engine (MIL)" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Connected to the adapter"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LinkOk}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeOk}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Adapter link" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Below the Settings threshold (default 11.8 V)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowVoltage}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low voltage" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Coolant above the Settings threshold (default 110 °C)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Overheat}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Overheat" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="A tyre is below the Settings TPMS threshold (default 30 psi). TPMS DIDs are UNVERIFIED"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowTire}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low tyre" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Data\logs\dashboard-*.csv"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Recording}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Recording CSV" VerticalAlignment="Center"/></StackPanel></WrapPanel>
+            <WrapPanel DockPanel.Dock="Top" Margin="6,2"><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Mode 01 PID 01 bit 7"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding MilOn}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Check engine (MIL)" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Connected to the adapter"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LinkOk}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeOk}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Adapter link" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Below the Settings threshold (default 11.8 V)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowVoltage}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low voltage" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Coolant above the Settings threshold (default 110 °C)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Overheat}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Overheat" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="A tire is below the Settings TPMS threshold (default 30 psi). TPMS DIDs are UNVERIFIED"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowTire}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low tire" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Data\logs\dashboard-*.csv"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Recording}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Recording CSV" VerticalAlignment="Center"/></StackPanel></WrapPanel>
             <ScrollViewer VerticalScrollBarVisibility="Auto">
               <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource DashItemCard}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
             </ScrollViewer>
@@ -552,7 +574,7 @@
                   <StackPanel>
                     <TextBlock Text="DASHBOARD" Style="{StaticResource SectionTitle}"/>
                     <DockPanel><TextBlock Text="Refresh (ms)" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding RefreshRates}" SelectedItem="{Binding DashboardRefreshMs}" ToolTip="Base interval for RPM/speed/throttle; slower PIDs are polled less often and the rate backs off automatically on slow adapters"/></DockPanel>
-                    <DockPanel><TextBlock Text="Low tyre" Width="110" VerticalAlignment="Center"/><TextBox Width="60" Text="{Binding TpmsLowThreshold, UpdateSourceTrigger=LostFocus}" ToolTip="Low tyre pressure warning, in the pressure unit above (default 30 psi / 207 kPa)"/><TextBlock Text="{Binding PressureUnit}" VerticalAlignment="Center" Margin="6,0"/></DockPanel>
+                    <DockPanel><TextBlock Text="Low tire" Width="110" VerticalAlignment="Center"/><TextBox Width="60" Text="{Binding TpmsLowThreshold, UpdateSourceTrigger=LostFocus}" ToolTip="Low tire pressure warning, in the pressure unit above (default 30 psi / 207 kPa)"/><TextBlock Text="{Binding PressureUnit}" VerticalAlignment="Center" Margin="6,0"/></DockPanel>
                     <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource FgDim}" Text="Dashboard items: use Customize on the Dashboard page (add / remove / reorder / display type / saved layouts)."/>
                     <TextBlock Margin="110,0,0,4" FontSize="10.5" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding AvailableGaugeKeys, StringFormat=Available: {0}}"/>
                     <CheckBox Content="Ford enhanced PIDs (Mode 22: gear, trans temp) - UNVERIFIED" IsChecked="{Binding DashboardFordPids}"/>

@@ -16,19 +16,83 @@ public partial class MainWindow : Window
         try { GuideViewer.Document = MarkdownView.Build(vm.GuideText); }
         catch (Exception ex) { GuideViewer.Document = new System.Windows.Documents.FlowDocument(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(vm.GuideText))); vm.EventLog.Message(Serilog.Events.LogEventLevel.Warning, "Guide", "Guide markdown render failed; showing plain text", ex); }
         _vm = vm;
-        InputBindings.Add(new KeyBinding(new RelayCommand("Open factory .ab (Ctrl+O)", null, _ => vm.ImportFactoryAbCommand.Execute(null)), Key.O, ModifierKeys.Control));
-        Bind(Key.F1, ModifierKeys.None, () => Go("Guide"));
-        Bind(Key.F11, ModifierKeys.None, ToggleFullScreen);
-        Bind(Key.L, ModifierKeys.Control, () => { LogPanelMenu.IsChecked = !LogPanelMenu.IsChecked; ApplyLogPanel(); });
-        Bind(Key.F, ModifierKeys.Control, FindLogs);
-        Bind(Key.OemPlus, ModifierKeys.Control, () => SetZoom(_zoom + 0.1)); Bind(Key.Add, ModifierKeys.Control, () => SetZoom(_zoom + 0.1));
-        Bind(Key.OemMinus, ModifierKeys.Control, () => SetZoom(_zoom - 0.1)); Bind(Key.Subtract, ModifierKeys.Control, () => SetZoom(_zoom - 0.1));
-        Bind(Key.D0, ModifierKeys.Control, () => SetZoom(1));
+        PreviewKeyDown += OnShortcutKey;
         Loaded += async (_, _) => { if (vm.UpdateCheckEnabled) { try { await vm.CheckForUpdatesAsync(false); } catch { } } };
     }
     private readonly MainViewModel _vm;
     private double _zoom = 1;
-    private void Bind(Key k, ModifierKeys m, Action a) => InputBindings.Add(new KeyBinding(new RelayCommand($"Shortcut {m}+{k}", _vm.EventLog, _ => a()), k, m));
+    // ---- v0.3.0 keyboard shortcuts (table in ObdLink.Core.Ui.Shortcuts) ----
+    private static string? KeyName(Key k) => k switch
+    {
+        >= Key.F1 and <= Key.F12 => k.ToString(),
+        >= Key.A and <= Key.Z => k.ToString(),
+        >= Key.D0 and <= Key.D9 => ((int)(k - Key.D0)).ToString(),
+        >= Key.NumPad0 and <= Key.NumPad9 => ((int)(k - Key.NumPad0)).ToString(),
+        Key.Delete => "Delete", Key.Tab => "Tab", Key.Oem3 => "`", Key.OemComma => ",",
+        Key.OemPlus or Key.Add => "+", Key.OemMinus or Key.Subtract => "-",
+        _ => null,
+    };
+    private void OnShortcutKey(object sender, KeyEventArgs e)
+    {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        var name = KeyName(key); if (name is null) return;
+        var m = Keyboard.Modifiers;
+        var inText = Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase or PasswordBox or ComboBox { IsEditable: true };
+        // plain letters/digits while typing belong to the text box
+        if (m == ModifierKeys.None && name.Length == 1) return;
+        var id = ObdLink.Core.Ui.Shortcuts.Resolve(ObdLink.Core.Ui.Shortcuts.Format(name, m.HasFlag(ModifierKeys.Control), m.HasFlag(ModifierKeys.Shift), m.HasFlag(ModifierKeys.Alt)), inText);
+        if (id is null) return;
+        e.Handled = true;
+        _vm.EventLog.UserAction("Shortcut", ("id", id));
+        RunShortcut(id);
+    }
+    private static void Run(ICommand c) { if (c.CanExecute(null)) c.Execute(null); }
+    public void RunShortcut(string id)
+    {
+        var d = _vm.Dashboard;
+        switch (id)
+        {
+            case var p when p.StartsWith("page:"): Go(ObdLink.Core.Ui.Shortcuts.Pages[p[5] - '1']); break;
+            case "connect": Run(_vm.ConnectCommand); break;
+            case "disconnect": Run(_vm.DisconnectCommand); break;
+            case "identify": Run(_vm.IdentifyVehicleCommand); break;
+            case "scan": Run(_vm.ScanCommand); break;
+            case "dtcs": Go("DTCs"); Run(_vm.ReadObdDtcsCommand); break;
+            case "dtcsAll": Go("DTCs"); Run(_vm.ReadAllModuleDtcsCommand); break;
+            case "clearDtcs": Run(_vm.ClearModuleDtcsCommand); break;   // confirmation + read-only gate inside the command
+            case "readAb": Go("As-Built"); Run(_vm.ReadAsBuiltCommand); break;
+            case "readAllAb": Go("As-Built"); Run(_vm.ReadAllModulesAsBuiltCommand); break;
+            case "backup": Run(_vm.BackupAsBuiltCommand); break;
+            case "write": Run(_vm.WriteAsBuiltCommand); break;           // confirmation + read-only gate inside the command
+            case "open": Run(_vm.ImportFactoryAbCommand); break;
+            case "export": Run(_vm.ExportFactoryAbCommand); break;
+            case "capture": Run(_vm.DiagnosticsCaptureCommand); break;
+            case "exportLogs": Run(_vm.EventsPanel.ExportCommand); break;
+            case "find": FindLogs(); break;
+            case "logPanel": LogPanelMenu.IsChecked = !LogPanelMenu.IsChecked; ApplyLogPanel(); break;
+            case "console": Go("Console"); break;
+            case "settings": Go("Settings"); break;
+            case "nextPage" or "prevPage": StepPage(id == "nextPage" ? 1 : -1); break;
+            case "pause": Run(d.PauseCommand); break;
+            case "record": Run(d.RecordCommand); break;
+            case "firmware": Run(_vm.CheckFirmwareCommand); break;
+            case "guide": Go("Guide"); break;
+            case "shortcuts": ShowShortcuts(); break;
+            case "fullscreen": ToggleFullScreen(); break;
+            case "zoomIn": SetZoom(_zoom + 0.1); break;
+            case "zoomOut": SetZoom(_zoom - 0.1); break;
+            case "zoomReset": SetZoom(1); break;
+        }
+    }
+    private void StepPage(int dir)
+    {
+        var pages = ObdLink.Core.Ui.Shortcuts.Pages;
+        var i = Array.IndexOf(pages, _vm.SelectedTab); if (i < 0) i = 0;
+        Go(pages[(i + dir + pages.Length) % pages.Length]);
+    }
+    private void ShowShortcuts() => DialogService.Info(ObdLink.Core.Ui.Shortcuts.Text() + "\n\nShortcuts marked as asking first still show their confirmation; Clear DTCs and Write are blocked in read-only mode.\nWhile typing in a text box or the console, Ctrl+I/B/W and Ctrl+Shift+Delete are left to the text box.", "Keyboard shortcuts");
+    private void ShowAbout() => DialogService.Info(_vm.AboutText, "About OBDLink Diag");
+    private void Shortcuts_Click(object s, RoutedEventArgs e) => ShowShortcuts();
     private void Go(string page) => _vm.SelectedTab = page;
     private void SetZoom(double z) { _zoom = Math.Clamp(Math.Round(z, 1), 0.7, 2.0); Zoom.ScaleX = Zoom.ScaleY = _zoom; _vm.EventLog.UserAction("Zoom", ("zoom", _zoom)); }
     private WindowState _prevState; private WindowStyle _prevStyle; private bool _full;
@@ -61,9 +125,9 @@ public partial class MainWindow : Window
     private void GitHub_Click(object s, RoutedEventArgs e)
     {
         _vm.EventLog.UserAction("Open GitHub page");
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/" + ObdLink.Core.Diagnostics.UpdateChecker.Repo) { UseShellExecute = true });
+        DialogService.OpenExternal("https://github.com/" + ObdLink.Core.Diagnostics.UpdateChecker.Repo);
     }
-    private void About_Click(object s, RoutedEventArgs e) { _vm.EventLog.UserAction("About shown"); MessageBox.Show(this, _vm.AboutText, "About OBDLink Diag", MessageBoxButton.OK, MessageBoxImage.Information); }
+    private void About_Click(object s, RoutedEventArgs e) { _vm.EventLog.UserAction("About shown"); ShowAbout(); }
     // ---- dashboard customize: drag & drop reorder ----
     private Point _dragStart; private DashItemVm? _dragItem;
     private void DashItem_MouseDown(object sender, MouseButtonEventArgs e)

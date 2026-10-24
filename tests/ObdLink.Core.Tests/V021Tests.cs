@@ -19,7 +19,7 @@ public class V021Tests
     public void Tpms_entries_are_unverified_bcm_dids()
     {
         var t = Table();
-        foreach (var (k, did) in new[] { ("tpms_lf", "2813"), ("tpms_rf", "2814"), ("tpms_rr", "2815"), ("tpms_lr", "2816"), ("tpms_spare", "2817") })
+        foreach (var (k, did) in new[] { ("tpms_lf", "2813"), ("tpms_rf", "2814"), ("tpms_rr", "2815"), ("tpms_lr", "2816") })
         {
             var e = t.Pids.Single(p => p.Key == k);
             Assert.Equal("726", e.Header); Assert.Equal(did, e.Did); Assert.False(e.Verified); Assert.True(e.Enabled);
@@ -42,8 +42,8 @@ public class V021Tests
         var keys = DashCatalog.PollKeys(new DashboardLayout { Items = { new() { Key = TpmsKeys.Widget, Display = DisplayKind.Tpms } } }, true);
         eng.Configure(keys, Table().Pids.Where(p => keys.Contains(p.Key)));
         var v = await eng.PollOnceAsync(); foreach (var kv in await eng.PollOnceAsync()) v[kv.Key] = kv.Value;
-        Assert.Equal(SimulatedAdapter.TyreBaseKpa[0], v["tpms_lf"], 0);
-        Assert.Equal(SimulatedAdapter.TyreBaseKpa[2], v["tpms_rr"], 0);
+        Assert.Equal(SimulatedAdapter.TireBaseKpa[0], v["tpms_lf"], 0);
+        Assert.Equal(SimulatedAdapter.TireBaseKpa[2], v["tpms_rr"], 0);
         Assert.False(v.ContainsKey("tpms_spare"));
         Assert.DoesNotContain(eng.Scheduler.Items, i => i.Key is "gear" or "tft" or "rpm"); // only displayed items polled
     }
@@ -59,7 +59,7 @@ public class V021Tests
         Assert.False(l.Add("rpm", DisplayKind.Bar)); Assert.True(l.Add("baro", DisplayKind.Tile));
         Assert.True(l.Remove("coolant")); Assert.False(l.Remove("coolant"));
         var k = DashCatalog.PollKeys(l, true);
-        Assert.Contains("mil", k); Assert.Contains("tpms_spare", k); Assert.Contains("baro", k); Assert.DoesNotContain("coolant", k);
+        Assert.Contains("mil", k); Assert.DoesNotContain("tpms_spare", k); Assert.Contains("tpms_lf", k); Assert.Contains("baro", k); Assert.DoesNotContain("coolant", k);
         Assert.DoesNotContain("tpms", k);
         var c = l.Clone("Towing"); c.Items.Clear(); Assert.NotEmpty(l.Items);
     }
@@ -71,7 +71,7 @@ public class V021Tests
         Assert.Contains(cat, c => c.Key == "rpm"); Assert.DoesNotContain(cat, c => c.Key == "speed");
         Assert.Contains(cat, c => c.Key == "tft"); Assert.Contains(cat, c => c.Key == "tpms" && !c.Verified);
         Assert.Contains(cat, c => c.Key == "gear"); Assert.Single(cat, c => c.Key == "gear");
-        Assert.Contains(cat, c => c.Key == "tpms_lf"); // single tyres can also be tiles
+        Assert.Contains(cat, c => c.Key == "tpms_lf"); // single tires can also be tiles
     }
 
     [Fact]

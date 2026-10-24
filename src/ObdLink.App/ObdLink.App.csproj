@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OBDLinkDiag</AssemblyName>
-    <Version>0.2.2</Version>
+    <Version>0.3.0</Version>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -20,5 +20,17 @@
     <Resource Include="..\..\assets\icons\icon-*.png" Link="Assets\%(Filename)%(Extension)" />
     <Resource Include="..\..\assets\icons\icon-3.ico" Link="Assets\icon-3.ico" />
   </ItemGroup>
+  <!-- v0.3.0: embed git short hash (InformationalVersion "+hash" via SourceRevisionId) and the UTC build date. -->
+  <Target Name="ObdEmbedRevision" BeforeTargets="InitializeSourceControlInformation;GetAssemblyVersion;GenerateAssemblyInfo" Condition="'$(SourceRevisionId)' == ''">
+    <Exec Command="git rev-parse --short=8 HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="ObdGitHash" />
+      <Output TaskParameter="ExitCode" PropertyName="ObdGitExit" />
+    </Exec>
+    <PropertyGroup>
+      <SourceRevisionId Condition="'$(ObdGitExit)' == '0'">$(ObdGitHash)</SourceRevisionId>
+      <SourceRevisionId Condition="'$(ObdGitExit)' != '0'">nogit</SourceRevisionId>
+    </PropertyGroup>
+    <ItemGroup><AssemblyMetadata Include="BuildDateUtc" Value="$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm'))" /></ItemGroup>
+  </Target>
   <ItemGroup><ProjectReference Include="..\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
 </Project>

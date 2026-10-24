@@ -48,7 +48,7 @@ public sealed class AppSettings
         Dashboard.Gauges ??= DashboardOptions.DefaultGauges.ToList();
         Dashboard.Layouts ??= new();
         Dashboard.Layouts.RemoveAll(l => l is null || string.IsNullOrWhiteSpace(l.Name));
-        foreach (var l in Dashboard.Layouts) { l.Items ??= new(); l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key)); }
+        foreach (var l in Dashboard.Layouts) { l.Items ??= new(); l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key) || ObdLink.Core.Dashboard.TpmsKeys.Retired.Contains(i.Key)); }
         if (Dashboard.Layouts.Count == 0)
             Dashboard.Layouts.Add(Dashboard.Gauges.SequenceEqual(DashboardOptions.DefaultGauges) ? ObdLink.Core.Dashboard.DashboardLayout.Default() : ObdLink.Core.Dashboard.DashboardLayout.FromLegacy(Dashboard.Gauges));
         if (Dashboard.Layouts.All(l => l.Name != Dashboard.ActiveLayout)) Dashboard.ActiveLayout = Dashboard.Layouts[0].Name;
@@ -115,7 +115,7 @@ public sealed class DashboardOptions
     public double TireCircumferenceM { get; set; } = 2.62;
     public double LowVoltage { get; set; } = 11.8;
     public double OverheatC { get; set; } = 110;
-    /// <summary>Low tyre pressure warning, kPa (207 kPa = 30 psi). F-150 door-placard pressure is usually 35 psi.</summary>
+    /// <summary>Low tire pressure warning, kPa (207 kPa = 30 psi). F-150 door-placard pressure is usually 35 psi.</summary>
     public double TpmsLowKpa { get; set; } = 207;
     /// <summary>Saved dashboard layouts (v0.2.1). Empty = built from <see cref="Gauges"/> (v0.2.0 settings) or the default.</summary>
     public List<ObdLink.Core.Dashboard.DashboardLayout> Layouts { get; set; } = new();

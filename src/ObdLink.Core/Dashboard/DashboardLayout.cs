@@ -2,7 +2,7 @@ using ObdLink.Core.Obd;
 
 namespace ObdLink.Core.Dashboard;
 
-/// <summary>How one dashboard item is drawn. Tpms = the 4-tyre (+spare) top-view widget.</summary>
+/// <summary>How one dashboard item is drawn. Tpms = the 4-tire top-view widget.</summary>
 public enum DisplayKind { Dial, Bar, Tile, Lamp, Tpms }
 public enum ItemSize { Small, Large }
 
@@ -69,7 +69,9 @@ public sealed class DashboardLayout
 public static class TpmsKeys
 {
     public const string Widget = "tpms";
-    public static readonly string[] Tyres = { "tpms_lf", "tpms_rf", "tpms_rr", "tpms_lr", "tpms_spare" };
+    public static readonly string[] Tires = { "tpms_lf", "tpms_rf", "tpms_rr", "tpms_lr" };
+    /// <summary>v0.3.0: the spare (guessed DID 2817) was removed. Kept here so old saved layouts / user-edited PID tables never show or poll it.</summary>
+    public static readonly string[] Retired = { "tpms_spare" };
 }
 
 /// <summary>Everything that can be put on the dashboard.</summary>
@@ -89,7 +91,7 @@ public static class DashCatalog
         var list = new List<CatalogEntry>
         {
             new("gear", "Transmission gear (Ford DID or estimate)", "Mode 22 / estimate", new[] { DisplayKind.Tile }, false),
-            new(TpmsKeys.Widget, "Tyre pressures (top view, 4 + spare)", "BCM 726 Mode 22", new[] { DisplayKind.Tpms }, false),
+            new(TpmsKeys.Widget, "Tire pressures (top view, 4 tires)", "BCM 726 Mode 22", new[] { DisplayKind.Tpms }, false),
             new("atrv", "Battery voltage (adapter ATRV)", "Adapter", Numeric),
             new("mil", "Check engine lamp (MIL)", "Mode 01 PID 01", new[] { DisplayKind.Lamp, DisplayKind.Tile }),
             new("dtcCount", "Stored DTC count", "Mode 01 PID 01", new[] { DisplayKind.Tile, DisplayKind.Lamp }),
@@ -99,13 +101,13 @@ public static class DashCatalog
             var disp = d.Kind == GaugeKind.Circular ? new[] { DisplayKind.Dial, DisplayKind.Bar, DisplayKind.Tile, DisplayKind.Lamp } : d.Kind == GaugeKind.Tile ? new[] { DisplayKind.Tile, DisplayKind.Bar, DisplayKind.Dial, DisplayKind.Lamp } : Numeric;
             list.Add(new(d.Key, d.Name, $"Mode 01 PID {d.Pid:X2}", disp));
         }
-        foreach (var e in enhanced.Pids.Where(e => e.Key != "gear" && list.All(x => x.Key != e.Key)))
+        foreach (var e in enhanced.Pids.Where(e => e.Key != "gear" && !TpmsKeys.Retired.Contains(e.Key) && list.All(x => x.Key != e.Key)))
             list.Add(new(e.Key, e.Name, $"Mode 22 {e.Header} DID {e.Did}", e.Map != null ? new[] { DisplayKind.Tile } : Numeric, e.Verified));
         return list;
     }
 
     /// <summary>
-    /// Keys the engine must poll for a layout: only displayed items. The TPMS widget expands to its tyre DIDs; "gear" adds the gear DID
+    /// Keys the engine must poll for a layout: only displayed items. The TPMS widget expands to its tire DIDs; "gear" adds the gear DID
     /// plus RPM and speed for the estimate. "mil"/"dtcCount" both come from PID 01, which is always polled for the lamp row.
     /// </summary>
     public static HashSet<string> PollKeys(DashboardLayout layout, bool estimateGear)
@@ -113,9 +115,9 @@ public static class DashCatalog
         var keys = new HashSet<string> { "mil" };
         foreach (var it in layout.Items)
         {
-            if (it.Key == TpmsKeys.Widget) foreach (var t in TpmsKeys.Tyres) keys.Add(t);
+            if (it.Key == TpmsKeys.Widget) foreach (var t in TpmsKeys.Tires) keys.Add(t);
             else if (it.Key == "gear") { keys.Add("gear"); if (estimateGear) { keys.Add("rpm"); keys.Add("speed"); } }
-            else if (it.Key == "dtcCount") { }
+            else if (it.Key == "dtcCount" || TpmsKeys.Retired.Contains(it.Key)) { }
             else keys.Add(it.Key);
         }
         return keys;

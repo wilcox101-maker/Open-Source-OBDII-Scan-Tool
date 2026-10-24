@@ -64,11 +64,11 @@ public sealed class DashItemVm : ObservableObject
     public bool CanChangeDisplay => Displays.Length > 1;
 }
 
-/// <summary>Top-view TPMS widget: LF/RF/RR/LR + spare. Values in kPa (base), converted per Settings.</summary>
+/// <summary>Top-view TPMS widget: LF/RF/RR/LR (no spare since v0.3.0). Values in kPa (base), converted per Settings.</summary>
 public sealed class TpmsVm : ObservableObject
 {
-    public GaugeVm LF { get; init; } = null!; public GaugeVm RF { get; init; } = null!; public GaugeVm RR { get; init; } = null!; public GaugeVm LR { get; init; } = null!; public GaugeVm Spare { get; init; } = null!;
-    public IEnumerable<GaugeVm> All => new[] { LF, RF, RR, LR, Spare };
+    public GaugeVm LF { get; init; } = null!; public GaugeVm RF { get; init; } = null!; public GaugeVm RR { get; init; } = null!; public GaugeVm LR { get; init; } = null!;
+    public IEnumerable<GaugeVm> All => new[] { LF, RF, RR, LR };
     public bool AnyLow => All.Any(g => g.IsLow);
     public void Refresh() => OnPropertyChanged(nameof(AnyLow));
 }
@@ -111,7 +111,7 @@ public sealed class DashboardViewModel : ObservableObject
         OpenPidTableCommand = new("Open Ford enhanced PID table", log, _ =>
         {
             var (_, path, _) = EnhancedPidTable.LoadOrCreate(_pidDir);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            DialogService.OpenExternal(path);
         });
         CustomizeCommand = new("Dashboard customize on/off", log, _ => Customizing = !Customizing);
         MoveUpCommand = new("Dashboard move item up", log, p => Move(p as DashItemVm, -1));
@@ -208,8 +208,8 @@ public sealed class DashboardViewModel : ObservableObject
             if (entry != null && !entry.Displays.Contains(it.Display)) it.Display = entry.DefaultDisplay;
             if (it.Key == TpmsKeys.Widget)
             {
-                var t = new TpmsVm { LF = MakeGauge("tpms_lf", s), RF = MakeGauge("tpms_rf", s), RR = MakeGauge("tpms_rr", s), LR = MakeGauge("tpms_lr", s), Spare = MakeGauge("tpms_spare", s) };
-                var holder = new GaugeVm { Key = "tpms", Title = "Tyre pressures (UNVERIFIED)", Kind = GaugeKind.Tile, Note = "BCM 726 DIDs 2813-2817 (UNVERIFIED community PIDs)", Units = s.Units };
+                var t = new TpmsVm { LF = MakeGauge("tpms_lf", s), RF = MakeGauge("tpms_rf", s), RR = MakeGauge("tpms_rr", s), LR = MakeGauge("tpms_lr", s) };
+                var holder = new GaugeVm { Key = "tpms", Title = "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile, Note = "BCM 726 DIDs 2813-2817 (UNVERIFIED community PIDs)", Units = s.Units };
                 Items.Add(new DashItemVm(this, it, holder, entry) { Tpms = t });
             }
             else Items.Add(new DashItemVm(this, it, MakeGauge(it.Key, s), entry));
@@ -306,7 +306,7 @@ public sealed class DashboardViewModel : ObservableObject
         if (v.TryGetValue("dtcCount", out var n)) DtcCount = (int)n;
         if (v.TryGetValue("coolant", out var ct)) Overheat = ct >= s.Dashboard.OverheatC;
         if (v.TryGetValue("voltage", out var vv) || v.TryGetValue("atrv", out vv)) LowVoltage = vv < s.Dashboard.LowVoltage;
-        LowTire = TpmsKeys.Tyres.Any(k => _gauges.TryGetValue(k, out var g) && g.IsLow);
+        LowTire = TpmsKeys.Tires.Any(k => _gauges.TryGetValue(k, out var g) && g.IsLow);
         if (v.TryGetValue("gear", out var gr) && _enhanced.Pids.FirstOrDefault(p => p.Key == "gear") is { } gp)
         { Gear = gp.Label(gr); GearSource = $"PCM {gp.Header} DID {gp.Did} (UNVERIFIED)"; }
         else if (s.Dashboard.EstimateGear && v.TryGetValue("speed", out var kmh) && v.TryGetValue("rpm", out var rpm)

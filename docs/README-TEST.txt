@@ -1,13 +1,26 @@
-OBDLink Diag - TEST BUILD v0.2.2 (win-x64 / win-arm64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.3.0 (win-x64 / win-arm64)  2026-10-24
 =======================================================
-UNSIGNED TEST BUILD. Compiled on Linux. UNTESTED ON WINDOWS: v0.2.0 is confirmed running on
-Windows 11 Pro 24H2 (Dale, demo mode), but v0.2.1/v0.2.2 (As-Built workflow, TPMS,
-dashboard customization, firmware check) have not been run on Windows yet. Real-vehicle testing is still pending.
+UNSIGNED TEST BUILD. Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2
+(Dale, demo mode); this v0.3.0 build has not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
 
-SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Use the win-x64 zip on normal
-PCs and the win-arm64 zip on ARM PCs (Snapdragon). Windows 7, 8 and 8.1 are NOT supported: the exe
-will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in the Data folder.
+WHICH ZIP? Almost every PC needs the x64 download: ObdLinkApp-test-win-x64-v0.3.0.zip
+  ObdLinkApp-ARM64-only-v0.3.0.zip: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+  (Running the ARM64 build on a normal Intel/AMD PC gives "This app can't run on your PC".)
+  How to check: Settings > System > About > "System type".
+    "64-bit operating system, x64-based processor"  -> x64 zip
+    "64-bit operating system, ARM-based processor"  -> ARM64-only zip
+
+SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Windows 7, 8 and 8.1 are NOT
+supported: the exe will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in
+the Data folder.
+
+NEW IN v0.3.0
+- Spare tire removed from the dashboard TPMS widget (its guessed DID is no longer polled).
+- Focus fix: dialogs no longer make the window drop behind other apps.
+- "Identify vehicle" button next to Connect, on the Dashboard while not connected, and Vehicle menu (Ctrl+I).
+- Keyboard shortcuts (list below, and Help > Keyboard shortcuts / Shift+F1).
+- Help > About shows version, git revision, build date, license and credits.
 
 HOW TO RUN
 1. Unzip the WHOLE folder somewhere, e.g. C:\OBDLinkDiag. Keep the *_cor3.dll files next to the exe.
@@ -78,8 +91,8 @@ NEW IN v0.2.1
   offers to connect, scans if needed and picks the last-used module. "Read all blocks" and
   "Read all modules (backup)" save to Data\asbuilt\<date>\ with progress and Cancel. READ-ONLY.
 - DTCs page: same picker, plus "Read all modules".
-- Dashboard: tyre pressures (BCM DIDs 2813-2816, UNVERIFIED) with a truck top-view and a low-tyre
-  lamp (threshold on Settings). Tyres that do not answer show "unsupported".
+- Dashboard: tire pressures (BCM DIDs 2813-2816, UNVERIFIED) with a truck top-view and a low-tire
+  lamp (threshold on Settings). Tires that do not answer show "unsupported".
 - Dashboard -> Customize: add/remove items, dial/bar/tile/lamp, Large, drag or up/down to
   reorder, Reset, save named layouts. Only items shown are polled.
 
@@ -108,3 +121,37 @@ NEW IN v0.1.5
 - "Get factory As-Built (Motorcraft)" opens motorcraftservice.com/AsBuilt in your browser and
   copies the VIN (Ford needs a sign-in + captcha). Then "Import downloaded .ab".
 Try all of it on DEMO-MX+ first.
+
+KEYBOARD SHORTCUTS (also Help > Keyboard shortcuts, Shift+F1):
+  F5                   Connect
+  Shift+F5             Disconnect
+  Ctrl+I               Identify vehicle (VIN, modules, profile)
+  Ctrl+M               Scan modules
+  Ctrl+D               Read OBD-II DTCs
+  Ctrl+Shift+D         Read DTCs from all modules
+  Ctrl+Shift+Delete    Clear DTCs of the selected module (asks first; blocked in read-only mode)
+  Ctrl+R               Read As-Built of the selected module
+  Ctrl+Shift+R         Read all modules' As-Built (backup)
+  Ctrl+B               Backup As-Built
+  Ctrl+W               Write + verify As-Built (asks first; blocked in read-only mode)
+  Ctrl+O               Open factory .ab
+  Ctrl+S               Export factory .ab
+  Ctrl+Alt+C           Save diagnostics capture (zip; was Ctrl+Shift+D)
+  Ctrl+E               Export events log
+  Ctrl+F               Find in logs
+  Ctrl+L               Show / hide log panel
+  Ctrl+`               Raw console
+  Ctrl+,               Settings
+  Alt+1..9             Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings)
+  Ctrl+Tab             Next page
+  Ctrl+Shift+Tab       Previous page
+  Ctrl+P               Pause / resume dashboard
+  Ctrl+Shift+P         Record dashboard CSV
+  Ctrl+Alt+F           Check adapter firmware
+  F1                   Guide
+  Shift+F1             Keyboard shortcuts list
+  F11                  Full screen
+  Ctrl++               Zoom in
+  Ctrl+-               Zoom out
+  Ctrl+0               Reset zoom
+  Alt+F4               Exit

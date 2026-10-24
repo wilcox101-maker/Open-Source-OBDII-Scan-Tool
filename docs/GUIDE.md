@@ -101,6 +101,8 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 `NO DATA` means no module answered at that header on the current bus (wrong bus, wrong address, or ignition off). `?` means the adapter did not understand the command. The **ERR** LED in the header flashes for both and for any NRC.
 
 ## Identify / scan a new vehicle
+Use **Identify vehicle** (Ctrl+I): the button next to Connect in the header, the button on the Dashboard when not connected, or Vehicle → Identify vehicle.
+
 
 Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-only: it only sends `09 02`, `3E 00` and `22 xxxx` (ReadDataByIdentifier).
 
@@ -118,7 +120,7 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
 - Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
-- **Tyre pressures**: a truck top-view shows LF/RF/RR/LR (+ spare) from BCM 0x726 DIDs 2813-2817 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tyre threshold (Settings, default 30 psi) a tyre turns red and the "Low tyre" lamp lights. "unsupported" means the BCM did not answer.
+- **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
 - **Customize**: click Customize, then add items from the catalog, remove them (✕), pick dial/bar/tile/lamp and Large, and drag or use ▲ ▼ to reorder. "Save as" stores a named layout; pick layouts from the Layout box; Reset restores the default. Only the items on the dashboard are polled.
 - Units and refresh rate are on the **Settings** page.
 
@@ -126,7 +128,42 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 Open **As-Built** and pick a module (only modules with As-Built blocks are listed unless "Show all modules" is ticked). If you are not connected the app offers to connect, and it scans first if needed. **Read all blocks** saves the module to `Data\asbuilt\<date>\`; **Read all modules (backup)** backs up every As-Built module that answered, with progress and Cancel. Everything is read-only. The DTCs page has the same picker and **Read all modules**.
 
 ## Keyboard shortcuts
-Ctrl+O open factory .ab, F5 connect, Shift+F5 disconnect, Ctrl+Shift+D capture, Ctrl+F find in logs, Ctrl+L log panel, Ctrl +/-/0 zoom, F11 full screen, F1 this guide.
+Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next to the item. While you type in a text box or the console, Ctrl+I, Ctrl+B, Ctrl+W and Ctrl+Shift+Delete are left to the text box. Clear DTCs and Write still ask first and are blocked in read-only mode. The menus also have Alt access keys (Alt+F = File, Alt+E = Edit, Alt+V = View, Alt+H = Help, and so on).
+
+| Shortcut | Action |
+|---|---|
+| F5 | Connect |
+| Shift+F5 | Disconnect |
+| Ctrl+I | Identify vehicle (VIN, modules, profile) |
+| Ctrl+M | Scan modules |
+| Ctrl+D | Read OBD-II DTCs |
+| Ctrl+Shift+D | Read DTCs from all modules |
+| Ctrl+Shift+Delete | Clear DTCs of the selected module (asks first; blocked in read-only mode) |
+| Ctrl+R | Read As-Built of the selected module |
+| Ctrl+Shift+R | Read all modules' As-Built (backup) |
+| Ctrl+B | Backup As-Built |
+| Ctrl+W | Write + verify As-Built (asks first; blocked in read-only mode) |
+| Ctrl+O | Open factory .ab |
+| Ctrl+S | Export factory .ab |
+| Ctrl+Alt+C | Save diagnostics capture (zip; was Ctrl+Shift+D) |
+| Ctrl+E | Export events log |
+| Ctrl+F | Find in logs |
+| Ctrl+L | Show / hide log panel |
+| Ctrl+` | Raw console |
+| Ctrl+, | Settings |
+| Alt+1..9 | Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
+| Ctrl+Tab | Next page |
+| Ctrl+Shift+Tab | Previous page |
+| Ctrl+P | Pause / resume dashboard |
+| Ctrl+Shift+P | Record dashboard CSV |
+| Ctrl+Alt+F | Check adapter firmware |
+| F1 | Guide |
+| Shift+F1 | Keyboard shortcuts list |
+| F11 | Full screen |
+| Ctrl++ | Zoom in |
+| Ctrl+- | Zoom out |
+| Ctrl+0 | Reset zoom |
+| Alt+F4 | Exit |
 
 ## Header LEDs
 

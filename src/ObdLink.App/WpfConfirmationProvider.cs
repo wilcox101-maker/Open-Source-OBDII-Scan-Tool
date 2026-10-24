@@ -1,5 +1,4 @@
 using System.Windows;
-using Microsoft.VisualBasic;
 using ObdLink.Core.Safety;
 
 namespace ObdLink.App;
@@ -10,8 +9,8 @@ public sealed class WpfConfirmationProvider(Window owner) : IConfirmationProvide
     public Task<bool> ConfirmAsync(ConfirmationStep step, CancellationToken ct = default)
     {
         if (step.TypedPhrase is null)
-            return Task.FromResult(MessageBox.Show(owner, step.Message, step.Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
-        var typed = Interaction.InputBox(step.Message, step.Title, "");
+            return Task.FromResult(DialogService.YesNo(step.Message, step.Title, MessageBoxImage.Warning));
+        var typed = DialogService.Prompt(step.Message, step.Title);
         return Task.FromResult(typed == step.TypedPhrase);
     }
 }

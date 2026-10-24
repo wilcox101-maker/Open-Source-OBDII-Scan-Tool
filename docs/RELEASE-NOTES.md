@@ -1,8 +1,62 @@
 # Release notes
 
+## v0.3.0-test
+
+**Untested on Windows (new build).** Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. The exe is still **unsigned**. Ford products only. Portable, no installer; Windows 10 1607+ / Windows 11, x64 and ARM64.
+
+**Download `ObdLinkApp-test-win-x64-v0.3.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download. Running it on an x64 PC gives "This app can't run on your PC". To check: Settings → System → About → System type ("x64-based processor" = x64 zip).
+
+- **Spare tire removed** from the dashboard TPMS widget and the catalog, and its guessed DID (2817) is no longer polled. Saved layouts and older `Data\ford-enhanced-pids.json` copies that still list `tpms_spare` are ignored. Spelling is now "tire" everywhere.
+- **Window focus fix.** Some actions made the window drop behind other apps. Causes found and fixed:
+  - Message boxes shown without an owner (errors, Yes/No confirmations, the "Connect now?" prompt, info boxes, startup notices).
+  - Open/Save file dialogs (`ShowDialog()` without an owner), including log export.
+  - The typed-confirmation prompt used the Visual Basic `InputBox`, which has no owner. It is now an owned WPF prompt.
+  - Dialogs could be raised from a background thread after an awaited adapter call.
+  - All of these now go through one `DialogService`. It always sets the main window as owner, runs on the UI thread and re-activates the main window afterwards. Opening Explorer or the browser (data folder, firmware folder, GitHub, Motorcraft) still moves focus there, which is expected.
+  - A unit test fails the build if `MessageBox.Show(`, `ShowDialog()`, `InputBox` or `Process.Start(` appear anywhere else.
+- **Identify vehicle** button next to Connect in the header, on the Dashboard while not connected, and in the Vehicle menu (Ctrl+I).
+- **Keyboard shortcuts** for most tasks, shown in the menus and tooltips and listed under Help → Keyboard shortcuts (Shift+F1) and in the Guide. Diagnostics capture moved from Ctrl+Shift+D to **Ctrl+Alt+C**; Ctrl+Shift+D now reads DTCs from all modules. Shortcuts that would clash with typing are ignored while a text box or the console has focus. Clear DTCs and Write still ask first and are blocked in read-only mode. The menus have Alt access keys.
+- **Help → About** shows the version, git revision and build date, the MIT license, supported Windows, credits ("Built by OBDLink MX+ Windows App (Grok Bot) for Dale Wilcox"; community data from Livnitup, f150forum and jdunk54nl) and the GitHub link.
+- **Tools → Check adapter firmware** (Ctrl+Alt+F) runs the firmware check on demand.
+
+| Shortcut | Action |
+|---|---|
+| F5 | Connect |
+| Shift+F5 | Disconnect |
+| Ctrl+I | Identify vehicle (VIN, modules, profile) |
+| Ctrl+M | Scan modules |
+| Ctrl+D | Read OBD-II DTCs |
+| Ctrl+Shift+D | Read DTCs from all modules |
+| Ctrl+Shift+Delete | Clear DTCs of the selected module (asks first; blocked in read-only mode) |
+| Ctrl+R | Read As-Built of the selected module |
+| Ctrl+Shift+R | Read all modules' As-Built (backup) |
+| Ctrl+B | Backup As-Built |
+| Ctrl+W | Write + verify As-Built (asks first; blocked in read-only mode) |
+| Ctrl+O | Open factory .ab |
+| Ctrl+S | Export factory .ab |
+| Ctrl+Alt+C | Save diagnostics capture (zip; was Ctrl+Shift+D) |
+| Ctrl+E | Export events log |
+| Ctrl+F | Find in logs |
+| Ctrl+L | Show / hide log panel |
+| Ctrl+` | Raw console |
+| Ctrl+, | Settings |
+| Alt+1..9 | Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
+| Ctrl+Tab | Next page |
+| Ctrl+Shift+Tab | Previous page |
+| Ctrl+P | Pause / resume dashboard |
+| Ctrl+Shift+P | Record dashboard CSV |
+| Ctrl+Alt+F | Check adapter firmware |
+| F1 | Guide |
+| Shift+F1 | Keyboard shortcuts list |
+| F11 | Full screen |
+| Ctrl++ | Zoom in |
+| Ctrl+- | Zoom out |
+| Ctrl+0 | Reset zoom |
+| Alt+F4 | Exit |
+
 ## v0.2.2-test
 
-**UNTESTED ON WINDOWS.** Compiled on Linux. v0.2.0-test is confirmed running on Windows 11 Pro 24H2; v0.2.1 and v0.2.2 have not been run on Windows yet. The exe is still **unsigned**. Ford products only.
+**Tested on Windows 11 Pro 24H2 (demo mode)** by Dale. Compiled on Linux. The exe is still **unsigned**. Ford products only.
 
 **Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe.
 
@@ -22,7 +76,7 @@
 
 ## v0.2.1-test
 
-**UNTESTED ON WINDOWS.** Compiled on Linux. **v0.2.0-test is confirmed running on Windows 11 Pro 24H2** (Dale, simulator/demo mode); this v0.2.1 build has not been run on Windows yet. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.
+**Tested on Windows 11 Pro 24H2 (demo mode)** by Dale. Compiled on Linux. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.
 
 - **As-Built workflow.**
   - The As-Built page has its own module picker. Each entry shows the acronym, full name, CAN address, bus, scan result and the date of the newest backup.
@@ -34,12 +88,12 @@
   - MS-CAN modules switch the adapter to MS-CAN 125k (MX+ / EX) and back automatically.
   - The Modules list has an "As-Built backup" column.
 - **DTCs.** The DTCs page uses the same module picker and auto-connect / auto-scan / auto-pick flow. A new **Read all modules** button reads 19 02 from every module that answered, with progress and cancel.
-- **Tyre pressures (TPMS)**, **UNVERIFIED**.
+- **Tire pressures (TPMS)**, **UNVERIFIED**.
   - Read from BCM 0x726 Mode 22 DIDs 2813 (LF), 2814 (RF), 2815 (RR) and 2816 (LR), using the community Torque Pro Ford PIDs (kPa = raw/3 + 22/3). DID 2817 (spare) is a guess.
   - All five entries are in `Data\ford-enhanced-pids.json`, so you can edit them.
-  - The dashboard shows a top-view truck widget with the four tyres and the spare.
-  - Pressures are shown in psi or kPa, per Settings. A tyre below the Settings threshold (default 30 psi / 207 kPa) turns red and lights the "Low tyre" lamp.
-  - A tyre that never answers is shown as "unsupported".
+  - The dashboard shows a top-view truck widget with the four tires and the spare.
+  - Pressures are shown in psi or kPa, per Settings. A tire below the Settings threshold (default 30 psi / 207 kPa) turns red and lights the "Low tire" lamp.
+  - A tire that never answers is shown as "unsupported".
   - The simulator reports about 36 psi (RR a little low) and has no spare sensor, so you can see the "unsupported" case.
 - **Dashboard customization.**
   - **Customize** button: add any item from a catalog of the supported Mode 01 PIDs (after connecting), the Ford Mode 22 DIDs, TPMS, gear, battery (ATRV), MIL and DTC count. Remove items with the ✕ button.
@@ -50,7 +104,7 @@
   - Layouts are saved to `Data\settings.json`. v0.2.0 gauge lists are migrated.
   - **Only the items on the dashboard are polled.**
   - Items that the vehicle does not support show "unsupported".
-- **Settings.** The free-text gauge list is replaced by Customize. There is a new low-tyre threshold.
+- **Settings.** The free-text gauge list is replaced by Customize. There is a new low-tire threshold.
 
 ## v0.2.0-test
 
@@ -72,7 +126,7 @@
   - Warning lamps: MIL, DTC count, link, low voltage and overheat.
   - Min, max and average for each gauge, with warning thresholds.
   - Pause, reset stats and CSV recording to `Data\logs\dashboard-*.csv`.
-- **Gear.** The current gear comes from a Ford DID when one is enabled in `Data\ford-enhanced-pids.json`. Those DIDs are **UNVERIFIED** and off by default. Otherwise the gear is estimated from RPM, speed, gear ratios and tyre size, and labelled "est.".
+- **Gear.** The current gear comes from a Ford DID when one is enabled in `Data\ford-enhanced-pids.json`. Those DIDs are **UNVERIFIED** and off by default. Otherwise the gear is estimated from RPM, speed, gear ratios and tire size, and labelled "est.".
 - Gauges are drawn by the app itself, with no third-party gauge libraries.
 - The simulator plays a drive cycle (idle, accelerate, cruise, brake), so the dashboard moves in DEMO mode.
 - **Help menu.** It has the Guide, Console help, Check for updates (asks before going online unless you turned on automatic checks), the GitHub page and About.

@@ -35,11 +35,11 @@ public partial class App : Application
             try { Migration = paths.MigrateFrom(ObdLink.Core.Storage.AppPaths.DefaultLegacyDir); }
             catch (Exception ex) { Report("Data folder migration", ex, fatal: false); }
             if (paths.ShouldShowFallbackNotice())
-                MessageBox.Show($"The folder this app runs from is not writable:\n{paths.FallbackReason}\n\nLogs, captures, backups and settings will be stored in:\n{paths.DataDir}\n\nTo keep everything next to the app, move the app folder somewhere writable (e.g. Documents or a USB drive).",
+                DialogService.Show($"The folder this app runs from is not writable:\n{paths.FallbackReason}\n\nLogs, captures, backups and settings will be stored in:\n{paths.DataDir}\n\nTo keep everything next to the app, move the app folder somewhere writable (e.g. Documents or a USB drive).",
                     "OBDLinkDiag data folder", MessageBoxButton.OK, MessageBoxImage.Information);
             // .NET 8 needs Windows 10 1607 (build 14393) or Windows 11; older Windows normally cannot start the exe at all.
             if (OperatingSystem.IsWindows() && !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 14393))
-                MessageBox.Show($"This Windows version ({Environment.OSVersion.VersionString}) is not supported.\n\nOBDLink Diag needs Windows 10 version 1607 or later, or Windows 11 (x64). Windows 7 and 8.1 are not supported. The app may not work correctly.",
+                DialogService.Show($"This Windows version ({Environment.OSVersion.VersionString}) is not supported.\n\nOBDLink Diag needs Windows 10 version 1607 or later, or Windows 11 (x64). Windows 7 and 8.1 are not supported. The app may not work correctly.",
                     "OBDLinkDiag - unsupported Windows", MessageBoxButton.OK, MessageBoxImage.Warning);
             var w = new MainWindow();
             MainWindow = w;
@@ -78,7 +78,7 @@ public partial class App : Application
         try
         {
             var inner = ex; while (inner?.InnerException != null) inner = inner.InnerException;
-            MessageBox.Show($"{(fatal ? "OBDLinkDiag failed to start / crashed." : "OBDLinkDiag hit an unexpected error.")}\n\n{inner?.GetType().Name}: {inner?.Message}\n\nDetails saved to:\n{(paths.Count > 0 ? string.Join("\n", paths) : "(could not write crash file)")}",
+            DialogService.Show($"{(fatal ? "OBDLinkDiag failed to start / crashed." : "OBDLinkDiag hit an unexpected error.")}\n\n{inner?.GetType().Name}: {inner?.Message}\n\nDetails saved to:\n{(paths.Count > 0 ? string.Join("\n", paths) : "(could not write crash file)")}",
                 "OBDLinkDiag error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch { }

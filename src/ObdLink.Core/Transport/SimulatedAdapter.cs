@@ -138,15 +138,15 @@ public sealed class SimulatedAdapter
     private byte[] Read(uint tx, ushort did) =>
         tx == 0x7E0 && did == 0x1E12 ? new byte[] { 0x62, 0x1E, 0x12, (byte)DriveCycle.At(Clock()).Gear } :
         tx == 0x7E0 && did == 0x1E1C ? Tft() :
-        tx == 0x726 && did is >= 0x2813 and <= 0x2816 ? Tyre(did) :
+        tx == 0x726 && did is >= 0x2813 and <= 0x2816 ? Tire(did) :
         tx == 0x7E0 && did == 0xF190 ? new byte[] { 0x62, 0xF1, 0x90 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray() :
         Dids.TryGetValue(tx, out var d) && d.TryGetValue(did, out var v) ? new byte[] { 0x62, (byte)(did >> 8), (byte)did }.Concat(v).ToArray() : new byte[] { 0x7F, 0x22, 0x31 };
 
-    /// <summary>SYNTHETIC TPMS (BCM 726 DIDs 2813-2816): about 35-37 psi warming up with the drive cycle, RR a little low. No spare sensor (2817 gives NRC 31).</summary>
-    public static readonly double[] TyreBaseKpa = { 245, 247, 226, 244 };
-    private byte[] Tyre(ushort did)
+    /// <summary>SYNTHETIC TPMS (BCM 726 DIDs 2813-2816): about 35-37 psi warming up with the drive cycle, RR a little low. Other DIDs give NRC 31.</summary>
+    public static readonly double[] TireBaseKpa = { 245, 247, 226, 244 };
+    private byte[] Tire(ushort did)
     {
-        var kpa = TyreBaseKpa[did - 0x2813] + Math.Min(8, Clock() / 15);
+        var kpa = TireBaseKpa[did - 0x2813] + Math.Min(8, Clock() / 15);
         var raw = (ushort)Math.Round((kpa - 22.0 / 3) * 3);
         return new byte[] { 0x62, (byte)(did >> 8), (byte)did, (byte)(raw >> 8), (byte)raw };
     }

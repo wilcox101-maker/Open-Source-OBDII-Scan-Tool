@@ -22,17 +22,17 @@ On Windows, choose **DEMO (simulated)** in the Port box to try the UI without an
 
 ## Supported Windows / portable
 
-**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe. There is no installer and none is planned.
+**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; **x64: download `ObdLinkApp-test-win-x64-v<version>.zip` (almost all PCs).** `ObdLinkApp-ARM64-only-v<version>.zip` is for Snapdragon/ARM Windows PCs only; most PCs need the x64 download (check Settings → System → About → System type). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe. There is no installer and none is planned.
 
 ## Tested platforms
 | Platform | Build | Mode | Result |
 |---|---|---|---|
 | Windows 11 Pro 24H2 (x64) | v0.1.3-test, v0.1.4-test | Simulator / demo (DEMO-MX+, DEMO-EX) | Run and tested by Dale |
-| Windows 11 Pro 24H2 (x64) | v0.2.0-test | Simulator / demo | Runs - confirmed by Dale ("looking really good") |
-| Windows | v0.2.1-test, v0.2.2-test | - | **Untested** |
+| Windows 11 Pro 24H2 (x64) | v0.2.0-test, v0.2.1-test, v0.2.2-test | Simulator / demo | Run and tested by Dale |
+| Windows | v0.3.0-test | - | **Untested** (new build) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | - | - | **Pending** |
 
-Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0 is confirmed running on Windows 11 Pro 24H2; v0.2.1 (As-Built workflow, TPMS, dashboard customization) is untested on Windows.
+Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale; v0.3.0 has not been run on Windows yet.
 
 ## Verified facts and sources
 | Item | Value | Source |

@@ -215,7 +215,7 @@ public sealed class MainViewModel : ObservableObject
     public int DashboardRefreshMs { get => _settings.Dashboard.RefreshMs; set => S(() => _settings.Dashboard.RefreshMs = value, "dashboard refresh ms (applies when the dashboard restarts)", value, nameof(DashboardRefreshMs)); }
     public bool DashboardFordPids { get => _settings.Dashboard.FordEnhancedPids; set => S(() => _settings.Dashboard.FordEnhancedPids = value, "Ford enhanced PIDs (Mode 22, UNVERIFIED)", value, nameof(DashboardFordPids)); }
     public bool DashboardEstimateGear { get => _settings.Dashboard.EstimateGear; set => S(() => _settings.Dashboard.EstimateGear = value, "estimate gear from RPM/speed", value, nameof(DashboardEstimateGear)); }
-    /// <summary>Low tyre pressure threshold shown in the Settings pressure unit; stored in kPa.</summary>
+    /// <summary>Low tire pressure threshold shown in the Settings pressure unit; stored in kPa.</summary>
     public double TpmsLowThreshold
     {
         get => Math.Round(Units.ConvertOnly(_settings.Dashboard.TpmsLowKpa, Quantity.Pressure, _settings.Units), 1);
@@ -233,7 +233,10 @@ public sealed class MainViewModel : ObservableObject
         EventLog.Message(LogEventLevel.Information, "Update check", text);
         if (manual || r.Newer) Info("Check for updates", text);
     }
-    public string AboutText => $"OBDLink Diag {AppVersion}-test (Ford-only, open source, MIT)\n\nOBDLink EX / MX+ diagnostics for Ford vehicles: dashboard (read-only Mode 01 / 22), module scan, DTCs, As-Built backup/compare, raw console.\n\nData folder: {DataDir}\nhttps://github.com/{UpdateChecker.Repo}\n\nTEST BUILD: use at your own risk. Read-only mode is ON by default.";
+    public static string InformationalVersion => typeof(MainViewModel).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "?";
+    public static string Revision { get { var v = InformationalVersion; var i = v.IndexOf('+'); return i < 0 ? "unknown" : v[(i + 1)..]; } }
+    public static string BuildDate => typeof(MainViewModel).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false).OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "BuildDateUtc")?.Value is { } d ? d + " UTC" : "unknown";
+    public string AboutText => $"OBDLink Diag {AppVersion}-test\nRevision {Revision}, built {BuildDate}\n\nOBDLink EX / MX+ diagnostics for Ford vehicles (Ford-only): dashboard (read-only Mode 01 / 22), module scan, DTCs, As-Built backup/compare, raw console, firmware check.\n\nLicense: MIT (open source). Portable, no installer.\nSupported OS: Windows 10 1607+ / Windows 11 (x64 and ARM64). Windows 7 / 8.1 not supported.\n\nCredits:\n  Built by OBDLink MX+ Windows App (Grok Bot) for Dale Wilcox.\n  As-Built / PID community data: Livnitup, f150forum.com, jdunk54nl.\n\nhttps://github.com/{UpdateChecker.Repo}\nData folder: {DataDir}\n\nTEST BUILD: use at your own risk. Read-only mode is ON by default.";
 
     private void SaveSettings() { try { _settings.Save(SettingsPath); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Settings", "Could not save settings", ex); } }
     private WriteGate Gate => new(() => _settings.ReadOnlyTestMode);
@@ -309,24 +312,24 @@ public sealed class MainViewModel : ObservableObject
     private bool Ask(string title, string message, MessageBoxImage icon = MessageBoxImage.Question)
     {
         var op = EventLog.Begin("Confirmation dialog", ("title", title));
-        var ok = MessageBox.Show(message, title, MessageBoxButton.YesNo, icon) == MessageBoxResult.Yes;
+        var ok = DialogService.YesNo(message, title, icon);
         if (ok) op.Succeeded("Accepted: " + title); else op.Cancelled("User answered No");
         return ok;
     }
-    private void Info(string title, string message) { EventLog.UserAction("Info dialog shown", ("title", title)); MessageBox.Show(message, title); }
+    private void Info(string title, string message) { EventLog.UserAction("Info dialog shown", ("title", title)); DialogService.Info(message, title); }
 
     // v0.1.5: every dialog starts in a Data\<subfolder> (never the working directory) and logs the full chosen path.
     private string OpenFile(string purpose, string filter, string initialDir)
     {
         var dlg = new OpenFileDialog { Filter = filter, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
-        if (dlg.ShowDialog() != true) throw new UserCancelledException($"{purpose}: open dialog cancelled");
+        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: open dialog cancelled");
         EventLog.UserAction("File chosen for import", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
     private string SaveFile(string purpose, string filter, string name, string initialDir)
     {
         var dlg = new SaveFileDialog { Filter = filter, FileName = name, InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(initialDir), RestoreDirectory = true };
-        if (dlg.ShowDialog() != true) throw new UserCancelledException($"{purpose}: save dialog cancelled");
+        if (DialogService.ShowFileDialog(dlg) != true) throw new UserCancelledException($"{purpose}: save dialog cancelled");
         EventLog.UserAction("File chosen for export", ("purpose", purpose), ("path", dlg.FileName));
         return dlg.FileName;
     }
@@ -340,7 +343,7 @@ public sealed class MainViewModel : ObservableObject
         OpenDataFolderCommand = new("Open data folder", log, _ =>
         {
             Directory.CreateDirectory(Paths.DataDir);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Paths.DataDir}\"") { UseShellExecute = true });
+            DialogService.OpenExternal("explorer.exe", $"\"{Paths.DataDir}\"");
         });
         _confirm = new LoggingConfirmationProvider(confirm, EventLog);
         EventsPanel = new("Events", LogChannel.Events, EventLog, LogEventLevel.Verbose);
@@ -357,7 +360,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var text = ErrorText.ForOperation(op, ex);
             EventLog.Message(LogEventLevel.Error, op, text, ex);
-            MessageBox.Show(text, op + " - error", MessageBoxButton.OK, MessageBoxImage.Error);
+            DialogService.Error(text, op + " - error");
         }
         // Every adapter command holds the shared bus lock so the dashboard poller never interleaves with it.
         AsyncCommand C(string name, Func<Task> f, Func<(string, object?)[]>? p = null) => new(name, EventLog, async () => { await _bus.WaitAsync(); try { await f(); } finally { _bus.Release(); } }, Err, p);
@@ -509,7 +512,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var vin = _current?.Vin is { Length: 17 } cv ? cv : _vin.Length == 17 ? _vin : null;
             if (vin != null) { try { Clipboard.SetText(vin); } catch { } }
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(MotorcraftAsBuiltUrl) { UseShellExecute = true });
+            DialogService.OpenExternal(MotorcraftAsBuiltUrl);
             EventLog.Message(LogEventLevel.Information, "Motorcraft As-Built", $"Opened {MotorcraftAsBuiltUrl} in the browser{(vin != null ? "; VIN copied to clipboard" : "")}. Sign in, pass the captcha, download the .ab, then use Import .ab here (it is copied into {Paths.AsBuiltDir}).");
             return Task.CompletedTask;
         });
@@ -578,7 +581,7 @@ public sealed class MainViewModel : ObservableObject
             Paths.CapturesDir, new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Capture", m)));
         await SelectDiagProtocol();
         EventLog.Message(LogEventLevel.Information, "Capture", $"Saved {path} ({logs.Count} log files included)");
-        try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); } catch { }
+        try { DialogService.OpenExternal("explorer.exe", $"/select,\"{path}\""); } catch { }
         Info("Diagnostics capture", $"Capture saved:\n{path}\n\nSend this zip back. " + (CaptureRedactVins ? "VINs were redacted." : "(It is NOT redacted: it may include your VIN and adapter serial.)"));
     }
     private AsBuiltService AsBuilt => _asBuilt ?? throw new InvalidOperationException("Not connected - click Connect first");
@@ -631,6 +634,7 @@ public sealed class MainViewModel : ObservableObject
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
+            _lastSti = info.StnId;
             _ = RunFirmwareCheckAsync(info.StnId);
         }
         catch (Exception ex)
@@ -670,16 +674,24 @@ public sealed class MainViewModel : ObservableObject
     private void InitFirmwareCommands(Action<string, Exception> Err)
     {
         DownloadFirmwareCommand = new AsyncCommand("Download firmware", EventLog, DownloadFirmwareAsync, Err);
-        OpenFirmwareFolderCommand = new RelayCommand("Open firmware folder", EventLog, _ => { var d = _fwFolder ?? ObdLink.Core.Storage.AppPaths.Ensure(FirmwareRoot); try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{d}\"") { UseShellExecute = true }); } catch { } });
-        OpenFirmwarePageCommand = new RelayCommand("Open firmware page", EventLog, _ => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(FirmwarePage) { UseShellExecute = true }); } catch { } });
+        OpenFirmwareFolderCommand = new RelayCommand("Open firmware folder", EventLog, _ => { var d = _fwFolder ?? ObdLink.Core.Storage.AppPaths.Ensure(FirmwareRoot); try { DialogService.OpenExternal("explorer.exe", $"\"{d}\""); } catch { } });
+        OpenFirmwarePageCommand = new RelayCommand("Open firmware page", EventLog, _ => { try { DialogService.OpenExternal(FirmwarePage); } catch { } });
         DismissFirmwareCommand = new RelayCommand("Dismiss firmware notice", EventLog, _ => FirmwareBannerVisible = false);
     }
     private void FwChanged() { foreach (var n in new[] { nameof(FirmwareCanDownload), nameof(FirmwareHasFolder), nameof(FirmwarePage) }) OnPropertyChanged(n); }
 
     /// <summary>Runs after connect, in the background. Silent when offline; never blocks or flashes anything.</summary>
-    private async Task RunFirmwareCheckAsync(string? sti)
+    private string? _lastSti;
+    public AsyncCommand CheckFirmwareCommand => _checkFw ??= new("Check adapter firmware", EventLog, async () =>
     {
-        if (!_settings.FirmwareCheck) return;
+        if (!IsConnected || _lastSti is null) { Info("Firmware check", "Connect to the adapter first (F5); the check needs its STN chip id."); return; }
+        await RunFirmwareCheckAsync(_lastSti, force: true);
+        if (_fw is { } r) Info("Firmware check", r.Message);
+    }, (op, ex) => DialogService.Error(ErrorText.ForOperation(op, ex), op + " - error"));
+    private AsyncCommand? _checkFw;
+    private async Task RunFirmwareCheckAsync(string? sti, bool force = false)
+    {
+        if (!_settings.FirmwareCheck && !force) return;
         try
         {
             var r = await new FirmwareChecker().CheckAsync(sti);
@@ -774,7 +786,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsConnected && _ch != null) return true;
         var port = SelectedPort?.Name ?? DemoMx.Name;
-        if (MessageBox.Show($"Not connected. Connect to {port} now?", "Connect", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (!DialogService.YesNo($"Not connected. Connect to {port} now?", "Connect"))
         { ModuleHint = "Connect first (toolbar Connect, or F5). A DEMO port works without a vehicle."; EventLog.UserAction("Auto-connect declined"); return false; }
         EventLog.UserAction("Auto-connect accepted", ("port", port));
         await ConnectAsync();
