@@ -6,6 +6,17 @@
 
 **Download `ObdLinkApp-test-win-x64-v0.3.2.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.3.2.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
 
+**Fix: a DEMO vehicle profile stayed selected after connecting the real EX** (Identify/Vehicle showed VIN ...000001, F188=DEMO-..., and only IPC/BCM/PCM/ACM).
+- Cause: "Identify vehicle" on the DEMO adapter saved a profile to Data\vehicles and selected it. That stayed selected when you switched to COM4, so the module list (and the buses they were tried on) came from the simulator.
+- Profiles are now tagged as demo (and v0.3.1 demo profiles are recognised by the synthetic VIN / DEMO part numbers) and shown as "[DEMO] ...". When a real adapter connects, a demo profile is dropped, the built-in Ford module table is loaded, and the module list is rebuilt on every connect. All services (identify, scan, DTCs, As-Built) always use the connected adapter.
+
+**Fix: the Module box showed "ObdLink.App.ModuleRow"** - it now shows the module name, address and bus everywhere.
+
+**Fix: reading DTCs (19 02) from IPC 0x720 gave TimeoutException.**
+- Your capture showed BCM 0x726 and PCM 0x7E0 answering on HS-CAN. IPC 0x720 did not answer on HS-CAN, and MS-CAN at 125k gave CAN ERROR. On a 2015+ F-150 the pins 3/11 bus is HS-CAN2 at 500k, so the app now tries HS-CAN, then HS-CAN2 (pins 3/11 at 500k), then MS-CAN (125k), and remembers the bus that answers. Scan modules does the same retry.
+- Requests now set flow control (ATFCSH/ATFCSD/ATFCSM1) and a longer adapter timeout (ATST96). UDS 19/22/31 requests get 5 s instead of 1.5 s (the PCM DTC list took longer than 1.5 s).
+- If nothing answers, you get a friendly message suggesting Scan modules and the ignition, instead of TimeoutException. Raw traffic is in the Events log.
+
 **Fix: the port list stayed on "SIM DEMO-MX+" and the real OBDLink EX (USB, FTDI COM port) never got picked, so the dashboard showed simulated data.**
 - Cause: the DEMO entries were added at the top of the list and the app selected the first entry. It also kept the previous selection on refresh, so DEMO stuck. Connect/auto-connect also fell back to DEMO when nothing was selected.
 - The port list now shows every COM port: `SerialPort.GetPortNames` (registry) merged with WMI `Win32_PnPEntity` (Device Manager names), sorted by number. Real ports come first, DEMO last.

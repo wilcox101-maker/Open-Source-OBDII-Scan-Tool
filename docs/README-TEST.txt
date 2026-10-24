@@ -177,3 +177,9 @@ KEYBOARD SHORTCUTS (also Help > Keyboard shortcuts, Shift+F1):
   Ctrl+-               Zoom out
   Ctrl+0               Reset zoom
   Alt+F4               Exit
+
+v0.3.2 ALSO FIXES
+- A DEMO vehicle profile ([DEMO], VIN ...000001) is never used on the real adapter. If you see one, pick
+  "2017 Ford F-150" or click Identify vehicle again while connected to COM4 (you may delete the old file in Data\vehicles).
+- Module box shows names, not "ObdLink.App.ModuleRow".
+- IPC/ACM DTC reads try HS-CAN, then HS-CAN2 (pins 3/11, 500k), then MS-CAN (125k). Run Scan modules first.

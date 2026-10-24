@@ -78,13 +78,17 @@ public sealed class ModuleScanner
         var results = new List<ScanResult>();
         foreach (var grp in modules.GroupBy(m => m.Bus))
         {
-            if (grp.Key is not (Bus.HsCan or Bus.MsCan))
+            if (grp.Key is not (Bus.HsCan or Bus.MsCan or Bus.HsCan2))
             {
                 foreach (var m in grp) { var r = new ScanResult(m, false, "Bus not implemented [STUB]"); results.Add(r); progress?.Report(r); }
                 continue;
             }
-            await _session.SelectProtocolAsync((StnProtocol)(grp.Key == Bus.HsCan ? _profile.HsCanPreset : _profile.MsCanPreset), ct);
-            if (grp.Key == Bus.MsCan && _profile.MsCanBaudOverride is int b) await _session.Link.SendAsync($"STPBR {b}", ct: ct);
+            if (grp.Key == Bus.HsCan2) await _session.SelectBusAsync(Bus.HsCan2, ct);
+            else
+            {
+                await _session.SelectProtocolAsync((StnProtocol)(grp.Key == Bus.HsCan ? _profile.HsCanPreset : _profile.MsCanPreset), ct);
+                if (grp.Key == Bus.MsCan && _profile.MsCanBaudOverride is int b) await _session.Link.SendAsync($"STPBR {b}", ct: ct);
+            }
             foreach (var m in grp)
             {
                 ct.ThrowIfCancellationRequested();
@@ -112,4 +116,23 @@ public static class VehicleProfiles
     public const string F150_2017 = "2017 Ford F-150";
     public static IReadOnlyList<string> All { get; } = new[] { F150_2017 };
     public static IReadOnlyList<ModuleDefinition> ModulesFor(string? vehicle) => FordF150_2017.Modules;
+}
+
+/// <summary>v0.3.2: user-facing text for modules that do not answer (was a bare "TimeoutException: No response from 0x720").</summary>
+public static class ModuleReplies
+{
+    public static string BusName(Bus b) => b switch { Bus.HsCan => "HS-CAN (500k)", Bus.MsCan => "MS-CAN (125k)", Bus.HsCan2 => "HS-CAN2 (pins 3/11, 500k)", _ => b.ToString() };
+    /// <summary>Other Ford buses to try, in order, when a module does not answer on <paramref name="b"/>.</summary>
+    public static Bus[] Alternates(Bus b) => new[] { Bus.HsCan, Bus.HsCan2, Bus.MsCan }.Where(x => x != b).ToArray();
+    /// <summary>"No reply" kinds: NO DATA (timeout) and CAN ERROR (wrong bit rate / no bus on those pins).</summary>
+    public static bool IsNoReply(Exception ex) => ex is TimeoutException || ex is ObdLink.Core.IsoTp.DiagLinkException { Error: ElmError.CanError or ElmError.BusError or ElmError.NoData };
+
+    public static string NoReplyMessage(string acronym, uint txId, Bus bus, bool scanned, bool triedBoth)
+    {
+        var where = triedBoth ? "on HS-CAN, HS-CAN2 or MS-CAN" : $"on {BusName(bus)}";
+        var tip = scanned
+            ? "It answered the module scan earlier, so check the ignition is still ON (engine running or KOEO) and try again."
+            : "Run Scan modules first (Modules page) so the app only talks to modules that are present on this truck, with the ignition ON.";
+        return $"{acronym} (0x{txId:X3}, replies on 0x{txId + 8:X3}) did not answer {where}. {tip} The raw adapter traffic is in the Events log (Traffic) if you want to send it for diagnosis.";
+    }
 }

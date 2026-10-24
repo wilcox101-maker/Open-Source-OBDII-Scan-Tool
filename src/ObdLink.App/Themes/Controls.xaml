@@ -48,7 +48,7 @@
             <ToggleButton Template="{DynamicResource ComboToggle}" Focusable="False" ClickMode="Press"
                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
             <ContentPresenter Margin="6,2,22,2" VerticalAlignment="Center" IsHitTestVisible="False"
-                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                               TextElement.Foreground="{DynamicResource Fg}"/>
             <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
               <Border Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Border}" BorderThickness="1"

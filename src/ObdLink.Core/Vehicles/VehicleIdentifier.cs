@@ -86,11 +86,12 @@ public sealed class VehicleIdentifier
 
         var buses = new List<(Bus Bus, StnProtocol P)>();
         if (o.SweepHsCan) buses.Add((Bus.HsCan, StnProtocol.HsCan11_500));
-        if (o.SweepMsCan && _s.IsStn && _s.Profile.Has(AdapterCapabilities.MsCan)) buses.Add((Bus.MsCan, StnProtocol.MsCan11_125));
+        if (o.SweepMsCan && _s.IsStn && _s.Profile.Has(AdapterCapabilities.MsCan)) { buses.Add((Bus.HsCan2, StnProtocol.MsCan11_125)); buses.Add((Bus.MsCan, StnProtocol.MsCan11_125)); } // v0.3.2: HS-CAN2 = pins 3/11 @500k
         else if (o.SweepMsCan) progress?.Report("MS-CAN sweep skipped: adapter has no MS-CAN (OBDLink MX+ needed)");
         foreach (var (bus, proto) in buses)
         {
-            if (_s.IsStn) await _s.SelectProtocolAsync(proto, ct); else await _s.SelectElmProtocolAsync('6', ct);
+            try { await _s.SelectBusAsync(bus, ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { progress?.Report($"{bus} sweep skipped: {ex.Message}"); continue; }
             await _s.Link.SendAsync($"ATST{Math.Clamp(o.ProbeTimeoutMs / 4, 1, 255):X2}", ct: ct);
             progress?.Report($"Sweeping {bus} 0x{o.StartId:X3}-0x{o.EndId:X3} with 3E 00...");
             try
@@ -121,7 +122,7 @@ public sealed class VehicleIdentifier
                     progress?.Report($"FOUND {bus} 0x{id:X3} {ac} - {name}{(dids.TryGetValue("F188", out var sw) ? $"  F188={sw}" : "")}{(de00 ? "  (As-Built DE00 readable)" : "")}");
                 }
             }
-            finally { await _s.Link.SendAsync("ATST32", ct: CancellationToken.None); }
+            finally { await _s.Link.SendAsync("ATST96", ct: CancellationToken.None); }
         }
         if (_s.IsStn) await _s.SelectProtocolAsync(StnProtocol.HsCan11_500, CancellationToken.None);
         progress?.Report($"Identify done: {p.Modules.Count} module(s) responded");

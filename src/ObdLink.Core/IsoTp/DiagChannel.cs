@@ -25,8 +25,11 @@ public sealed class ElmDiagChannel : IDiagChannel
 
     public Task SetTargetAsync(uint txId, uint? rxId, CancellationToken ct = default) { Use29Bit = txId > 0x7FF; return _session.SetCanTargetAsync(txId, rxId, ct); }
 
+    /// <summary>v0.3.2: UDS 19 (DTCs), 22 (DIDs) and 31 can return long multi-frame replies (PCM 19 02 FF took &gt;1.5 s on a 2017 F-150).</summary>
+    public static TimeSpan? LongTimeoutFor(byte[] request) => request.Length > 0 && request[0] is 0x19 or 0x22 or 0x31 ? TimeSpan.FromSeconds(5) : null;
     public async Task<IReadOnlyList<DiagResponse>> RequestAsync(byte[] request, TimeSpan? timeout = null, CancellationToken ct = default)
     {
+        timeout ??= LongTimeoutFor(request);
         if (request.Length > 7) return await SendMultiFrameAsync(request, timeout, ct);
         var r = await _session.Link.SendAsync(Convert.ToHexString(request), timeout, ct);
         if (r.Error == ElmError.NoData) return Array.Empty<DiagResponse>();

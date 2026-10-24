@@ -14,4 +14,5 @@ public sealed class BusProfile
     public int? MsCanBaudOverride { get; set; }
 }
 
-public enum Bus { HsCan, MsCan, J1850Vpw, J1850Pwm, KLine }
+/// <summary>HsCan2 (v0.3.2): Ford HS-CAN2/HS3 on the MS-CAN pins 3/11 at 500 kbps (2015+ F-150: MS-CAN 125k answers CAN ERROR there).</summary>
+public enum Bus { HsCan, MsCan, J1850Vpw, J1850Pwm, KLine, HsCan2 }

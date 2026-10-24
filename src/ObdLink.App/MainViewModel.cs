@@ -28,9 +28,13 @@ public sealed class ModuleRow : ObservableObject
     public string Acronym => Def.Acronym;
     public string FullName => ModuleAcronyms.FullName(Def.Acronym, Def.Name);
     public string Label => ModuleAcronyms.Label(Def.Acronym, Def.Name);
-    public string Tooltip => ModuleAcronyms.Tooltip(Def.Acronym, Def.Name) + $"\nCAN 0x{Def.TxId:X3}/0x{Def.RxId:X3} ({Def.Bus}), {Def.Confidence}";
+    public string Tooltip => ModuleAcronyms.Tooltip(Def.Acronym, Def.Name) + $"\nCAN 0x{Def.TxId:X3}/0x{Def.RxId:X3} ({Bus}{(BusOverride is null ? "" : ", found by scan")}), {Def.Confidence}";
     public string Address => Def.TxId.ToString("X3");
-    public Bus Bus => Def.Bus;
+    /// <summary>v0.3.2: bus where the module actually answered (scan or alternate-bus retry), if it differs from the table.</summary>
+    private Bus? _busOverride; public Bus? BusOverride { get => _busOverride; set { if (Set(ref _busOverride, value)) { OnPropertyChanged(nameof(Bus)); OnPropertyChanged(nameof(PickerText)); OnPropertyChanged(nameof(Tooltip)); } } }
+    public Bus Bus => BusOverride ?? Def.Bus;
+    /// <summary>v0.3.2: the selection box of a ComboBox showed "ObdLink.App.ModuleRow"; never fall back to the type name.</summary>
+    public override string ToString() => PickerText;
     public Confidence Confidence => Def.Confidence;
     private string _found = "not scanned"; public string Found { get => _found; set { if (Set(ref _found, value)) OnPropertyChanged(nameof(PickerText)); } }
     /// <summary>Known / likely to have As-Built (DE..) blocks: factory .ab evidence, a backup, or a Ford module that normally has them.</summary>
@@ -39,7 +43,7 @@ public sealed class ModuleRow : ObservableObject
     public string? BackupPath { get; set; }
     public string BackupText => LastBackup is { } d ? "backup " + d.ToString("yyyy-MM-dd HH:mm") : "no backup";
     /// <summary>Picker line: "BCM - Body Control Module · 0x726 · HS-CAN · found · backup 2026-10-24 09:30".</summary>
-    public string PickerText => $"{Acronym} - {FullName}  ·  0x{Address}  ·  {(Bus == Bus.MsCan ? "MS-CAN" : Bus == Bus.HsCan ? "HS-CAN" : Bus.ToString())}  ·  {(Found == "YES" ? "found" : Found == "no" ? "no reply" : "not scanned")}  ·  {BackupText}";
+    public string PickerText => $"{Acronym} - {FullName}  ·  0x{Address}  ·  {ModuleReplies.BusName(Bus)}  ·  {(Found == "YES" ? "found" : Found == "no" ? "no reply" : "not scanned")}  ·  {BackupText}";
     public static readonly HashSet<string> TypicalAsBuilt = new(StringComparer.OrdinalIgnoreCase)
     { "PCM", "TCM", "BCM", "IPC", "APIM", "ABS", "PSCM", "RCM", "PAM", "GWM", "ACM", "SCCM", "DDM", "PDM", "HVAC", "FCIM", "IPMA", "IPMB", "CCM", "TBM", "SOBDM", "OCSM", "DSM", "GPSM", "HCM", "TRM", "RFA", "ATCM" };
 }
@@ -526,6 +530,7 @@ public sealed class MainViewModel : ObservableObject
                 EventLog.Message(LogEventLevel.Warning, "Identify vehicle", nf.Message);
                 VehicleInfo = nf.Message; Info("Ford products only", nf.Message); return;
             }
+            prof.IsDemo = _connectedSim;
             if (prof.Vin.Length == 17) _vin = prof.Vin;
             _current = prof;
             if (prof.Vin.Length == 17)
@@ -614,6 +619,21 @@ public sealed class MainViewModel : ObservableObject
     }
     private AsBuiltService AsBuilt => _asBuilt ?? throw new InvalidOperationException("Not connected - click Connect first");
 
+    /// <summary>
+    /// v0.3.2: on every connect the module list is rebuilt (scan results and bus findings from the previous adapter are dropped).
+    /// A DEMO vehicle profile is never kept for a real adapter: the selection falls back to the built-in Ford table, so the real truck
+    /// is scanned with real addresses, not the 4 simulated modules.
+    /// </summary>
+    private void ResetVehicleForAdapter(bool simulated)
+    {
+        if (!simulated && _profiles.TryGetValue(SelectedVehicle, out var p) && p.LooksDemo)
+        {
+            EventLog.Message(LogEventLevel.Warning, "Vehicles", $"Real adapter connected: not using DEMO profile '{p.Label}'. Run Identify vehicle to build this truck's module list.");
+            _current = null; _vin = "UNKNOWNVIN"; VehicleInfo = "Real adapter connected. Click Identify vehicle (read-only) to read this truck's VIN and modules.";
+            if (SelectedVehicle != VehicleProfiles.F150_2017) { SelectedVehicle = VehicleProfiles.F150_2017; return; } // setter rebuilds
+        }
+        LoadModules();
+    }
     private void LoadModules()
     {
         Modules.Clear();
@@ -666,6 +686,7 @@ public sealed class MainViewModel : ObservableObject
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
             _lastSti = info.StnId;
             _ = RunFirmwareCheckAsync(info.StnId);
+            ResetVehicleForAdapter(sel.IsSimulated);
             if (!sel.IsSimulated && _settings.Adapter.LastPort != sel.Name) { _settings.Adapter.LastPort = sel.Name; SaveSettings(); }
         }
         catch (Exception ex)
@@ -683,7 +704,21 @@ public sealed class MainViewModel : ObservableObject
         var rows = Modules.ToDictionary(r => r.Def);
         var res = await new ModuleScanner(_session, Ch).ScanAsync(Modules.Select(r => r.Def).ToList(),
             new Progress<ScanResult>(r => rows[r.Module].Found = r.Responded ? "YES" : "no"));
+        // v0.3.2: modules that did not answer on their table bus get one try on the other Ford bus (EX / MX+ only).
+        if (CanSwitchBus)
+        {
+            var byTx = Modules.ToDictionary(r => r.Def.TxId);
+            var pending = res.Where(r => !r.Responded && r.Module.HasAddress && r.Module.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2).Select(r => r.Module).ToList();
+            foreach (var bus in new[] { Bus.HsCan, Bus.HsCan2, Bus.MsCan })
+            {
+                var retry = pending.Where(d => d.Bus != bus && byTx.TryGetValue(d.TxId, out var rw) && rw.Found != "YES").Select(d => d with { Bus = bus }).ToList();
+                if (retry.Count == 0) continue;
+                foreach (var r in await new ModuleScanner(_session, Ch).ScanAsync(retry))
+                    if (r.Responded && byTx.TryGetValue(r.Module.TxId, out var row)) { row.Found = "YES"; row.BusOverride = r.Module.Bus == row.Def.Bus ? null : r.Module.Bus; EventLog.Message(LogEventLevel.Information, "Scan modules", $"{row.Acronym} 0x{row.Address} answered on {ModuleReplies.BusName(r.Module.Bus)}"); }
+            }
+        }
         await SelectDiagProtocol();
+        res = Modules.Select(r => new ScanResult(r.Def, r.Found == "YES", null)).ToList();
         EventLog.Message(LogEventLevel.Information, "Scan modules", $"{res.Count(r => r.Responded)} of {res.Count} modules responded");
         RefreshAsBuiltModules();
     }
@@ -919,11 +954,34 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
     /// <summary>Runs <paramref name="f"/> on the module's bus: MS-CAN modules switch the adapter to MS-CAN 125k (MX+ / EX) and back.</summary>
+    private bool CanSwitchBus => MsCanAvailable && _session is { IsStn: true };
+    /// <summary>
+    /// v0.3.2: runs <paramref name="f"/> on the module's bus. If the module does not answer there and the adapter can switch buses
+    /// (EX / MX+), it tries the other Ford bus once and remembers where the module answered. A final no-reply becomes a friendly message.
+    /// </summary>
     private async Task OnBus(ModuleRow m, Func<Task> f)
     {
-        if (m.Bus != Bus.MsCan) { await f(); return; }
-        if (!MsCanAvailable || _session is not { IsStn: true }) throw new InvalidOperationException($"{m.Acronym} is on MS-CAN; this adapter cannot switch to MS-CAN (OBDLink MX+ / EX can).");
-        await _session.SelectProtocolAsync(StnProtocol.MsCan11_125);
+        try { await OnBusCore(m.Bus, m, f); return; }
+        catch (Exception ex) when (ModuleReplies.IsNoReply(ex) && CanSwitchBus && m.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2)
+        {
+            EventLog.Message(LogEventLevel.Warning, "Bus", $"{m.Acronym} 0x{m.Address}: no reply on {ModuleReplies.BusName(m.Bus)} ({ex.Message}); trying the other buses");
+            foreach (var alt in ModuleReplies.Alternates(m.Bus))
+            {
+                try { await OnBusCore(alt, m, f); }
+                catch (Exception ex2) when (ModuleReplies.IsNoReply(ex2)) { EventLog.Message(LogEventLevel.Information, "Bus", $"{m.Acronym}: no reply on {ModuleReplies.BusName(alt)} ({ex2.Message})"); continue; }
+                m.BusOverride = alt == m.Def.Bus ? null : alt;
+                EventLog.Message(LogEventLevel.Information, "Bus", $"{m.Acronym} 0x{m.Address} answered on {ModuleReplies.BusName(alt)}; using that bus from now on");
+                return;
+            }
+            throw new InvalidOperationException(ModuleReplies.NoReplyMessage(m.Acronym, m.Def.TxId, m.Bus, m.Found == "YES", triedBoth: true));
+        }
+        catch (Exception ex) when (ModuleReplies.IsNoReply(ex)) { throw new InvalidOperationException(ModuleReplies.NoReplyMessage(m.Acronym, m.Def.TxId, m.Bus, m.Found == "YES", triedBoth: false)); }
+    }
+    private async Task OnBusCore(Bus bus, ModuleRow m, Func<Task> f)
+    {
+        if (bus == Bus.HsCan) { await f(); return; }
+        if (!CanSwitchBus) throw new InvalidOperationException($"{m.Acronym} is on {ModuleReplies.BusName(bus)}; this adapter cannot use the MS-CAN pins (OBDLink MX+ / EX can).");
+        await _session!.SelectBusAsync(bus);
         try { await f(); } finally { await SelectDiagProtocol(); }
     }
     private void ShowBlocks(IEnumerable<AsBuiltBlock> blocks)
@@ -945,7 +1003,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private List<ModuleRow> BatchModules(bool asBuilt) =>
-        (asBuilt ? AsBuiltModules.AsEnumerable() : Modules).Where(r => r.Found == "YES" && (r.Bus != Bus.MsCan || MsCanAvailable)).ToList();
+        (asBuilt ? AsBuiltModules.AsEnumerable() : Modules).Where(r => r.Found == "YES" && (r.Bus == Bus.HsCan || MsCanAvailable)).ToList();
 
     private async Task<List<BatchItemResult>> RunBatch(string what, List<ModuleRow> mods, Func<ModuleRow, CancellationToken, Task<BatchItemResult>> work)
     {

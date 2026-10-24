@@ -19,6 +19,11 @@ public sealed class VehicleProfile
     public Dictionary<string, string>? Online { get; set; }
     public List<ModuleIdentity> Modules { get; set; } = new();
     public string? FactoryAbFile { get; set; }
+    /// <summary>v0.3.2: true when identified on a DEMO (simulated) adapter. Demo profiles are labeled and never used on a real adapter.</summary>
+    public bool IsDemo { get; set; }
+    /// <summary>Also catches profiles saved by v0.3.1 and earlier (no IsDemo flag): the simulator's synthetic VIN or DEMO part numbers.</summary>
+    public bool LooksDemo => IsDemo || Vin.EndsWith("000001", StringComparison.Ordinal) && Vin.StartsWith("1FTDEMX", StringComparison.Ordinal)
+        || Modules.Any(m => m.Dids != null && m.Dids.TryGetValue("F188", out var v) && v.StartsWith("DEMO", StringComparison.OrdinalIgnoreCase));
 
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
     public static string FileNameFor(string vin) => VinRedactor.MaskVin(vin) + ".json";
@@ -34,9 +39,9 @@ public sealed class VehicleProfile
     }
 
     /// <summary>Label for the Vehicle dropdown, e.g. "2017 FORD F-150 (XXXXXXXXXXX025268)".</summary>
-    public string Label => $"{(string.IsNullOrWhiteSpace(DisplayName) ? "Vehicle" : DisplayName)} ({VinRedacted})";
+    public string Label => (LooksDemo ? "[DEMO] " : "") + $"{(string.IsNullOrWhiteSpace(DisplayName) ? "Vehicle" : DisplayName)} ({VinRedacted})";
 
     public IReadOnlyList<ModuleDefinition> ToModuleDefinitions() => Modules.Select(m => new ModuleDefinition(m.Acronym, m.Name,
-        m.Bus == "MsCan" ? Bus.MsCan : Bus.HsCan, m.TxId, m.RxId, m.Known ? Confidence.CommunityReported : Confidence.Unverified,
+        Enum.TryParse<Bus>(m.Bus, out var b) ? b : Bus.HsCan, m.TxId, m.RxId, m.Known ? Confidence.CommunityReported : Confidence.Unverified,
         "Found by Identify vehicle" + (m.Dids.TryGetValue("F188", out var sw) ? $"; F188 {sw}" : ""))).ToList();
 }
