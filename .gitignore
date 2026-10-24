@@ -8,3 +8,8 @@ TestResults/
 *.asbuilt.json
 # raw user logs (contain full VIN / adapter serials); redacted copies live in tests/ObdLink.Core.Tests/Fixtures
 samples/real-logs/
+
+# v0.2.2: downloaded adapter firmware is never committed or bundled
+**/Data/firmware/
+*.bin
+!tests/**/Fixtures/**

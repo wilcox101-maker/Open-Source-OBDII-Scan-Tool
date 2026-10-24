@@ -21,6 +21,8 @@ public sealed class AppSettings
     public string HeaderIcon { get; set; } = "Auto";
     /// <summary>Opt-in: Help > Check for updates (and at startup) asks the public GitHub releases API for a newer build. Default OFF.</summary>
     public bool UpdateCheck { get; set; }
+    /// <summary>v0.2.2: automatic adapter firmware check on connect (silent when offline). Default on.</summary>
+    public bool FirmwareCheck { get; set; } = true;
     /// <summary>Default for "Redact VINs" in diagnostics captures and exports. Default ON.</summary>
     public bool RedactVinsDefault { get; set; } = true;
     public ObdLink.Core.Obd.UnitPrefs Units { get; set; } = new();

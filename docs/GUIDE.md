@@ -2,6 +2,17 @@
 
 Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/. All credit goes to Livnitup. This is a summary for Ford trucks. Read the original for full detail. Tips are community-reported (UNVERIFIED on Dale's truck).
 
+## Portable app, supported Windows
+**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe.
+
+## Adapter firmware check
+When you connect, the app reads the adapter firmware (STI) and, if you are online, compares it with the latest **stable** release in OBDLink's public firmware feed. If you are offline, nothing is shown. If your firmware is older, a banner shows the installed and latest versions:
+- **Download firmware** saves the official scantool.net package to `Data\firmware\<model>\<version>\`. The app checks the size, the zip and the `STNFWv` header, and keeps the changelog.
+- **Open folder** opens that folder.
+- **Official updater page** opens OBDLink's page ([EX](https://www.scantool.net/downloads/updates/obdlink_ex/), [MX+](https://www.scantool.net/downloads/updates/obdlink_mxp/)).
+
+The app **never flashes firmware**. Use OBDLink's official updater. To turn the check off, untick Settings → "Check adapter firmware on connect".
+
 ## Where this app keeps its files
 
 | Item | Location (inside the `Data` folder next to the exe) |

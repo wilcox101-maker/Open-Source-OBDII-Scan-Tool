@@ -1,0 +1,149 @@
+[
+ {
+  "_id": "6a6d1f7dfd1ab5350000abd6",
+  "version": "5.13.1",
+  "changelog": [
+   {
+    "long": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)",
+    "type": "bug",
+    "short": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)"
+   },
+   {
+    "long": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block",
+    "type": "bug",
+    "short": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block"
+   }
+  ],
+  "bin_url": "https://www.scantool.net/scantool/downloads/768/obdlink_ex-5.13.1-stn2231.bin",
+  "device": [
+   {
+    "_id": "62b51d0949a60f2b000014a0",
+    "device_id": 2231,
+    "name": "OBDLink EX (2231)",
+    "_created": "2022-06-24T02:10:17.844Z",
+    "_changed": "2022-06-24T02:10:17.844Z"
+   }
+  ],
+  "release_channel": "stable",
+  "release_date": "2026-07-08T00:00:00.000Z",
+  "package_url": "https://www.scantool.net/scantool/downloads/769/obdlink_ex-5.13.1-stn2231.zip",
+  "summary": "This update fixes several ISO 15765 issues affecting long message transmission, custom flow control settings (ATFCSD), and raw CAN messages (ATCAF0)."
+ },
+ {
+  "_id": "6a3320b7fd1ab5350000661e",
+  "version": "5.13.0",
+  "changelog": [
+   {
+    "short": "Added 500kbps protocol presets for J1939",
+    "type": "new",
+    "long": "Added 500kbps protocol presets for J1939"
+   },
+   {
+    "short": "Automatic protocol detection now supports J1979-2 vehicles",
+    "type": "change",
+    "long": "Automatic protocol detection now supports J1979-2 vehicles"
+   }
+  ],
+  "bin_url": "https://www.scantool.net/scantool/downloads/756/obdlink_ex-5.13.0-stn2231.bin",
+  "device": [
+   {
+    "_id": "62b51d0949a60f2b000014a0",
+    "device_id": 2231,
+    "name": "OBDLink EX (2231)",
+    "_created": "2022-06-24T02:10:17.844Z",
+    "_changed": "2022-06-24T02:10:17.844Z"
+   }
+  ],
+  "release_channel": "stable",
+  "release_date": "2026-06-12T00:00:00.000Z",
+  "summary": "This update adds support for faster networks on heavy-duty and commercial vehicles, improves automatic protocol detection of some newer vehicles, and fixes an issue with ISO keep-alive messages.",
+  "package_url": "https://www.scantool.net/scantool/downloads/757/obdlink_ex-5.13.0-stn2231.zip"
+ },
+ {
+  "_id": "6940adc4fa9de54800011055",
+  "version": "5.12.4",
+  "changelog": [
+   {
+    "type": "new",
+    "long": "Added the Batched Commands feature, which supports sending multiple commands/requests in a single prompt",
+    "short": "Added the Batched Commands feature, which supports sending multiple commands/requests in a single prompt"
+   },
+   {
+    "type": "new",
+    "long": "Added the STBC command for enabling and disabling the Batched Commands feature",
+    "short": "Added the STBC command for enabling and disabling the Batched Commands feature"
+   }
+  ],
+  "bin_url": "https://www.scantool.net/scantool/downloads/728/obdlink_ex-5.12.4-stn2231.bin",
+  "device": [
+   {
+    "_id": "62b51d0949a60f2b000014a0",
+    "device_id": 2231,
+    "name": "OBDLink EX (2231)",
+    "_created": "2022-06-24T02:10:17.844Z",
+    "_changed": "2022-06-24T02:10:17.844Z"
+   }
+  ],
+  "release_channel": "stable",
+  "release_date": "2025-12-15T00:00:00.000Z",
+  "package_url": "https://www.scantool.net/scantool/downloads/729/obdlink_ex-5.12.4-stn2231.zip",
+  "summary": "This update includes the new Batched Commands feature for faster communication with compatible apps, new configuration commands and monitoring parameters, and fixes for CAN communication issues."
+ },
+ {
+  "_id": "6a6d1f7dfd1ab5350000abd6",
+  "version": "5.14.0",
+  "changelog": [
+   {
+    "long": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)",
+    "type": "bug",
+    "short": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)"
+   },
+   {
+    "long": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block",
+    "type": "bug",
+    "short": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block"
+   }
+  ],
+  "bin_url": "https://www.scantool.net/scantool/downloads/768/obdlink_ex-5.13.1-stn2231.bin",
+  "device": [
+   {
+    "_id": "62b51d0949a60f2b000014a0",
+    "device_id": 2231,
+    "name": "OBDLink EX (2231)",
+    "_created": "2022-06-24T02:10:17.844Z",
+    "_changed": "2022-06-24T02:10:17.844Z"
+   }
+  ],
+  "release_channel": "beta",
+  "release_date": "2026-07-08T00:00:00.000Z",
+  "package_url": "https://www.scantool.net/scantool/downloads/769/obdlink_ex-5.13.1-stn2231.zip",
+  "summary": "This update fixes several ISO 15765 issues affecting long message transmission, custom flow control settings (ATFCSD), and raw CAN messages (ATCAF0)."
+ },
+ {
+  "_id": "6a6d1f7dfd1ab5350000abd6",
+  "version": "9.9.9",
+  "changelog": [
+   {
+    "long": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)",
+    "type": "bug",
+    "short": "Fixed several ISO 15765 issues affecting raw CAN frames (ATCAF0)"
+   },
+   {
+    "long": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block",
+    "type": "bug",
+    "short": "Fixed an issue where segmented ISO 15765 message transmission could time out after the first block"
+   }
+  ],
+  "bin_url": "https://www.scantool.net/scantool/downloads/768/obdlink_ex-5.13.1-stn2231.bin",
+  "device": [
+   {
+    "device_id": 2255,
+    "name": "OBDLink MX+ (2255)"
+   }
+  ],
+  "release_channel": "stable",
+  "release_date": "2026-07-08T00:00:00.000Z",
+  "package_url": "https://www.scantool.net/scantool/downloads/769/obdlink_ex-5.13.1-stn2231.zip",
+  "summary": "This update fixes several ISO 15765 issues affecting long message transmission, custom flow control settings (ATFCSD), and raw CAN messages (ATCAF0)."
+ }
+]

@@ -292,6 +292,18 @@
       </DockPanel>
     </Border>
 
+    <Border DockPanel.Dock="Top" Visibility="{Binding FirmwareBannerVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Button Command="{Binding DownloadFirmwareCommand}" IsEnabled="{Binding FirmwareCanDownload}" ToolTip="Downloads the official package (scantool.net) into Data\firmware\ and verifies it. Does not flash."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Download firmware"/></StackPanel></Button>
+          <Button Command="{Binding OpenFirmwareFolderCommand}" Visibility="{Binding FirmwareHasFolder, Converter={StaticResource BoolVis}}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open folder"/></StackPanel></Button>
+          <Button Command="{Binding OpenFirmwarePageCommand}" ToolTip="{Binding FirmwarePage}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Official updater page"/></StackPanel></Button>
+          <Button Command="{Binding DismissFirmwareCommand}" ToolTip="Hide this notice"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/></Button>
+        </StackPanel>
+        <TextBlock Text="{Binding FirmwareBanner}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource Fg}"/>
+      </DockPanel>
+    </Border>
+
     <StatusBar DockPanel.Dock="Bottom">
       <StatusBarItem><TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="480"/></StatusBarItem>
       <Separator/>
@@ -514,6 +526,7 @@
                     <CheckBox Content="Redact VINs by default (logs, capture zip)" IsChecked="{Binding RedactVinsDefault}"/>
                     <CheckBox Content="Online VIN decode (NHTSA vPIC)" IsChecked="{Binding OnlineVinDecode}" ToolTip="Opt-in. Sends ONLY the VIN to vpic.nhtsa.dot.gov"/>
                     <CheckBox Content="Check GitHub for updates at startup" IsChecked="{Binding UpdateCheckEnabled}" ToolTip="Opt-in. One GET to api.github.com; nothing is downloaded"/>
+                    <CheckBox Content="Check adapter firmware on connect" IsChecked="{Binding FirmwareCheckEnabled}" ToolTip="Reads STI on connect and asks OBDLink's public firmware feed for the latest stable version. Silent when offline. Never flashes anything."/>
                   </StackPanel>
                 </Border>
                 <Border Style="{StaticResource CardStyle}" Width="340">

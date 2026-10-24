@@ -9,6 +9,7 @@ using ObdLink.Core.Dtc;
 using ObdLink.Core.Elm;
 using ObdLink.Core.IsoTp;
 using ObdLink.Core.Logging;
+using ObdLink.Core.Firmware;
 using ObdLink.Core.Modules;
 using ObdLink.Core.Obd;
 using ObdLink.Core.Safety;
@@ -370,6 +371,7 @@ public sealed class MainViewModel : ObservableObject
         try { ThemeManager.Apply(_settings.Theme); }
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
+        InitFirmwareCommands(Err);
         CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
         RefreshPortsCommand = C("Refresh ports", () =>
         {
@@ -629,6 +631,7 @@ public sealed class MainViewModel : ObservableObject
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
+            _ = RunFirmwareCheckAsync(info.StnId);
         }
         catch (Exception ex)
         {
@@ -648,6 +651,73 @@ public sealed class MainViewModel : ObservableObject
         await SelectDiagProtocol();
         EventLog.Message(LogEventLevel.Information, "Scan modules", $"{res.Count(r => r.Responded)} of {res.Count} modules responded");
         RefreshAsBuiltModules();
+    }
+
+    // ---------------- v0.2.2 adapter firmware check ----------------
+    public bool FirmwareCheckEnabled { get => _settings.FirmwareCheck; set => S(() => _settings.FirmwareCheck = value, "automatic adapter firmware check", value, nameof(FirmwareCheckEnabled)); }
+    private FirmwareCheckResult? _fw; private string _fwBanner = ""; private bool _fwVisible, _fwBusy; private string? _fwFolder;
+    public string FirmwareBanner { get => _fwBanner; private set => Set(ref _fwBanner, value); }
+    public bool FirmwareBannerVisible { get => _fwVisible; private set => Set(ref _fwVisible, value); }
+    public bool FirmwareDownloading { get => _fwBusy; private set => Set(ref _fwBusy, value); }
+    public bool FirmwareCanDownload => _fw?.Status == FirmwareStatus.UpdateAvailable && FirmwareFeed.IsOfficialUrl(_fw.Latest?.PackageUrl) && !_fwBusy;
+    public bool FirmwareHasFolder => _fwFolder is not null;
+    public string FirmwarePage => _fw?.OfficialPage ?? FirmwareFeed.FirmwareIndex;
+    public string FirmwareRoot => Path.Combine(Paths.DataDir, "firmware");
+    public AsyncCommand DownloadFirmwareCommand { get; private set; } = null!;
+    public RelayCommand OpenFirmwareFolderCommand { get; private set; } = null!;
+    public RelayCommand OpenFirmwarePageCommand { get; private set; } = null!;
+    public RelayCommand DismissFirmwareCommand { get; private set; } = null!;
+    private void InitFirmwareCommands(Action<string, Exception> Err)
+    {
+        DownloadFirmwareCommand = new AsyncCommand("Download firmware", EventLog, DownloadFirmwareAsync, Err);
+        OpenFirmwareFolderCommand = new RelayCommand("Open firmware folder", EventLog, _ => { var d = _fwFolder ?? ObdLink.Core.Storage.AppPaths.Ensure(FirmwareRoot); try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{d}\"") { UseShellExecute = true }); } catch { } });
+        OpenFirmwarePageCommand = new RelayCommand("Open firmware page", EventLog, _ => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(FirmwarePage) { UseShellExecute = true }); } catch { } });
+        DismissFirmwareCommand = new RelayCommand("Dismiss firmware notice", EventLog, _ => FirmwareBannerVisible = false);
+    }
+    private void FwChanged() { foreach (var n in new[] { nameof(FirmwareCanDownload), nameof(FirmwareHasFolder), nameof(FirmwarePage) }) OnPropertyChanged(n); }
+
+    /// <summary>Runs after connect, in the background. Silent when offline; never blocks or flashes anything.</summary>
+    private async Task RunFirmwareCheckAsync(string? sti)
+    {
+        if (!_settings.FirmwareCheck) return;
+        try
+        {
+            var r = await new FirmwareChecker().CheckAsync(sti);
+            _fw = r; _fwFolder = null;
+            switch (r.Status)
+            {
+                case FirmwareStatus.UpdateAvailable:
+                    var dir = FirmwareDownloader.FolderFor(FirmwareRoot, r.Installed!, r.Latest!);
+                    if (File.Exists(Path.Combine(dir, "README.txt"))) _fwFolder = dir;
+                    FirmwareBanner = $"Adapter firmware update available: {r.Latest!.DeviceName} installed v{r.Installed!.Version}, latest stable v{r.Latest.Version} ({r.Latest.ReleaseDate:yyyy-MM-dd}). {r.Latest.Summary}"
+                        + (_fwFolder is not null ? " (package already downloaded)" : "") + " Update with OBDLink's official updater; this app never flashes firmware.";
+                    FirmwareBannerVisible = true;
+                    EventLog.Message(LogEventLevel.Warning, "Firmware", $"{r.Message}. Official page: {r.OfficialPage}");
+                    break;
+                case FirmwareStatus.Current: EventLog.Message(LogEventLevel.Information, "Firmware", r.Message); FirmwareBannerVisible = false; break;
+                case FirmwareStatus.Offline: EventLog.Message(LogEventLevel.Debug, "Firmware", r.Message); break;
+                default: EventLog.Message(LogEventLevel.Debug, "Firmware", r.Message); break;
+            }
+        }
+        catch (Exception ex) { EventLog.Message(LogEventLevel.Debug, "Firmware", "Firmware check skipped: " + ex.Message); }
+        FwChanged();
+    }
+
+    private async Task DownloadFirmwareAsync()
+    {
+        if (_fw is not { Status: FirmwareStatus.UpdateAvailable, Installed: { } inst, Latest: { } rel }) return;
+        if (!FirmwareFeed.IsOfficialUrl(rel.PackageUrl)) throw new InvalidOperationException("The feed did not give an official scantool.net package URL");
+        FirmwareDownloading = true; FwChanged();
+        try
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("OBDLinkDiag-firmware-download");
+            var d = await FirmwareDownloader.DownloadAsync(http, FirmwareRoot, inst, rel);
+            _fwFolder = d.Folder;
+            EventLog.Message(LogEventLevel.Information, "Firmware", $"Downloaded and verified {Path.GetFileName(d.ZipPath)} ({d.Size:N0} bytes, {d.BinName} has STNFWv header) to {d.Folder}");
+            FirmwareBanner = $"Firmware v{rel.Version} package downloaded and verified: {d.Folder}. Use OBDLink's official updater to install it; this app never flashes firmware.";
+        }
+        finally { FirmwareDownloading = false; FwChanged(); }
     }
 
     // ---------------- v0.2.1 module workflow ----------------

@@ -1,9 +1,13 @@
-OBDLink Diag - TEST BUILD v0.2.1 (win-x64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.2.2 (win-x64 / win-arm64)  2026-10-24
 =======================================================
 UNSIGNED TEST BUILD. Compiled on Linux. UNTESTED ON WINDOWS: v0.2.0 is confirmed running on
-Windows 11 Pro 24H2 (Dale, demo mode), but v0.2.1 (As-Built workflow, TPMS, dashboard
-customization) has not been run on Windows yet. Real-vehicle testing is still pending.
+Windows 11 Pro 24H2 (Dale, demo mode), but v0.2.1/v0.2.2 (As-Built workflow, TPMS,
+dashboard customization, firmware check) have not been run on Windows yet. Real-vehicle testing is still pending.
 Ford products only.
+
+SUPPORTED WINDOWS: Windows 10 version 1607 or later, or Windows 11. Use the win-x64 zip on normal
+PCs and the win-arm64 zip on ARM PCs (Snapdragon). Windows 7, 8 and 8.1 are NOT supported: the exe
+will not start there. PORTABLE, NO INSTALLER: unzip and run; everything stays in the Data folder.
 
 HOW TO RUN
 1. Unzip the WHOLE folder somewhere, e.g. C:\OBDLinkDiag. Keep the *_cor3.dll files next to the exe.
@@ -60,6 +64,13 @@ On first run, anything in the old %LOCALAPPDATA%\OBDLinkDiag folder is moved int
 overwritten by an older one). A MIGRATED.txt note is left in the old folder.
 If the app folder is not writable (e.g. Program Files), the app keeps using
 %LOCALAPPDATA%\OBDLinkDiag and tells you once. Put the app folder in Documents or on a USB stick.
+
+NEW IN v0.2.2
+- Automatic adapter firmware check on connect (reads STI; silent when offline). If a newer stable
+  OBDLink firmware exists, a banner shows installed vs latest with "Download firmware" (official
+  scantool.net zip -> Data\firmware\<model>\<version>\, verified, changelog kept), "Open folder"
+  and "Official updater page". This app NEVER flashes firmware. Off switch: Settings.
+  DEMO ports report old firmware so you can see the banner.
 
 NEW IN v0.2.1
 - As-Built page: module picker (acronym, name, address, bus, last backup), filtered to modules

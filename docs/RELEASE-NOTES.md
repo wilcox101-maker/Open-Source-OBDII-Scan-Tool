@@ -1,5 +1,25 @@
 # Release notes
 
+## v0.2.2-test
+
+**UNTESTED ON WINDOWS.** Compiled on Linux. v0.2.0-test is confirmed running on Windows 11 Pro 24H2; v0.2.1 and v0.2.2 have not been run on Windows yet. The exe is still **unsigned**. Ford products only.
+
+**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe.
+
+- **Automatic adapter firmware check.**
+  - On connect, the app reads STI (for example `STN2231 v5.13.0`; EX = STN2230/2231, MX+ = STN2255).
+  - A quick reachability check runs first (3 s). If it passes, the app asks OBDLink's public firmware feed (the one scantool.net's own download page uses) for the latest **stable** release.
+  - It is silent when offline and never delays or blocks connecting.
+  - If your adapter is behind, a non-blocking banner and an Events log entry show the installed and latest versions, with buttons for:
+    - **Download firmware**: downloads the official package zip (https://www.scantool.net only) into `Data\firmware\<model>\<version>\`. It checks the download size and zip integrity, and checks that the .bin has an `STNFWv` header. The changelog is kept.
+    - **Open folder**.
+    - **Official updater page**: [EX](https://www.scantool.net/downloads/updates/obdlink_ex/) / [MX+](https://www.scantool.net/downloads/updates/obdlink_mxp/).
+  - **The app never flashes firmware.** Use OBDLink's official updater. Firmware files are never included in the repo or the release zip.
+  - You can turn the check off under Settings → "Check adapter firmware on connect" (it is on by default).
+  - The simulator reports older firmware (DEMO-EX v5.13.0, DEMO-MX+ v5.10.3), so you can see the banner in demo mode.
+- **Startup OS check.** On a Windows version older than 10 1607 the app shows a warning. Most older systems cannot start a .NET 8 app at all; see Supported Windows above.
+- **ARM64 build.** A win-arm64 zip is published alongside win-x64. It is untested.
+
 ## v0.2.1-test
 
 **UNTESTED ON WINDOWS.** Compiled on Linux. **v0.2.0-test is confirmed running on Windows 11 Pro 24H2** (Dale, simulator/demo mode); this v0.2.1 build has not been run on Windows yet. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.
