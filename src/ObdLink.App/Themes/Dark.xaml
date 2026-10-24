@@ -38,6 +38,24 @@
   <SolidColorBrush x:Key="ChipOk" Color="#1E5C3A"/>
   <SolidColorBrush x:Key="ChipBad" Color="#5C1E22"/>
   <SolidColorBrush x:Key="ChipWarn" Color="#5C4A1E"/>
+  <!-- v0.2.0 depth + dashboard -->
+  <LinearGradientBrush x:Key="HeaderGrad" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#22324A" Offset="0"/><GradientStop Color="#1B1C1F" Offset="1"/></LinearGradientBrush>
+  <LinearGradientBrush x:Key="CardGrad" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#2A2D32" Offset="0"/><GradientStop Color="#24262A" Offset="1"/></LinearGradientBrush>
+  <SolidColorBrush x:Key="HeaderFg" Color="#F2F4F7"/>
+  <SolidColorBrush x:Key="NavBg" Color="#17181B"/>
+  <SolidColorBrush x:Key="NavSel" Color="#2B3A52"/>
+  <SolidColorBrush x:Key="MenuBg" Color="#202226"/>
+  <SolidColorBrush x:Key="Pressed" Color="#2A4F86"/>
+  <SolidColorBrush x:Key="GaugeTrack" Color="#363A41"/>
+  <SolidColorBrush x:Key="GaugeFill" Color="#4C8DF6"/>
+  <SolidColorBrush x:Key="GaugeNeedle" Color="#FF6A3D"/>
+  <SolidColorBrush x:Key="GaugeOk" Color="#2EC27E"/>
+  <SolidColorBrush x:Key="GaugeWarn" Color="#F0A030"/>
+  <SolidColorBrush x:Key="GaugeCrit" Color="#FF4D4D"/>
+  <SolidColorBrush x:Key="GaugeTick" Color="#6B717A"/>
+  <SolidColorBrush x:Key="LampOff" Color="#3A3F47"/>
+  <DropShadowEffect x:Key="CardShadow" BlurRadius="14" ShadowDepth="2" Direction="270" Opacity="0.55" Color="#000000"/>
+  <DropShadowEffect x:Key="RaisedShadow" BlurRadius="6" ShadowDepth="1" Direction="270" Opacity="0.45" Color="#000000"/>
   <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#1F4E8C"/>
   <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
   <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#1F4E8C"/>

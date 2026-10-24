@@ -1,5 +1,30 @@
 # Release notes
 
+## v0.2.0-test
+
+**UNTESTED ON WINDOWS.** Compiled on Linux. Earlier builds (v0.1.3/v0.1.4) were run and tested by Dale on Windows 11 Pro 24H2 in simulator/demo mode, but this build has not been run on Windows yet. Real-vehicle testing is still pending. The exe is still **unsigned**. Ford products only.
+
+- **New window layout.** The window now has a menu bar (File, Edit, View, Vehicle, Tools, Settings, Help) and a left navigation rail with icons: Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings. The header is slimmer and keeps only the port, connect/disconnect, status and the LINK/TX/RX/ERR LEDs.
+- **Shortcuts.** Ctrl+O opens a factory .ab file, F5 connects, Shift+F5 disconnects, Ctrl+Shift+D starts a diagnostics capture, Ctrl+F finds in the logs, Ctrl+L shows or hides the log panel, Ctrl+plus/minus/0 zoom, F11 toggles full screen and F1 opens the Guide.
+- **More visual depth.** Buttons and cards have gradients and soft shadows. Buttons have hover and press states (pressed buttons lose their shadow and shift down). Menus and the nav rail follow the theme. The Light and Dark themes define the same keys, and the XAML test checks this.
+- **Settings page.** All settings are on one page and saved to `Data\settings.json` as soon as you change them:
+  - theme, units (speed, temperature, pressure), log level and retention;
+  - adapter default port, kind and timeout;
+  - the simulator (DEMO ports are shown only when it is on);
+  - VIN redaction default and the update check;
+  - dashboard refresh rate, Ford enhanced PIDs, gear estimate and gauge list.
+  Read-only mode asks you to confirm before it is turned off.
+- **Dashboard (read-only).** The dashboard polls Mode 01 and Mode 22 only, and only while the Dashboard page is open and the adapter is connected.
+  - Polling uses priority scheduling: RPM and speed are read most often. The rate adapts and slows down when replies are slow.
+  - Circular RPM and speed gauges, plus bar gauges for coolant, intake air, load, throttle, fuel level, battery (ATRV) and any enabled Ford enhanced PIDs.
+  - Warning lamps: MIL, DTC count, link, low voltage and overheat.
+  - Min, max and average for each gauge, with warning thresholds.
+  - Pause, reset stats and CSV recording to `Data\logs\dashboard-*.csv`.
+- **Gear.** The current gear comes from a Ford DID when one is enabled in `Data\ford-enhanced-pids.json`. Those DIDs are **UNVERIFIED** and off by default. Otherwise the gear is estimated from RPM, speed, gear ratios and tyre size, and labelled "est.".
+- Gauges are drawn by the app itself, with no third-party gauge libraries.
+- The simulator plays a drive cycle (idle, accelerate, cruise, brake), so the dashboard moves in DEMO mode.
+- **Help menu.** It has the Guide, Console help, Check for updates (asks before going online unless you turned on automatic checks), the GitHub page and About.
+
 ## v0.1.5-test
 
 **Tested on Windows 11 Pro 24H2 (demo mode); real-vehicle testing pending.** Dale ran and tested v0.1.3/v0.1.4 on Windows 11 Pro 24H2 in simulator/demo mode. The exe is still **unsigned**.

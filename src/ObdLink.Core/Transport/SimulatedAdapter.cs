@@ -25,7 +25,7 @@ public sealed class SimulatedAdapter
     public Dictionary<uint, List<(uint Dtc, byte Status)>> UdsDtcs { get; } = new();
     public bool CorruptWrites { get; set; }
 
-    public SimulatedAdapter() => SeedDemoAsBuilt(this);
+    public SimulatedAdapter() { Clock = () => _sw.Elapsed.TotalSeconds; SeedDemoAsBuilt(this); }
 
     /// <summary>
     /// SYNTHETIC As-Built blocks DE00-DE07 for the F-150 demo modules (PCM 7E0, IPC 720, BCM 726) so "Read" works in demo mode.
@@ -97,11 +97,17 @@ public sealed class SimulatedAdapter
         return _header == 0x7DF ? Obd(req) : Uds(_header, req);
     }
 
+    /// <summary>Clock for the SYNTHETIC drive cycle (seconds). Defaults to wall time since construction; tests inject a fixed clock.</summary>
+    public Func<double> Clock { get; set; }
+    private readonly System.Diagnostics.Stopwatch _sw = System.Diagnostics.Stopwatch.StartNew();
+    /// <summary>MIL + emission DTC count reported by PID 01 (synthetic: MIL on, 2 DTCs to match Mode 03).</summary>
+    public byte MonitorStatusA { get; set; } = 0x82;
+
     private string Obd(byte[] r) => (r[0], r.Length > 1 ? r[1] : (byte)0) switch
     {
-        (0x01, 0x00) => "7E8064100BE3EA813",
-        (0x01, 0x0C) => "7E804410C1AF8",
-        (0x01, 0x05) => "7E803410582",
+        (0x01, 0x00 or 0x20 or 0x40) => Multi(0x7E8, new byte[] { 0x41, r[1] }.Concat(DriveCycle.Bitmap(r[1])).ToArray()),
+        (0x01, 0x01) => Multi(0x7E8, new byte[] { 0x41, 0x01, MonitorStatusA, 0x07, 0xE5, 0x00 }),
+        (0x01, var pid) when DriveCycle.Encode(pid, DriveCycle.At(Clock())) is { } d => Multi(0x7E8, new byte[] { 0x41, pid }.Concat(d).ToArray()),
         (0x03, _) => "7E806430203010101",     // 43 02 | 0301 0101 -> P0301, P0101 (synthetic)
         (0x04, _) => "7E80144",
         (0x09, 0x02) => Multi(0x7E8, new byte[] { 0x49, 0x02, 0x01 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray()),
@@ -130,8 +136,12 @@ public sealed class SimulatedAdapter
     }
 
     private byte[] Read(uint tx, ushort did) =>
+        tx == 0x7E0 && did == 0x1E12 ? new byte[] { 0x62, 0x1E, 0x12, (byte)DriveCycle.At(Clock()).Gear } :
+        tx == 0x7E0 && did == 0x1E1C ? Tft() :
         tx == 0x7E0 && did == 0xF190 ? new byte[] { 0x62, 0xF1, 0x90 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray() :
         Dids.TryGetValue(tx, out var d) && d.TryGetValue(did, out var v) ? new byte[] { 0x62, (byte)(did >> 8), (byte)did }.Concat(v).ToArray() : new byte[] { 0x7F, 0x22, 0x31 };
+
+    private byte[] Tft() { var raw = (short)Math.Round(DriveCycle.At(Clock()).TftC * 16); return new byte[] { 0x62, 0x1E, 0x1C, (byte)(raw >> 8), (byte)raw }; }
 
     private byte[] Write(uint tx, ushort did, byte[] data)
     {

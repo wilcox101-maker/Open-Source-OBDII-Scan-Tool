@@ -17,7 +17,7 @@ public class XamlResourceTests
 
     private static readonly string[] Dictionaries = { "Themes/Dark.xaml", "Themes/Light.xaml", "Themes/Controls.xaml" };
     private static readonly string[] Views = { "App.xaml", "MainWindow.xaml" };
-    private static readonly HashSet<string> BrushProps = new() { "Background", "Foreground", "BorderBrush", "Fill", "Stroke", "CaretBrush", "SelectionBrush", "OpacityMask", "TextElement.Foreground" };
+    private static readonly HashSet<string> BrushProps = new() { "Background", "Foreground", "BorderBrush", "Fill", "Stroke", "CaretBrush", "SelectionBrush", "OpacityMask", "TextElement.Foreground", "TrackBrush", "FillBrush", "WarnBrush", "NeedleBrush", "TickBrush", "DimBrush", "HorizontalGridLinesBrush", "RowBackground", "AlternatingRowBackground" };
     private static readonly HashSet<string> BrushTypes = new() { "SolidColorBrush", "LinearGradientBrush", "RadialGradientBrush", "DrawingBrush", "ImageBrush", "VisualBrush" };
     private static readonly Regex Ref = new(@"^\{(Static|Dynamic)Resource\s+([A-Za-z0-9_]+)\s*\}$");
 
@@ -67,6 +67,7 @@ public class XamlResourceTests
             if ((p is "Style" or "BasedOn" or "ItemContainerStyle") && !types.All(t => t == "Style")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected Style");
             if (p is "Template" && !types.All(t => t == "ControlTemplate")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected ControlTemplate");
             if (p is "ContentTemplate" or "ItemTemplate" or "CellTemplate" && !types.All(t => t == "DataTemplate")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected DataTemplate");
+            if (p is "Effect" && !types.All(t => t is "DropShadowEffect" or "BlurEffect")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected an Effect");
             if (p is "FontFamily" && !types.All(t => t == "FontFamily")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected FontFamily");
             if (p is "CornerRadius" && !types.All(t => t == "CornerRadius")) errors.Add($"{file}: {prop} -> '{key}' is {string.Join("/", types)}, expected CornerRadius");
         }
@@ -87,6 +88,17 @@ public class XamlResourceTests
                 .Where(e => e.Parent != null && e.Attribute(X + "Key") != null)
                 .GroupBy(e => (e.Parent, e.Attribute(X + "Key")!.Value)).Where(g => g.Count() > 1).Select(g => g.Key.Value).ToList();
             Assert.True(dups.Count == 0, $"{f}: duplicate keys {string.Join(", ", dups)}");
+        }
+    }
+
+    [Fact]
+    public void V020DepthAndGaugeKeysExistInBothThemes()
+    {
+        var keys = Keys();
+        foreach (var k in new[] { "HeaderGrad", "CardGrad", "NavBg", "NavSel", "MenuBg", "Pressed", "GaugeTrack", "GaugeFill", "GaugeNeedle", "GaugeOk", "GaugeWarn", "GaugeCrit", "GaugeTick", "LampOff", "CardShadow", "RaisedShadow" })
+        {
+            Assert.True(keys.TryGetValue(k, out var d), k + " missing");
+            Assert.Contains(d!, v => v.File.EndsWith("Dark.xaml")); Assert.Contains(d!, v => v.File.EndsWith("Light.xaml"));
         }
     }
 }

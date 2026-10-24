@@ -101,6 +101,17 @@ Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-onl
 
 **Factory As-Built**: Ford's motorcraftservice.com needs a sign-in and a captcha, so the app cannot download it. **Get factory As-Built (Motorcraft)** opens the page in your browser and copies the VIN to the clipboard; download the `.ab` and click **Import downloaded .ab** (it is copied into `Data\asbuilt` and linked to the vehicle profile).
 
+## Dashboard
+Open **Dashboard** on the left rail while you are connected. It is read-only and sends only Mode 01 and Mode 22 requests.
+- RPM and speed are read most often. The other gauges are read less often, and the poll rate slows down if the bus is slow.
+- Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
+- Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
+- **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
+- Units, refresh rate and the gauge list are on the **Settings** page.
+
+## Keyboard shortcuts
+Ctrl+O open factory .ab, F5 connect, Shift+F5 disconnect, Ctrl+Shift+D capture, Ctrl+F find in logs, Ctrl+L log panel, Ctrl +/-/0 zoom, F11 full screen, F1 this guide.
+
 ## Header LEDs
 
 **LINK** (blue) lit while connected; **TX** (green) flashes when a command is sent; **RX** (amber) when a reply arrives; **ERR** (red) on timeout, `NO DATA`, `?`, adapter errors or a negative response. Each flash lasts at least 120 ms (errors 600 ms) so single commands are visible. They show one flash per command/reply, not per byte.

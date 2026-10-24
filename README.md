@@ -24,9 +24,10 @@ On Windows, choose **DEMO (simulated)** in the Port box to try the UI without an
 | Platform | Build | Mode | Result |
 |---|---|---|---|
 | Windows 11 Pro 24H2 (x64) | v0.1.3-test, v0.1.4-test | Simulator / demo (DEMO-MX+, DEMO-EX) | Run and tested by Dale |
+| Windows | v0.2.0-test | - | **Untested** |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | - | - | **Pending** |
 
-Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.1.5 features still need checking on Windows.
+Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0 (menus, nav rail, Settings page, Dashboard) is untested on Windows.
 
 ## Verified facts and sources
 | Item | Value | Source |

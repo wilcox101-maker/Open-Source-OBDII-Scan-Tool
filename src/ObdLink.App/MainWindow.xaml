@@ -1,6 +1,6 @@
 <Window x:Class="ObdLink.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ObdLink.App"
-        Title="OBDLink EX / MX+ Diagnostics for Ford (open source)" Icon="pack://application:,,,/OBDLinkDiag;component/Assets/icon-3.ico" Height="800" Width="1280" MinWidth="1024" MinHeight="640">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ObdLink.App" xmlns:c="clr-namespace:ObdLink.App.Controls"
+        Title="OBDLink EX / MX+ Diagnostics for Ford (open source)" Icon="pack://application:,,,/OBDLinkDiag;component/Assets/icon-3.ico" Height="860" Width="1360" MinWidth="1024" MinHeight="640">
   <Window.Resources>
     <DataTemplate x:Key="LogPanelTemplate" DataType="{x:Type local:LogPanelViewModel}">
       <DockPanel>
@@ -48,14 +48,96 @@
         </ListView>
       </DockPanel>
     </DataTemplate>
+    <!-- a dashboard bar card: LinearGauge + min/max/avg -->
+    <DataTemplate x:Key="BarCard" DataType="{x:Type local:GaugeVm}">
+      <Border Style="{StaticResource CardStyle}" Width="300" ToolTip="{Binding Note}">
+        <StackPanel>
+          <c:LinearGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" WarnLow="{Binding WarnLow}" Unit="{Binding Unit}" ValueText="{Binding ValueText}"/>
+          <TextBlock Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource FgDim}" Margin="0,2,0,0"/>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="DialCard" DataType="{x:Type local:GaugeVm}">
+      <Border Style="{StaticResource CardStyle}" Width="280" Height="300" ToolTip="{Binding Note}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Bottom" HorizontalAlignment="Center" Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource FgDim}"/>
+          <c:CircularGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" Unit="{Binding Unit}" ValueText="{Binding ValueText}"/>
+        </DockPanel>
+      </Border>
+    </DataTemplate>
   </Window.Resources>
-  <Grid Margin="8">
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*" MinHeight="260"/><RowDefinition Height="6"/><RowDefinition Height="210" MinHeight="80"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <!-- Header: connection card + theme -->
-    <Border Style="{StaticResource CardStyle}">
+  <Window.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding ConnectCommand}"/>
+    <KeyBinding Key="F5" Modifiers="Shift" Command="{Binding DisconnectCommand}"/>
+    <KeyBinding Key="D" Modifiers="Ctrl+Shift" Command="{Binding DiagnosticsCaptureCommand}"/>
+  </Window.InputBindings>
+  <DockPanel x:Name="RootPanel">
+    <Menu DockPanel.Dock="Top" x:Name="MainMenu">
+      <MenuItem Header="_File">
+        <MenuItem Header="_Open factory .ab…" InputGestureText="Ctrl+O" Command="{Binding ImportFactoryAbCommand}"/>
+        <MenuItem Header="Open FORScan .a_bt…" Command="{Binding ImportAbtCommand}"/>
+        <MenuItem Header="_Export">
+          <MenuItem Header="Factory .ab (optionally redacted)…" Command="{Binding ExportFactoryAbCommand}"/>
+          <MenuItem Header="FORScan .abt…" Command="{Binding ExportAbtCommand}"/>
+          <MenuItem Header="Events log…" Command="{Binding EventsPanel.ExportCommand}"/>
+          <MenuItem Header="Messages log…" Command="{Binding MessagesPanel.ExportCommand}"/>
+          <MenuItem Header="Adapter traffic log…" Command="{Binding TrafficPanel.ExportCommand}"/>
+        </MenuItem>
+        <MenuItem Header="_Save diagnostics capture (zip)" InputGestureText="Ctrl+Shift+D" Command="{Binding DiagnosticsCaptureCommand}"/>
+        <MenuItem Header="Open _data folder" Command="{Binding OpenDataFolderCommand}"/>
+        <Separator/>
+        <MenuItem Header="E_xit" InputGestureText="Alt+F4" Click="Exit_Click"/>
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="_Copy" Command="ApplicationCommands.Copy"/>
+        <MenuItem Header="Select _all" Command="ApplicationCommands.SelectAll"/>
+        <Separator/>
+        <MenuItem Header="_Find in logs…" InputGestureText="Ctrl+F" Click="FindLogs_Click"/>
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="Theme">
+          <MenuItem Header="Light" Click="Theme_Click" Tag="Light"/>
+          <MenuItem Header="Dark" Click="Theme_Click" Tag="Dark"/>
+          <MenuItem Header="System" Click="Theme_Click" Tag="System"/>
+        </MenuItem>
+        <MenuItem x:Name="LogPanelMenu" Header="Log _panel" IsCheckable="True" IsChecked="True" InputGestureText="Ctrl+L" Click="LogPanel_Click"/>
+        <Separator/>
+        <MenuItem Header="Zoom _in" InputGestureText="Ctrl++" Click="ZoomIn_Click"/>
+        <MenuItem Header="Zoom _out" InputGestureText="Ctrl+-" Click="ZoomOut_Click"/>
+        <MenuItem Header="Reset zoom" InputGestureText="Ctrl+0" Click="ZoomReset_Click"/>
+        <MenuItem Header="_Full screen" InputGestureText="F11" Click="FullScreen_Click"/>
+      </MenuItem>
+      <MenuItem Header="V_ehicle">
+        <MenuItem Header="_Connect" InputGestureText="F5" Command="{Binding ConnectCommand}"/>
+        <MenuItem Header="_Disconnect" InputGestureText="Shift+F5" Command="{Binding DisconnectCommand}"/>
+        <Separator/>
+        <MenuItem Header="_Identify vehicle" Command="{Binding IdentifyVehicleCommand}"/>
+        <MenuItem Header="_Scan modules" Command="{Binding ScanCommand}"/>
+        <MenuItem Header="Read OBD-II _DTCs" Command="{Binding ReadObdDtcsCommand}"/>
+        <MenuItem Header="Read _VIN" Command="{Binding ReadVinCommand}"/>
+      </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem Header="_Dashboard" Click="Nav_Click" Tag="Dashboard"/>
+        <MenuItem Header="Raw _console" Click="Nav_Click" Tag="Console"/>
+        <MenuItem Header="Diagnostics _capture" Command="{Binding DiagnosticsCaptureCommand}"/>
+        <MenuItem Header="Discovery _sweep (UNVERIFIED IDs)" Command="{Binding DiscoveryCommand}"/>
+        <MenuItem Header="Edit Ford enhanced PID table (JSON)…" Command="{Binding Dashboard.OpenPidTableCommand}"/>
+      </MenuItem>
+      <MenuItem Header="_Settings" Click="Nav_Click" Tag="Settings"/>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_Guide" InputGestureText="F1" Click="Nav_Click" Tag="Guide"/>
+        <MenuItem Header="Console _commands" Click="ConsoleHelp_Click"/>
+        <MenuItem Header="Check for _updates…" Command="{Binding CheckUpdatesCommand}"/>
+        <MenuItem Header="GitHub project page" Click="GitHub_Click"/>
+        <Separator/>
+        <MenuItem Header="_About" Click="About_Click"/>
+      </MenuItem>
+    </Menu>
+
+    <!-- Slim header: connection essentials + LEDs -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource HeaderGrad}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6" Effect="{DynamicResource RaisedShadow}">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-          <!-- v0.1.5 activity LEDs: lit 120 ms per command/response (600 ms for errors); sampled every 30 ms -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Margin="3,0" ToolTip="Connection: lit while connected">
             <Ellipse Width="11" Height="11" StrokeThickness="1" Stroke="{DynamicResource LedRim}" VerticalAlignment="Center">
               <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{DynamicResource LedOff}"/>
@@ -84,21 +166,16 @@
             </Ellipse>
             <TextBlock Text="ERR" FontSize="10" Margin="3,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}"/>
           </StackPanel>
-          <ComboBox Width="64" Margin="0,0,6,0" ItemsSource="{Binding HeaderIcons}" SelectedItem="{Binding SelectedHeaderIcon}" ToolTip="Header logo: Auto (black on light theme, yellow on dark) or variant 1 / 2 / 3"/>
-          <TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE793;" ToolTip="Theme" Foreground="{DynamicResource FgDim}"/>
-          <ComboBox Width="140" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" ToolTip="Theme: System follows the Windows app light/dark setting"/>
         </StackPanel>
         <WrapPanel>
-          <Image Source="{Binding HeaderIconUri}" Width="28" Height="28" Margin="0,0,6,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" ToolTip="OBDLink Diag (Ford-only)"/>
-          <TextBlock Text="OBDLink Diag" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,12,0"/>
-          <TextBlock Text="Port" VerticalAlignment="Center" Margin="4,0" Foreground="{DynamicResource FgDim}"/>
-          <ComboBox MinWidth="300" MaxDropDownHeight="400" ToolTip="{Binding SelectedPort}" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
+          <Image Source="{Binding HeaderIconUri}" Width="30" Height="30" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" ToolTip="OBDLink Diag (Ford-only)"/>
+          <TextBlock Text="OBDLink Diag" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0" Foreground="{DynamicResource HeaderFg}"/>
+          <ComboBox MinWidth="250" MaxDropDownHeight="400" ToolTip="{Binding SelectedPort}" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
           <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
-          <TextBlock Text="Vehicle" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{DynamicResource FgDim}"/>
-          <ComboBox Width="230" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}"/>
-          <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
-          <Button Command="{Binding DisconnectCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/><TextBlock Text="Disconnect"/></StackPanel></Button>
-          <Border x:Name="StateChip" ToolTip="{Binding Status}" MaxWidth="380">
+          <ComboBox Width="210" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}" ToolTip="Vehicle profile"/>
+          <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+          <Button Command="{Binding DisconnectCommand}" ToolTip="Disconnect (Shift+F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/><TextBlock Text="Disconnect"/></StackPanel></Button>
+          <Border ToolTip="{Binding Status}" MaxWidth="330">
             <Border.Style>
               <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
                 <Style.Triggers>
@@ -108,41 +185,92 @@
                 </Style.Triggers>
               </Style>
             </Border.Style>
-            <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
           </Border>
           <Border Style="{StaticResource ChipStyle}" ToolTip="Battery voltage (ATRV)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Foreground="{DynamicResource Fg}" Text="&#xE83F;"/><TextBlock Text="{Binding Voltage}"/></StackPanel></Border>
-          <Border Style="{StaticResource ChipStyle}" ToolTip="{Binding Capabilities}"><TextBlock><Run Text="Adapter: "/><Run Text="{Binding AdapterName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  "/><Run Text="{Binding Baud, Mode=OneWay}"/></TextBlock></Border>
+          <Border Style="{StaticResource ChipStyle}" ToolTip="{Binding Capabilities}"><TextBlock><Run Text="{Binding AdapterName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Baud, Mode=OneWay}"/></TextBlock></Border>
+          <Border Style="{StaticResource ChipStyle}" Background="{DynamicResource BannerBg}" ToolTip="Change in Settings"><TextBlock Text="{Binding ModeBanner}" Foreground="{DynamicResource BannerFg}" FontWeight="SemiBold" FontSize="11"/></Border>
         </WrapPanel>
       </DockPanel>
     </Border>
-    <Grid Grid.Row="1">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="310" MinWidth="220"/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
-      <DockPanel>
-        <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Background="{DynamicResource BannerBg}" BorderBrush="{DynamicResource BannerBorder}">
-          <StackPanel>
-            <TextBlock Text="{Binding ModeBanner}" FontWeight="Bold" Foreground="{DynamicResource BannerFg}" TextWrapping="Wrap"/>
-            <CheckBox Content="Read-only test mode" IsChecked="{Binding ReadOnlyTestMode}"/>
-          </StackPanel>
-        </Border>
-        <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}">
-          <StackPanel>
-            <Button Command="{Binding ScanCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE721;"/><TextBlock Text="Scan modules"/></StackPanel></Button>
-            <Button Command="{Binding DiagnosticsCaptureCommand}" ToolTip="Read-only capture: adapter ID, probes, scan, logs"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Diagnostics capture (zip)"/></StackPanel></Button>
-            <CheckBox Content="Redact VINs in capture zip" IsChecked="{Binding CaptureRedactVins}"/>
-            <Expander Header="Discovery sweep (UNVERIFIED IDs)">
-              <StackPanel Margin="4">
-                <WrapPanel><TextBlock Text="From 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryStart, UpdateSourceTrigger=LostFocus}"/>
-                  <TextBlock Text=" to 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryEnd, UpdateSourceTrigger=LostFocus}"/></WrapPanel>
-                <CheckBox Content="3E 00 TesterPresent" IsChecked="{Binding DiscoveryTesterPresent}"/>
-                <CheckBox Content="22 F1 90 read VIN" IsChecked="{Binding DiscoveryF190}"/>
-                <CheckBox Content="KWP 1A 87 ReadEcuId" IsChecked="{Binding DiscoveryKwp1A}"/>
-                <CheckBox Content="Include sweep in Diagnostics capture" IsChecked="{Binding CaptureIncludesDiscovery}"/>
-                <Button Command="{Binding DiscoveryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run discovery sweep"/></StackPanel></Button>
+
+    <StatusBar DockPanel.Dock="Bottom">
+      <StatusBarItem><TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="480"/></StatusBarItem>
+      <Separator/>
+      <StatusBarItem><TextBlock Text="{Binding Dashboard.StateText, StringFormat=Dashboard: {0}}"/></StatusBarItem>
+      <Separator/>
+      <StatusBarItem ToolTip="{Binding DataDirTooltip}"><TextBlock VerticalAlignment="Center" Text="{Binding DataDirShort}" TextTrimming="CharacterEllipsis" MaxWidth="360"/></StatusBarItem>
+      <StatusBarItem HorizontalAlignment="Right"><TextBlock><Run Text="{Binding AppVersion, Mode=OneWay}"/><Run Text="-test  ·  Ford-only  ·  theme "/><Run Text="{Binding SelectedTheme, Mode=OneWay}"/></TextBlock></StatusBarItem>
+    </StatusBar>
+
+    <Grid x:Name="ZoomHost">
+      <Grid.LayoutTransform><ScaleTransform x:Name="Zoom" ScaleX="1" ScaleY="1"/></Grid.LayoutTransform>
+      <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="300"/><RowDefinition x:Name="SplitRow" Height="6"/><RowDefinition x:Name="LogRow" Height="190" MinHeight="0"/></Grid.RowDefinitions>
+      <TabControl x:Name="Nav" Style="{StaticResource NavTabControlStyle}" ItemContainerStyle="{StaticResource NavTabStyle}" SelectedValuePath="Header" SelectedValue="{Binding SelectedTab}">
+
+        <TabItem Header="Dashboard" Tag="&#xEC4A;">
+          <DockPanel DataContext="{Binding Dashboard}">
+            <DockPanel DockPanel.Dock="Top">
+              <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}"/>
+              <Border Style="{StaticResource ChipStyle}" VerticalAlignment="Center"><TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/></Border>
+              <Button Command="{Binding PauseCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
+              <Button Command="{Binding RecordCommand}" ToolTip="Record every poll to Data\logs\dashboard-*.csv"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7C8;"/><TextBlock Text="{Binding RecordText}"/></StackPanel></Button>
+              <Button Command="{Binding ResetStatsCommand}" ><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
+              <TextBlock Text="{Binding RateText}" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource FgDim}" FontSize="11"/>
+              <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0"/>
+            </DockPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <WrapPanel>
+                  <ItemsControl ItemsSource="{Binding Dials}" ItemTemplate="{StaticResource DialCard}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
+                  <Border Style="{StaticResource CardStyle}" Width="200" Height="300" ToolTip="{Binding GearSource}">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Top" Text="TRANS GEAR" Style="{StaticResource SectionTitle}" HorizontalAlignment="Center"/>
+                      <TextBlock DockPanel.Dock="Bottom" Text="{Binding GearSource}" TextWrapping="Wrap" TextAlignment="Center" FontSize="10.5" Foreground="{DynamicResource FgDim}"/>
+                      <TextBlock Text="{Binding Gear}" FontSize="96" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Accent}"/>
+                    </DockPanel>
+                  </Border>
+                  <Border Style="{StaticResource CardStyle}" Width="220" Height="300">
+                    <StackPanel>
+                      <TextBlock Text="INDICATORS" Style="{StaticResource SectionTitle}"/>
+                      <StackPanel Orientation="Horizontal" Margin="0,4" ToolTip="Mode 01 PID 01 bit 7"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding MilOn}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Check engine (MIL)" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="22,0,0,4"><TextBlock Text="{Binding DtcCount, StringFormat=Stored DTCs: {0}}" Foreground="{DynamicResource FgDim}"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="0,4" ToolTip="Connected to the adapter"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LinkOk}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeOk}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Adapter link" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="0,4" ToolTip="Below the Settings threshold (default 11.8 V)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowVoltage}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low voltage" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="0,4" ToolTip="Coolant above the Settings threshold (default 110 °C)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Overheat}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Overheat" VerticalAlignment="Center"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="0,4" ToolTip="Data\logs\dashboard-*.csv"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Recording}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Recording CSV" VerticalAlignment="Center"/></StackPanel>
+                      <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" FontSize="10.5" Foreground="{DynamicResource FgDim}" Text="Read-only: the dashboard sends only Mode 01 and Mode 22 reads, and pauses while another command uses the adapter."/>
+                    </StackPanel>
+                  </Border>
+                </WrapPanel>
+                <ItemsControl ItemsSource="{Binding Bars}" ItemTemplate="{StaticResource BarCard}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
               </StackPanel>
-            </Expander>
-          </StackPanel>
-        </Border>
-        <Border Style="{StaticResource CardStyle}" Padding="2">
+            </ScrollViewer>
+          </DockPanel>
+        </TabItem>
+
+        <TabItem Header="Modules" Tag="&#xE950;">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Modules" Style="{StaticResource PageTitle}"/>
+            <Border DockPanel.Dock="Right" Style="{StaticResource CardStyle}" Width="300">
+              <StackPanel>
+                <Button Command="{Binding ScanCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE721;"/><TextBlock Text="Scan modules"/></StackPanel></Button>
+                <Button Command="{Binding DiagnosticsCaptureCommand}" ToolTip="Read-only capture: adapter ID, probes, scan, logs (Ctrl+Shift+D)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Diagnostics capture (zip)"/></StackPanel></Button>
+                <CheckBox Content="Redact VINs in capture zip" IsChecked="{Binding CaptureRedactVins}"/>
+                <Expander Header="Discovery sweep (UNVERIFIED IDs)" Margin="0,6,0,0">
+                  <StackPanel Margin="4">
+                    <WrapPanel><TextBlock Text="From 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryStart, UpdateSourceTrigger=LostFocus}"/>
+                      <TextBlock Text=" to 0x" VerticalAlignment="Center"/><TextBox Width="45" Text="{Binding DiscoveryEnd, UpdateSourceTrigger=LostFocus}"/></WrapPanel>
+                    <CheckBox Content="3E 00 TesterPresent" IsChecked="{Binding DiscoveryTesterPresent}"/>
+                    <CheckBox Content="22 F1 90 read VIN" IsChecked="{Binding DiscoveryF190}"/>
+                    <CheckBox Content="KWP 1A 87 ReadEcuId" IsChecked="{Binding DiscoveryKwp1A}"/>
+                    <CheckBox Content="Include sweep in Diagnostics capture" IsChecked="{Binding CaptureIncludesDiscovery}"/>
+                    <Button Command="{Binding DiscoveryCommand}" ><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run discovery sweep"/></StackPanel></Button>
+                  </StackPanel>
+                </Expander>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}" Padding="2">
           <DataGrid ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" AutoGenerateColumns="False" IsReadOnly="True">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Module" Binding="{Binding Label}" Width="*">
@@ -154,11 +282,12 @@
               <DataGridTextColumn Header="Conf." Binding="{Binding Confidence}"/>
             </DataGrid.Columns>
           </DataGrid>
-        </Border>
-      </DockPanel>
-      <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" ResizeDirection="Columns"/>
-      <TabControl Grid.Column="2" Margin="4" SelectedValuePath="Header" SelectedValue="{Binding SelectedTab}">
-        <TabItem Header="DTCs">
+</Border>
+          </DockPanel>
+        </TabItem>
+
+        <TabItem Header="DTCs" Tag="&#xE7BA;">
+          <Border Style="{StaticResource CardStyle}">
           <DockPanel>
             <WrapPanel DockPanel.Dock="Top">
               <Button Command="{Binding ReadObdDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read OBD-II DTCs (03)"/></StackPanel></Button>
@@ -169,19 +298,10 @@
             <TextBlock DockPanel.Dock="Top" Margin="4" Foreground="{DynamicResource FgDim}" Text="{Binding SelectedModule.Label, StringFormat=Selected module: {0}, FallbackValue=Select a module on the left}"/>
             <DataGrid ItemsSource="{Binding Dtcs}" AutoGenerateColumns="True" IsReadOnly="True"/>
           </DockPanel>
+</Border>
         </TabItem>
-        <TabItem Header="Vehicle">
-          <DockPanel>
-            <WrapPanel DockPanel.Dock="Top">
-              <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Read-only: reads the VIN (09 02 / 22 F190), sweeps HS-CAN (and MS-CAN on MX+/EX) with 3E 00 and reads part-number DIDs. Saves Data\vehicles\&lt;VIN&gt;.json"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE721;"/><TextBlock Text="Identify vehicle / scan new vehicle"/></StackPanel></Button>
-              <CheckBox VerticalAlignment="Center" Margin="8,0" IsChecked="{Binding OnlineVinDecode}" Content="Online VIN decode (NHTSA vPIC)" ToolTip="Opt-in. Sends ONLY the VIN to vpic.nhtsa.dot.gov (US government, free). 10 s timeout; offline decode is always used if it fails. The request is logged."/>
-              <Button Command="{Binding OpenMotorcraftCommand}" ToolTip="Opens motorcraftservice.com/AsBuilt in your browser and copies the VIN to the clipboard. Ford requires sign-in and a captcha, so the app cannot download it for you."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Get factory As-Built (Motorcraft)…"/></StackPanel></Button>
-              <Button Command="{Binding ImportVehicleAbCommand}" ToolTip="Import the downloaded .ab; it is copied to Data\asbuilt and linked to this vehicle profile"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import downloaded .ab…"/></StackPanel></Button>
-            </WrapPanel>
-            <TextBox Text="{Binding VehicleInfo, Mode=OneWay}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="{StaticResource Mono}"/>
-          </DockPanel>
-        </TabItem>
-        <TabItem Header="As-Built (raw)">
+        <TabItem Header="As-Built" Tag="&#xE9F9;">
+          <Border Style="{StaticResource CardStyle}">
           <DockPanel>
             <TextBlock DockPanel.Dock="Top" Margin="4" FontWeight="SemiBold" Text="{Binding SelectedModule.Label, StringFormat=Module: {0}, FallbackValue=Select a module on the left}" ToolTip="{Binding SelectedModule.Tooltip}"/>
             <WrapPanel DockPanel.Dock="Top">
@@ -216,8 +336,23 @@
               </DataGrid.Columns>
             </DataGrid>
           </DockPanel>
+</Border>
         </TabItem>
-        <TabItem Header="Console">
+        <TabItem Header="Vehicle" Tag="&#xE804;">
+          <Border Style="{StaticResource CardStyle}">
+          <DockPanel>
+            <WrapPanel DockPanel.Dock="Top">
+              <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Read-only: reads the VIN (09 02 / 22 F190), sweeps HS-CAN (and MS-CAN on MX+/EX) with 3E 00 and reads part-number DIDs. Saves Data\vehicles\&lt;VIN&gt;.json"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE721;"/><TextBlock Text="Identify vehicle / scan new vehicle"/></StackPanel></Button>
+              <CheckBox VerticalAlignment="Center" Margin="8,0" IsChecked="{Binding OnlineVinDecode}" Content="Online VIN decode (NHTSA vPIC)" ToolTip="Opt-in. Sends ONLY the VIN to vpic.nhtsa.dot.gov (US government, free). 10 s timeout; offline decode is always used if it fails. The request is logged."/>
+              <Button Command="{Binding OpenMotorcraftCommand}" ToolTip="Opens motorcraftservice.com/AsBuilt in your browser and copies the VIN to the clipboard. Ford requires sign-in and a captcha, so the app cannot download it for you."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Get factory As-Built (Motorcraft)…"/></StackPanel></Button>
+              <Button Command="{Binding ImportVehicleAbCommand}" ToolTip="Import the downloaded .ab; it is copied to Data\asbuilt and linked to this vehicle profile"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import downloaded .ab…"/></StackPanel></Button>
+            </WrapPanel>
+            <TextBox Text="{Binding VehicleInfo, Mode=OneWay}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="{StaticResource Mono}"/>
+          </DockPanel>
+</Border>
+        </TabItem>
+        <TabItem Header="Console" Tag="&#xE756;">
+          <Border Style="{StaticResource CardStyle}">
           <DockPanel>
             <DockPanel DockPanel.Dock="Bottom">
               <CheckBox DockPanel.Dock="Right" Content="Allow writes" VerticalAlignment="Center" IsChecked="{Binding ConsoleAllowWrites}"/>
@@ -226,33 +361,95 @@
             </DockPanel>
             <TextBox Text="{Binding ConsoleOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="{StaticResource Mono}"/>
           </DockPanel>
+</Border>
         </TabItem>
-        <TabItem Header="Guide">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Top" Margin="6" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
-                       Text="Adapted from Livnitup's FORScan Tutorial (updated 6/14/26). Credit: Livnitup. Original: https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/"/>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,6,4">
-              <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource FgDim}"><Run Text="Data folder: "/><Run Text="{Binding DataDir, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
-              <Button Command="{Binding OpenDataFolderCommand}" Content="Open data folder"/>
+        <TabItem Header="Logs" Tag="&#xE9D9;">
+          <Border Style="{StaticResource CardStyle}">
+            <TabControl x:Name="LogsPageTabs">
+              <TabItem Header="Events"><ContentControl Content="{Binding EventsPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+              <TabItem Header="Messages"><ContentControl Content="{Binding MessagesPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+              <TabItem Header="Adapter traffic"><ContentControl Content="{Binding TrafficPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+            </TabControl>
+          </Border>
+        </TabItem>
+        <TabItem Header="Guide" Tag="&#xE897;">
+          <Border Style="{StaticResource CardStyle}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="6" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
+                         Text="Adapted from Livnitup's FORScan Tutorial (updated 6/14/26). Credit: Livnitup. Original: https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/"/>
+              <FlowDocumentScrollViewer x:Name="GuideViewer" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False"/>
+            </DockPanel>
+          </Border>
+        </TabItem>
+
+        <TabItem Header="Settings" Tag="&#xE713;">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="1100" HorizontalAlignment="Left">
+              <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
+              <TextBlock Margin="8,0,0,4" Foreground="{DynamicResource FgDim}" Text="{Binding DataDir, StringFormat=Changes are saved immediately to settings.json in {0}}"/>
+              <WrapPanel>
+                <Border Style="{StaticResource CardStyle}" Width="340">
+                  <StackPanel>
+                    <TextBlock Text="SAFETY" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="Read-only test mode (recommended)" IsChecked="{Binding ReadOnlyTestMode}" FontWeight="SemiBold" ToolTip="Turning this OFF asks for confirmation first"/>
+                    <TextBlock Text="{Binding ModeBanner}" Foreground="{DynamicResource BannerFg}" Margin="22,0,0,6" TextWrapping="Wrap"/>
+                    <CheckBox Content="Redact VINs by default (logs, capture zip)" IsChecked="{Binding RedactVinsDefault}"/>
+                    <CheckBox Content="Online VIN decode (NHTSA vPIC)" IsChecked="{Binding OnlineVinDecode}" ToolTip="Opt-in. Sends ONLY the VIN to vpic.nhtsa.dot.gov"/>
+                    <CheckBox Content="Check GitHub for updates at startup" IsChecked="{Binding UpdateCheckEnabled}" ToolTip="Opt-in. One GET to api.github.com; nothing is downloaded"/>
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Width="340">
+                  <StackPanel>
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionTitle}"/>
+                    <DockPanel><TextBlock Text="Theme" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}"/></DockPanel>
+                    <DockPanel><TextBlock Text="Header logo" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding HeaderIcons}" SelectedItem="{Binding SelectedHeaderIcon}"/></DockPanel>
+                    <DockPanel><TextBlock Text="Speed" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding SpeedUnits}" SelectedItem="{Binding SpeedUnit}"/></DockPanel>
+                    <DockPanel><TextBlock Text="Temperature" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding TempUnits}" SelectedItem="{Binding TempUnit}"/></DockPanel>
+                    <DockPanel><TextBlock Text="Pressure" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding PressureUnits}" SelectedItem="{Binding PressureUnit}"/></DockPanel>
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Width="340">
+                  <StackPanel>
+                    <TextBlock Text="ADAPTER" Style="{StaticResource SectionTitle}"/>
+                    <DockPanel><TextBlock Text="Default port" Width="110" VerticalAlignment="Center"/><TextBox Text="{Binding AdapterDefaultPort, UpdateSourceTrigger=LostFocus}" ToolTip="e.g. COM5; selected at startup if present"/></DockPanel>
+                    <DockPanel><TextBlock Text="Adapter" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding AdapterKinds}" SelectedItem="{Binding AdapterKind}"/></DockPanel>
+                    <DockPanel><TextBlock Text="Timeout (ms)" Width="110" VerticalAlignment="Center"/><TextBox Text="{Binding AdapterTimeoutMs, UpdateSourceTrigger=LostFocus}"/></DockPanel>
+                    <CheckBox Content="Show simulator ports (DEMO-MX+, DEMO-EX)" IsChecked="{Binding SimulatorEnabled}"/>
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Width="520">
+                  <StackPanel>
+                    <TextBlock Text="DASHBOARD" Style="{StaticResource SectionTitle}"/>
+                    <DockPanel><TextBlock Text="Refresh (ms)" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding RefreshRates}" SelectedItem="{Binding DashboardRefreshMs}" ToolTip="Base interval for RPM/speed/throttle; slower PIDs are polled less often and the rate backs off automatically on slow adapters"/></DockPanel>
+                    <DockPanel><TextBlock Text="Gauges" Width="110" VerticalAlignment="Top" Margin="0,6,0,0"/><TextBox Text="{Binding DashboardGauges, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap" Height="44" ToolTip="{Binding AvailableGaugeKeys, StringFormat=Comma-separated keys. Available: {0}}"/></DockPanel>
+                    <TextBlock Margin="110,0,0,4" FontSize="10.5" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding AvailableGaugeKeys, StringFormat=Available: {0}}"/>
+                    <CheckBox Content="Ford enhanced PIDs (Mode 22: gear, trans temp) - UNVERIFIED" IsChecked="{Binding DashboardFordPids}"/>
+                    <CheckBox Content="Estimate gear from RPM / speed when no gear DID answers" IsChecked="{Binding DashboardEstimateGear}"/>
+                    <Button Command="{Binding Dashboard.OpenPidTableCommand}" HorizontalAlignment="Left"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE70F;"/><TextBlock Text="Edit Ford PID table (JSON)…"/></StackPanel></Button>
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Width="340">
+                  <StackPanel>
+                    <TextBlock Text="LOGS &amp; DATA" Style="{StaticResource SectionTitle}"/>
+                    <DockPanel><TextBlock Text="Log level" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding LogLevels}" SelectedItem="{Binding LogLevelSetting}" ToolTip="Applies on restart"/></DockPanel>
+                    <DockPanel><TextBlock Text="Keep logs (days)" Width="110" VerticalAlignment="Center"/><TextBox Text="{Binding LogRetentionDays, UpdateSourceTrigger=LostFocus}"/></DockPanel>
+                    <TextBlock Text="{Binding DataDirShort}" TextWrapping="Wrap" Margin="0,6" Foreground="{DynamicResource FgDim}" ToolTip="{Binding DataDirTooltip}"/>
+                    <Button Command="{Binding OpenDataFolderCommand}" HorizontalAlignment="Left"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open data folder"/></StackPanel></Button>
+                  </StackPanel>
+                </Border>
+              </WrapPanel>
             </StackPanel>
-            <FlowDocumentScrollViewer x:Name="GuideViewer" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False"/>
-          </DockPanel>
+          </ScrollViewer>
         </TabItem>
       </TabControl>
+      <GridSplitter x:Name="LogSplitter" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeDirection="Rows"/>
+      <Border x:Name="LogPanel" Grid.Row="2" Style="{StaticResource CardStyle}" Padding="2" Margin="6,0,6,6">
+        <TabControl SelectedValuePath="Header" SelectedValue="{Binding SelectedLogTab}">
+          <TabItem Header="Events"><ContentControl Content="{Binding EventsPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+          <TabItem Header="Messages"><ContentControl Content="{Binding MessagesPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+          <TabItem Header="Adapter traffic"><ContentControl Content="{Binding TrafficPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
+        </TabControl>
+      </Border>
     </Grid>
-    <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeDirection="Rows"/>
-    <TabControl Grid.Row="3" Margin="4,0" SelectedValuePath="Header" SelectedValue="{Binding SelectedLogTab}">
-      <TabItem Header="Events"><ContentControl Content="{Binding EventsPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
-      <TabItem Header="Messages"><ContentControl Content="{Binding MessagesPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
-      <TabItem Header="Adapter traffic"><ContentControl Content="{Binding TrafficPanel}" ContentTemplate="{StaticResource LogPanelTemplate}"/></TabItem>
-    </TabControl>
-    <StatusBar Grid.Row="4" Margin="0,6,0,0">
-      <StatusBarItem><TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="520"/></StatusBarItem>
-      <Separator/>
-      <StatusBarItem><TextBlock Text="{Binding ModeBanner}"/></StatusBarItem>
-      <Separator/>
-      <StatusBarItem ToolTip="{Binding DataDirTooltip}"><StackPanel Orientation="Horizontal"><TextBlock VerticalAlignment="Center" Text="{Binding DataDirShort}" TextTrimming="CharacterEllipsis" MaxWidth="320"/><Button Command="{Binding OpenDataFolderCommand}" Content="Open data folder" Padding="6,0" Margin="6,0,0,0"/></StackPanel></StatusBarItem>
-      <StatusBarItem HorizontalAlignment="Right"><TextBlock><Run Text="{Binding AppVersion, Mode=OneWay}"/><Run Text="  ·  Ford-only  ·  theme "/><Run Text="{Binding SelectedTheme, Mode=OneWay}"/></TextBlock></StatusBarItem>
-    </StatusBar>
-  </Grid>
+  </DockPanel>
 </Window>

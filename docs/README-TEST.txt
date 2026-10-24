@@ -1,8 +1,9 @@
-OBDLink Diag - TEST BUILD v0.1.5 (win-x64)  2026-10-24
+OBDLink Diag - TEST BUILD v0.2.0 (win-x64)  2026-10-24
 =======================================================
-UNSIGNED TEST BUILD. Compiled on Linux. v0.1.3/v0.1.4 were run and tested by Dale on
-Windows 11 Pro 24H2 in simulator/demo mode. Real-vehicle testing is still pending, and
-v0.1.5's new features (LEDs, Identify vehicle, dialog folders) still need checking on Windows.
+UNSIGNED TEST BUILD. Compiled on Linux. UNTESTED ON WINDOWS: v0.1.3/v0.1.4 were run and tested
+by Dale on Windows 11 Pro 24H2 in simulator/demo mode, but v0.2.0 (new menus, nav rail, Settings
+page, Dashboard) has not been run on Windows yet. Real-vehicle testing is still pending.
+Ford products only.
 
 HOW TO RUN
 1. Unzip the WHOLE folder somewhere, e.g. C:\OBDLinkDiag. Keep the *_cor3.dll files next to the exe.
@@ -59,6 +60,21 @@ On first run, anything in the old %LOCALAPPDATA%\OBDLinkDiag folder is moved int
 overwritten by an older one). A MIGRATED.txt note is left in the old folder.
 If the app folder is not writable (e.g. Program Files), the app keeps using
 %LOCALAPPDATA%\OBDLinkDiag and tells you once. Put the app folder in Documents or on a USB stick.
+
+NEW IN v0.2.0
+-------------
+- Menu bar (File/Edit/View/Vehicle/Tools/Settings/Help) and a left navigation rail with icons.
+- Shortcuts: Ctrl+O open factory .ab, F5 connect, Shift+F5 disconnect, Ctrl+Shift+D capture,
+  Ctrl+F find in logs, Ctrl+L log panel, Ctrl +/-/0 zoom, F11 full screen, F1 Guide.
+- Settings page (left rail -> Settings, or the Settings menu). Saved to Data\settings.json.
+  Turning Read-only mode OFF asks for confirmation. DEMO ports only appear if "Simulator" is on.
+- Dashboard (left rail -> Dashboard, read-only Mode 01/22): RPM and speed dials, bar gauges,
+  gear (Ford DID if enabled, otherwise "est."), lamps MIL / DTCs / LINK / LOW V / HOT,
+  min/max/avg, Pause, Reset stats, Record CSV (Data\logs\dashboard-*.csv).
+  It polls only while the Dashboard page is open and connected. Try it with DEMO first.
+- Ford enhanced PIDs: Data\ford-enhanced-pids.json. These are UNVERIFIED and off by default.
+- Please check: menus, shortcuts, light/dark themes, the dashboard in DEMO, Settings persistence.
+
 
 NEW IN v0.1.5
 -------------

@@ -88,11 +88,14 @@ public sealed class MainViewModel : ObservableObject
     private PortInfo? _port; public PortInfo? SelectedPort { get => _port; set { if (Set(ref _port, value) && !_initializing) EventLog.UserAction("Port selected", ("port", value?.Name), ("kind", value?.Kind)); } }
     private string _vehicle = VehicleProfiles.F150_2017; public string SelectedVehicle { get => _vehicle; set { if (Set(ref _vehicle, value)) { EventLog.UserAction("Vehicle selected", ("vehicle", value)); LoadModules(); } } }
     private ModuleRow? _mod; public ModuleRow? SelectedModule { get => _mod; set { if (Set(ref _mod, value) && value is not null) EventLog.UserAction("Module selected", ("module", value.Label), ("addr", value.Address)); } }
-    private string _tab = "DTCs"; public string SelectedTab { get => _tab; set { if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) EventLog.UserAction("Tab changed", ("tab", value)); } }
+    private string _tab = "Dashboard"; public string SelectedTab { get => _tab; set { if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) { EventLog.UserAction("Tab changed", ("tab", value)); SyncDashboard(); } } }
+    private readonly SemaphoreSlim _bus = new(1, 1);
+    public DashboardViewModel Dashboard { get; }
+    private void SyncDashboard() => Dashboard?.Update(SelectedTab == "Dashboard", IsConnected && _ch != null);
     private string _bottomTab = "Events"; public string SelectedLogTab { get => _bottomTab; set { if (Set(ref _bottomTab, value) && !string.IsNullOrEmpty(value)) EventLog.UserAction("Log tab changed", ("tab", value)); } }
 
     private ConnectionStatus _conn = ConnectionStatus.Disconnected;
-    public ConnectionStatus Connection { get => _conn; private set { _conn = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(Voltage)); OnPropertyChanged(nameof(AdapterName)); OnPropertyChanged(nameof(Capabilities)); OnPropertyChanged(nameof(IsConnected)); OnPropertyChanged(nameof(ConnState)); } }
+    public ConnectionStatus Connection { get => _conn; private set { _conn = value; OnPropertyChanged(); OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(Voltage)); OnPropertyChanged(nameof(AdapterName)); OnPropertyChanged(nameof(Capabilities)); OnPropertyChanged(nameof(IsConnected)); OnPropertyChanged(nameof(ConnState)); SyncDashboard(); } }
     public string Status => Connection.StatusText;
     public string Voltage => Connection.Voltage;
     public string AdapterName => Connection.AdapterName;
@@ -162,6 +165,44 @@ public sealed class MainViewModel : ObservableObject
     public bool DiscoveryKwp1A { get => _settings.Discovery.Kwp1A; set { _settings.Discovery.Kwp1A = value; SaveSettings(); EventLog.UserAction("Discovery option toggled", ("Kwp1A", value)); } }
     private bool _capDisc; public bool CaptureIncludesDiscovery { get => _capDisc; set { if (Set(ref _capDisc, value)) EventLog.UserAction("Capture option toggled", ("includeDiscovery", value)); } }
     private bool _capRedact; public bool CaptureRedactVins { get => _capRedact; set { if (Set(ref _capRedact, value)) EventLog.UserAction("Capture option toggled", ("redactVins", value)); } }
+    // ---- Settings page (v0.2.0) ----
+    private void S(Action a, string what, object? v, string? prop = null) { a(); _settings.Normalize(); SaveSettings(); EventLog.UserAction("Setting changed: " + what, ("value", v)); OnPropertyChanged(prop); }
+    public bool UpdateCheckEnabled { get => _settings.UpdateCheck; set => S(() => _settings.UpdateCheck = value, "update check (GitHub)", value, nameof(UpdateCheckEnabled)); }
+    public bool RedactVinsDefault { get => _settings.RedactVinsDefault; set { S(() => _settings.RedactVinsDefault = value, "redact VINs by default", value, nameof(RedactVinsDefault)); CaptureRedactVins = value; foreach (var lp in new[] { EventsPanel, MessagesPanel, TrafficPanel }) lp.RedactOnExport = value; } }
+    public bool SimulatorEnabled { get => _settings.SimulatorEnabled; set { S(() => _settings.SimulatorEnabled = value, "simulator ports", value, nameof(SimulatorEnabled)); RefreshPortsCommand.Execute(null); } }
+    public string[] SpeedUnits { get; } = { "mph", "km/h" };
+    public string[] TempUnits { get; } = { "°F", "°C" };
+    public string[] PressureUnits { get; } = { "psi", "kPa" };
+    public string[] LogLevels { get; } = { "Debug", "Info", "Warning", "Error" };
+    public string[] AdapterKinds { get; } = { "Auto", "MX+", "EX", "Other STN/ELM" };
+    public int[] RefreshRates { get; } = { 100, 250, 500, 1000, 2000 };
+    public string SpeedUnit { get => _settings.Units.Speed; set { S(() => _settings.Units.Speed = value, "speed unit", value, nameof(SpeedUnit)); Dashboard.ApplyUnits(); } }
+    public string TempUnit { get => _settings.Units.Temperature; set { S(() => _settings.Units.Temperature = value, "temperature unit", value, nameof(TempUnit)); Dashboard.ApplyUnits(); } }
+    public string PressureUnit { get => _settings.Units.Pressure; set { S(() => _settings.Units.Pressure = value, "pressure unit", value, nameof(PressureUnit)); Dashboard.ApplyUnits(); } }
+    public string LogLevelSetting { get => _settings.LogLevel; set => S(() => _settings.LogLevel = value, "log level (applies on restart)", value, nameof(LogLevelSetting)); }
+    public int LogRetentionDays { get => _settings.LogRetentionDays; set => S(() => _settings.LogRetentionDays = value, "log retention days", value, nameof(LogRetentionDays)); }
+    public string AdapterDefaultPort { get => _settings.Adapter.Port ?? ""; set => S(() => _settings.Adapter.Port = string.IsNullOrWhiteSpace(value) ? null : value.Trim(), "default port", value, nameof(AdapterDefaultPort)); }
+    public string AdapterKind { get => _settings.Adapter.Kind; set => S(() => _settings.Adapter.Kind = value, "adapter kind", value, nameof(AdapterKind)); }
+    public int AdapterTimeoutMs { get => _settings.Adapter.TimeoutMs; set => S(() => _settings.Adapter.TimeoutMs = value, "adapter timeout ms", value, nameof(AdapterTimeoutMs)); }
+    public int DashboardRefreshMs { get => _settings.Dashboard.RefreshMs; set => S(() => _settings.Dashboard.RefreshMs = value, "dashboard refresh ms (applies when the dashboard restarts)", value, nameof(DashboardRefreshMs)); }
+    public bool DashboardFordPids { get => _settings.Dashboard.FordEnhancedPids; set => S(() => _settings.Dashboard.FordEnhancedPids = value, "Ford enhanced PIDs (Mode 22, UNVERIFIED)", value, nameof(DashboardFordPids)); }
+    public bool DashboardEstimateGear { get => _settings.Dashboard.EstimateGear; set => S(() => _settings.Dashboard.EstimateGear = value, "estimate gear from RPM/speed", value, nameof(DashboardEstimateGear)); }
+    public string DashboardGauges { get => string.Join(", ", _settings.Dashboard.Gauges); set { S(() => _settings.Dashboard.Gauges = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(k => J1979.Get(k) != null).ToList(), "dashboard gauges", value, nameof(DashboardGauges)); Dashboard.BuildGauges(); } }
+    public string AvailableGaugeKeys => string.Join(", ", J1979.All.Select(d => d.Key));
+    public AsyncCommand CheckUpdatesCommand { get; private set; } = null!;
+    /// <summary>Opt-in GitHub release check. Manual (Help menu) always asks first unless the setting is on; never downloads anything.</summary>
+    public async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (!_settings.UpdateCheck && (!manual || !Ask("Check for updates", $"Contact api.github.com once to read the latest release of {UpdateChecker.Repo}?\n\nOnly the app version is sent (User-Agent). Nothing is downloaded or installed.", MessageBoxImage.Question))) return;
+        var v = typeof(MainViewModel).Assembly.GetName().Version ?? new Version(0, 0, 0); var ver = v.ToString(3);
+        var r = await new UpdateChecker().CheckAsync(v);
+        if (r is null) { EventLog.Message(LogEventLevel.Warning, "Update check", "Could not reach GitHub (offline or rate-limited)"); if (manual) Info("Check for updates", "Could not reach GitHub. Releases: " + UpdateChecker.ReleasesUrl); return; }
+        var text = r.Newer ? $"A newer release is available: {r.Tag} ({r.Name}).\n{r.Url}" : $"You are up to date (v{ver}; latest {r.Tag}).";
+        EventLog.Message(LogEventLevel.Information, "Update check", text);
+        if (manual || r.Newer) Info("Check for updates", text);
+    }
+    public string AboutText => $"OBDLink Diag {AppVersion}-test (Ford-only, open source, MIT)\n\nOBDLink EX / MX+ diagnostics for Ford vehicles: dashboard (read-only Mode 01 / 22), module scan, DTCs, As-Built backup/compare, raw console.\n\nData folder: {DataDir}\nhttps://github.com/{UpdateChecker.Repo}\n\nTEST BUILD: use at your own risk. Read-only mode is ON by default.";
+
     private void SaveSettings() { try { _settings.Save(SettingsPath); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Settings", "Could not save settings", ex); } }
     private WriteGate Gate => new(() => _settings.ReadOnlyTestMode);
     public AsyncCommand DiagnosticsCaptureCommand { get; }
@@ -282,18 +323,23 @@ public sealed class MainViewModel : ObservableObject
             EventLog.Message(LogEventLevel.Error, op, text, ex);
             MessageBox.Show(text, op + " - error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        AsyncCommand C(string name, Func<Task> f, Func<(string, object?)[]>? p = null) => new(name, EventLog, f, Err, p);
+        // Every adapter command holds the shared bus lock so the dashboard poller never interleaves with it.
+        AsyncCommand C(string name, Func<Task> f, Func<(string, object?)[]>? p = null) => new(name, EventLog, async () => { await _bus.WaitAsync(); try { await f(); } finally { _bus.Release(); } }, Err, p);
         (string, object?)[] Mod() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address) };
         (string, object?)[] ModBlk() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address), ("block", AsBuiltBlockNo) };
 
         try { _settings = AppSettings.Load(SettingsPath); }
         catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
+        _capRedact = _settings.RedactVinsDefault;
+        foreach (var lp in new[] { EventsPanel, MessagesPanel, TrafficPanel }) if (lp != null) lp.RedactOnExport = _settings.RedactVinsDefault;
         try { ThemeManager.Apply(_settings.Theme); }
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
+        Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir);
+        CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
         RefreshPortsCommand = C("Refresh ports", () =>
         {
-            Ports.Clear(); Ports.Add(DemoMx); Ports.Add(DemoEx); foreach (var p in PortEnumerator.List()) Ports.Add(p);
-            SelectedPort ??= Ports[0];
+            Ports.Clear(); if (_settings.SimulatorEnabled) { Ports.Add(DemoMx); Ports.Add(DemoEx); } foreach (var p in PortEnumerator.List()) Ports.Add(p);
+            SelectedPort = Ports.FirstOrDefault(p => p.Name == SelectedPort?.Name) ?? Ports.FirstOrDefault(p => p.Name == _settings.Adapter.Port) ?? Ports.FirstOrDefault();
             EventLog.Message(LogEventLevel.Information, "Ports", $"{Ports.Count} ports: {string.Join(", ", Ports.Select(p => p.Name))}");
             return Task.CompletedTask;
         });

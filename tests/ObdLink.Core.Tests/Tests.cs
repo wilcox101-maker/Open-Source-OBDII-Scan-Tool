@@ -161,7 +161,7 @@ public class ServiceTests
         var (sim, _, ch) = await Setup();
         var obd = new ObdService(ch);
         Assert.Equal(sim.Vin, await obd.ReadVinAsync());
-        Assert.Equal(1726.0, (await obd.ReadPidAsync(0x0C))!.Value);
+        Assert.InRange((double)(await obd.ReadPidAsync(0x0C))!.Value!, 500, 7000); // v0.2.0: animated drive cycle
         Assert.Contains((byte)0x0C, await obd.GetSupportedPidsAsync());
         var dtcs = await obd.ReadStoredDtcsAsync();
         Assert.Contains(dtcs, d => d.Code == "P0301");
