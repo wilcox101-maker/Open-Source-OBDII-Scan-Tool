@@ -18,7 +18,7 @@
   <SolidColorBrush x:Key="SelFg" Color="#0B1F44"/>
   <SolidColorBrush x:Key="Thumb" Color="#C2C7CF"/>
   <SolidColorBrush x:Key="ThumbHover" Color="#A0A6B0"/>
-  <SolidColorBrush x:Key="Danger" Color="#C62828"/>
+  <SolidColorBrush x:Key="DangerBrush" Color="#C62828"/>
   <SolidColorBrush x:Key="DangerBg" Color="#FDE8E8"/>
   <SolidColorBrush x:Key="DangerFg" Color="#8E1B1B"/>
   <SolidColorBrush x:Key="Warn" Color="#9A6700"/>

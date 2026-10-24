@@ -9,7 +9,7 @@
           <ComboBox Width="110" ItemsSource="{Binding Levels}" SelectedItem="{Binding MinLevel}"/>
           <TextBlock Text="Search:" VerticalAlignment="Center" Margin="8,3,3,3"/>
           <TextBox Width="200" VerticalContentAlignment="Center" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/>
-          <Button Command="{Binding ClearCommand}" ToolTip="Clear this view (files on disk are kept)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE894;"/><TextBlock Text="Clear"/></StackPanel></Button>
+          <Button Command="{Binding ClearCommand}" ToolTip="Clear this view (files on disk are kept)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE894;"/><TextBlock Text="Clear"/></StackPanel></Button>
           <Button Content="Copy selected" Command="{Binding CopyCommand}" CommandParameter="{Binding SelectedItems, ElementName=LogList}"/>
           <Button Content="Export (.txt/.csv)…" Command="{Binding ExportCommand}"/>
           <CheckBox Content="Redact VINs on export/copy" IsChecked="{Binding RedactOnExport}" Margin="8,3"/>
@@ -52,24 +52,24 @@
   <Grid Margin="8">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*" MinHeight="260"/><RowDefinition Height="6"/><RowDefinition Height="210" MinHeight="80"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <!-- Header: connection card + theme -->
-    <Border Style="{StaticResource Card}">
+    <Border Style="{StaticResource CardStyle}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-          <TextBlock Style="{StaticResource Glyph}" Text="&#xE793;" ToolTip="Theme" Foreground="{DynamicResource FgDim}"/>
+          <TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE793;" ToolTip="Theme" Foreground="{DynamicResource FgDim}"/>
           <ComboBox Width="140" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" ToolTip="Theme: System follows the Windows app light/dark setting"/>
         </StackPanel>
         <WrapPanel>
           <TextBlock Text="OBDLink Diag" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,12,0"/>
           <TextBlock Text="Port" VerticalAlignment="Center" Margin="4,0" Foreground="{DynamicResource FgDim}"/>
           <ComboBox Width="240" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}"/>
-          <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource Glyph}" Margin="0" Text="&#xE72C;"/></Button>
+          <Button Command="{Binding RefreshPortsCommand}" ToolTip="Refresh COM ports" Padding="6,4"><TextBlock Style="{StaticResource GlyphStyle}" Margin="0" Text="&#xE72C;"/></Button>
           <TextBlock Text="Vehicle" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{DynamicResource FgDim}"/>
           <ComboBox Width="170" ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}"/>
-          <Button Command="{Binding ConnectCommand}" Style="{StaticResource Primary}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
-          <Button Command="{Binding DisconnectCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE711;"/><TextBlock Text="Disconnect"/></StackPanel></Button>
+          <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+          <Button Command="{Binding DisconnectCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/><TextBlock Text="Disconnect"/></StackPanel></Button>
           <Border x:Name="StateChip" ToolTip="{Binding Status}" MaxWidth="380">
             <Border.Style>
-              <Style TargetType="Border" BasedOn="{StaticResource Chip}">
+              <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding ConnState}" Value="Connected"><Setter Property="Background" Value="{DynamicResource ChipOk}"/></DataTrigger>
                   <DataTrigger Binding="{Binding ConnState}" Value="Failed"><Setter Property="Background" Value="{DynamicResource ChipBad}"/></DataTrigger>
@@ -79,24 +79,24 @@
             </Border.Style>
             <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis"/>
           </Border>
-          <Border Style="{StaticResource Chip}" ToolTip="Battery voltage (ATRV)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Foreground="{DynamicResource Fg}" Text="&#xE83F;"/><TextBlock Text="{Binding Voltage}"/></StackPanel></Border>
-          <Border Style="{StaticResource Chip}" ToolTip="{Binding Capabilities}"><TextBlock><Run Text="Adapter: "/><Run Text="{Binding AdapterName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  "/><Run Text="{Binding Baud, Mode=OneWay}"/></TextBlock></Border>
+          <Border Style="{StaticResource ChipStyle}" ToolTip="Battery voltage (ATRV)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Foreground="{DynamicResource Fg}" Text="&#xE83F;"/><TextBlock Text="{Binding Voltage}"/></StackPanel></Border>
+          <Border Style="{StaticResource ChipStyle}" ToolTip="{Binding Capabilities}"><TextBlock><Run Text="Adapter: "/><Run Text="{Binding AdapterName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  "/><Run Text="{Binding Baud, Mode=OneWay}"/></TextBlock></Border>
         </WrapPanel>
       </DockPanel>
     </Border>
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions><ColumnDefinition Width="310" MinWidth="220"/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
       <DockPanel>
-        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Background="{DynamicResource BannerBg}" BorderBrush="{DynamicResource BannerBorder}">
+        <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Background="{DynamicResource BannerBg}" BorderBrush="{DynamicResource BannerBorder}">
           <StackPanel>
             <TextBlock Text="{Binding ModeBanner}" FontWeight="Bold" Foreground="{DynamicResource BannerFg}" TextWrapping="Wrap"/>
             <CheckBox Content="Read-only test mode" IsChecked="{Binding ReadOnlyTestMode}"/>
           </StackPanel>
         </Border>
-        <Border DockPanel.Dock="Top" Style="{StaticResource Card}">
+        <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}">
           <StackPanel>
-            <Button Command="{Binding ScanCommand}" Style="{StaticResource Primary}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE721;"/><TextBlock Text="Scan modules"/></StackPanel></Button>
-            <Button Command="{Binding DiagnosticsCaptureCommand}" ToolTip="Read-only capture: adapter ID, probes, scan, logs"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE896;"/><TextBlock Text="Diagnostics capture (zip)"/></StackPanel></Button>
+            <Button Command="{Binding ScanCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE721;"/><TextBlock Text="Scan modules"/></StackPanel></Button>
+            <Button Command="{Binding DiagnosticsCaptureCommand}" ToolTip="Read-only capture: adapter ID, probes, scan, logs"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Diagnostics capture (zip)"/></StackPanel></Button>
             <CheckBox Content="Redact VINs in capture zip" IsChecked="{Binding CaptureRedactVins}"/>
             <Expander Header="Discovery sweep (UNVERIFIED IDs)">
               <StackPanel Margin="4">
@@ -106,12 +106,12 @@
                 <CheckBox Content="22 F1 90 read VIN" IsChecked="{Binding DiscoveryF190}"/>
                 <CheckBox Content="KWP 1A 87 ReadEcuId" IsChecked="{Binding DiscoveryKwp1A}"/>
                 <CheckBox Content="Include sweep in Diagnostics capture" IsChecked="{Binding CaptureIncludesDiscovery}"/>
-                <Button Command="{Binding DiscoveryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE768;"/><TextBlock Text="Run discovery sweep"/></StackPanel></Button>
+                <Button Command="{Binding DiscoveryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run discovery sweep"/></StackPanel></Button>
               </StackPanel>
             </Expander>
           </StackPanel>
         </Border>
-        <Border Style="{StaticResource Card}" Padding="2">
+        <Border Style="{StaticResource CardStyle}" Padding="2">
           <DataGrid ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" AutoGenerateColumns="False" IsReadOnly="True">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Module" Binding="{Binding Label}" Width="*">
@@ -130,10 +130,10 @@
         <TabItem Header="DTCs">
           <DockPanel>
             <WrapPanel DockPanel.Dock="Top">
-              <Button Command="{Binding ReadObdDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8E5;"/><TextBlock Text="Read OBD-II DTCs (03)"/></StackPanel></Button>
-              <Button Command="{Binding ReadModuleDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8E5;"/><TextBlock Text="Read module DTCs (19 02)"/></StackPanel></Button>
-              <Button Command="{Binding ClearModuleDtcsCommand}" Style="{StaticResource Danger}" ToolTip="Clears stored DTCs. Asks for confirmation; blocked in read-only mode"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;"/><TextBlock Text="Clear module DTCs (14)…"/></StackPanel></Button>
-              <Button Command="{Binding ReadVinCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8EC;"/><TextBlock Text="Read VIN (09 02)"/></StackPanel></Button>
+              <Button Command="{Binding ReadObdDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read OBD-II DTCs (03)"/></StackPanel></Button>
+              <Button Command="{Binding ReadModuleDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read module DTCs (19 02)"/></StackPanel></Button>
+              <Button Command="{Binding ClearModuleDtcsCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Clears stored DTCs. Asks for confirmation; blocked in read-only mode"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Clear module DTCs (14)…"/></StackPanel></Button>
+              <Button Command="{Binding ReadVinCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8EC;"/><TextBlock Text="Read VIN (09 02)"/></StackPanel></Button>
             </WrapPanel>
             <TextBlock DockPanel.Dock="Top" Margin="4" Foreground="{DynamicResource FgDim}" Text="{Binding SelectedModule.Label, StringFormat=Selected module: {0}, FallbackValue=Select a module on the left}"/>
             <DataGrid ItemsSource="{Binding Dtcs}" AutoGenerateColumns="True" IsReadOnly="True"/>
@@ -145,15 +145,15 @@
             <WrapPanel DockPanel.Dock="Top">
               <TextBlock Text="Block:" VerticalAlignment="Center" Margin="3"/>
               <TextBox Width="40" VerticalContentAlignment="Center" Text="{Binding AsBuiltBlockNo}"/>
-              <Button Command="{Binding ReadAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8E5;"/><TextBlock Text="Read"/></StackPanel></Button>
-              <Button Command="{Binding BackupAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE78C;"/><TextBlock Text="Backup"/></StackPanel></Button>
-              <Button Command="{Binding WriteAsBuiltCommand}" Style="{StaticResource Danger}" ToolTip="Writes to the module. Backup + confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE70F;"/><TextBlock Text="Write + verify…"/></StackPanel></Button>
-              <Button Command="{Binding RestoreAsBuiltCommand}" Style="{StaticResource Danger}" ToolTip="Writes the backup to the module. Confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE777;"/><TextBlock Text="Restore from backup…"/></StackPanel></Button>
-              <Button Command="{Binding ImportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8B5;"/><TextBlock Text="Import factory .ab…"/></StackPanel></Button>
-              <Button Command="{Binding ExportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xEDE1;"/><TextBlock Text="Export .ab…"/></StackPanel></Button>
-              <Button Command="{Binding CompareToFactoryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8FD;"/><TextBlock Text="Compare to factory"/></StackPanel></Button>
-              <Button Command="{Binding ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
-              <Button Command="{Binding ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
+              <Button Command="{Binding ReadAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read"/></StackPanel></Button>
+              <Button Command="{Binding BackupAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Backup"/></StackPanel></Button>
+              <Button Command="{Binding WriteAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes to the module. Backup + confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE70F;"/><TextBlock Text="Write + verify…"/></StackPanel></Button>
+              <Button Command="{Binding RestoreAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes the backup to the module. Confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Restore from backup…"/></StackPanel></Button>
+              <Button Command="{Binding ImportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import factory .ab…"/></StackPanel></Button>
+              <Button Command="{Binding ExportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .ab…"/></StackPanel></Button>
+              <Button Command="{Binding CompareToFactoryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8FD;"/><TextBlock Text="Compare to factory"/></StackPanel></Button>
+              <Button Command="{Binding ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
+              <Button Command="{Binding ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
             </WrapPanel>
             <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding FactoryInfo}" TextWrapping="Wrap"/>
             <DataGrid DockPanel.Dock="Bottom" Height="150" ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
@@ -179,7 +179,7 @@
           <DockPanel>
             <DockPanel DockPanel.Dock="Bottom">
               <CheckBox DockPanel.Dock="Right" Content="Allow writes" VerticalAlignment="Center" IsChecked="{Binding ConsoleAllowWrites}"/>
-              <Button Command="{Binding ConsoleSendCommand}" Style="{StaticResource Primary}" DockPanel.Dock="Right" IsDefault="True"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Glyph}" Text="&#xE724;"/><TextBlock Text="Send"/></StackPanel></Button>
+              <Button Command="{Binding ConsoleSendCommand}" Style="{StaticResource PrimaryStyle}" DockPanel.Dock="Right" IsDefault="True"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE724;"/><TextBlock Text="Send"/></StackPanel></Button>
               <TextBox Text="{Binding ConsoleInput, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}"/>
             </DockPanel>
             <TextBox Text="{Binding ConsoleOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="{StaticResource Mono}"/>
