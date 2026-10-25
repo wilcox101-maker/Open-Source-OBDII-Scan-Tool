@@ -1,3 +1,7 @@
+## Unreleased
+
+- **Fix: dashboard cards did not move in Customize mode.** Dragging a gauge onto another gauge did nothing: Windows only drop-targets the element under the pointer, and the gauge covered the card border that was marked to accept a drop. Customize now shows **Move left / right / up / down** and a **Drag** grip. Drop a card on another card (or on a gap) to reorder. With Customize off, the layout stays put. Order and sizes are still saved at once to `Data\settings.json`.
+
 ## v0.3.5-test
 
 **Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.

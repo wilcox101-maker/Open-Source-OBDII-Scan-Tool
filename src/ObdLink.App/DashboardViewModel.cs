@@ -55,7 +55,16 @@ public sealed class DashItemVm : ObservableObject
     public GaugeVm Gauge { get; }
     public CatalogEntry? Entry { get; }
     public TpmsVm? Tpms { get; init; }
-    public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry) { _owner = owner; Item = item; Gauge = gauge; Entry = entry; }
+    public RelayCommand MoveLeftCommand { get; }
+    public RelayCommand MoveRightCommand { get; }
+    public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry)
+    {
+        _owner = owner; Item = item; Gauge = gauge; Entry = entry;
+        // Parameterless commands: the button's DataContext is this card, so the click cannot lose the item
+        // the way a parent-ItemsControl CommandParameter binding can.
+        MoveLeftCommand = new("Dashboard move item left", null, _ => _owner.MoveLeftCommand.Execute(this));
+        MoveRightCommand = new("Dashboard move item right", null, _ => _owner.MoveRightCommand.Execute(this));
+    }
     public string Key => Item.Key;
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
@@ -163,17 +172,33 @@ public sealed class DashboardViewModel : ObservableObject
     /// <summary>Called after any layout edit: persists settings and makes the poller pick up the new item list.</summary>
     internal void Changed(string what) { _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what); if (Customizing) RefreshCatalog(); }
     private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
-    /// <summary>v0.3.3: move by any delta (buttons, Ctrl+Arrow). Clamped at the ends; returns false when nothing moved.</summary>
+    /// <summary>Keyboard / button move. No-op while Customize is off, so the saved layout stays put.</summary>
     public bool MoveBy(DashItemVm? it, int delta)
     {
-        if (it is null) return false; var i = Items.IndexOf(it); var to = Layout.MoveBy(i, delta);
-        if (to < 0) return false; Items.Move(i, to); Changed($"moved {it.Key} to position {to + 1}"); return true;
+        if (it is null) return false;
+        var i = Items.IndexOf(it);
+        var to = DashReorder.Move(Layout, i, delta, Customizing);
+        if (to < 0) return false;
+        Items.Move(i, to);
+        Changed($"moved {it.Key} to position {to + 1}");
+        return true;
     }
-    /// <summary>Drag &amp; drop reorder from the view.</summary>
-    public void MoveItem(DashItemVm src, DashItemVm dst)
+    /// <summary>Drag-and-drop reorder by item key. The view-model object is not an OLE-safe drag payload.</summary>
+    public bool MoveItemByKey(string? srcKey, string? dstKey)
     {
-        int a = Items.IndexOf(src), b = Items.IndexOf(dst);
-        if (Layout.MoveTo(a, b)) { Items.Move(a, b); Changed($"dragged {src.Key}"); }
+        if (!Customizing) return false;
+        int a = IndexOfKey(srcKey), b = IndexOfKey(dstKey);
+        if (a < 0 || b < 0 || a == b) return false;
+        if (!DashReorder.Drop(Layout, srcKey, dstKey, true)) return false;
+        Items.Move(a, b);
+        Changed($"moved {srcKey} to position {b + 1}");
+        return true;
+    }
+    private int IndexOfKey(string? key)
+    {
+        if (key is null) return -1;
+        for (int i = 0; i < Items.Count; i++) if (Items[i].Key == key) return i;
+        return -1;
     }
     private void RefreshCatalog()
     {

@@ -118,36 +118,49 @@
       </DockPanel>
     </DataTemplate>
     <DataTemplate x:Key="DashItemCard" DataType="{x:Type local:DashItemVm}">
-      <Border x:Name="Card" Style="{StaticResource CardStyle}" Width="300" Height="120" ToolTip="{Binding Gauge.Note}" AllowDrop="True"
-              Focusable="False" KeyboardNavigation.IsTabStop="False" AutomationProperties.Name="{Binding Title}"
-              PreviewMouseLeftButtonDown="DashItem_MouseDown" MouseMove="DashItem_MouseMove" Drop="DashItem_Drop" DragOver="DashItem_DragOver" PreviewKeyDown="DashItem_KeyDown">
-        <DockPanel>
-          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4" Visibility="{Binding DataContext.Customizing, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolVis}}">
-            <TextBlock Text="&#xE76F;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,4,0" Cursor="SizeAll" ToolTip="Drag to reorder (or focus a button here and press Ctrl+Arrow)"/>
-            <Button Padding="4,1" Content="◀" ToolTip="{Binding MoveHint}" AutomationProperties.Name="Move left" Command="{Binding DataContext.MoveLeftCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
-            <Button Padding="4,1" Content="▶" ToolTip="{Binding MoveHint}" AutomationProperties.Name="Move right" Command="{Binding DataContext.MoveRightCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
-            <Button Padding="4,1" Content="▲" ToolTip="Move up one row" AutomationProperties.Name="Move up" Tag="Up" Click="DashItemRow_Click"/>
-            <Button Padding="4,1" Content="▼" ToolTip="Move down one row" AutomationProperties.Name="Move down" Tag="Down" Click="DashItemRow_Click"/>
-            <ComboBox MinWidth="70" ItemsSource="{Binding Displays}" SelectedItem="{Binding Display}" IsEnabled="{Binding CanChangeDisplay}" ToolTip="Display type"/>
-            <ComboBox MinWidth="70" ItemsSource="{Binding Sizes}" SelectedItem="{Binding Size}" ToolTip="Size: Small, Medium, Large, Wide (two columns)" AutomationProperties.Name="Size"/>
-            <Button Padding="4,1" Content="✕" ToolTip="Remove from this layout" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
-          </WrapPanel>
-          <ContentControl x:Name="Body" Content="{Binding Gauge}" ContentTemplate="{StaticResource BarBody}"/>
-        </DockPanel>
+      <Border x:Name="Card" Style="{StaticResource CardStyle}" Width="300" ToolTip="{Binding Gauge.Note}" AllowDrop="True"
+              Focusable="True" KeyboardNavigation.IsTabStop="False" AutomationProperties.Name="{Binding Title}"
+              PreviewMouseLeftButtonDown="DashItem_MouseDown" PreviewMouseMove="DashItem_MouseMove" Drop="DashItem_Drop" DragOver="DashItem_DragOver" PreviewKeyDown="DashItem_KeyDown">
+        <!-- DropOverlay sits on top of the gauge. WPF only drop-targets the element actually under the pointer,
+             and that element must have AllowDrop itself (parents are ignored). The overlay is invisible to the
+             mouse until a drag starts, so the Move buttons still click. -->
+        <Grid>
+          <DockPanel>
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4" Visibility="{Binding DataContext.Customizing, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolVis}}">
+              <Border Cursor="SizeAll" Padding="8,3" Margin="3" CornerRadius="4" Background="{DynamicResource Control}" ToolTip="Drag this card onto another card">
+                <TextBlock Text="Drag" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </Border>
+              <Button Content="Move left" ToolTip="{Binding MoveHint}" AutomationProperties.Name="Move left" Command="{Binding MoveLeftCommand}"/>
+              <Button Content="Move right" ToolTip="{Binding MoveHint}" AutomationProperties.Name="Move right" Command="{Binding MoveRightCommand}"/>
+              <Button Content="Move up" ToolTip="Move this card up one row" AutomationProperties.Name="Move up" Tag="Up" Click="DashItemRow_Click"/>
+              <Button Content="Move down" ToolTip="Move this card down one row" AutomationProperties.Name="Move down" Tag="Down" Click="DashItemRow_Click"/>
+              <ComboBox MinWidth="70" ItemsSource="{Binding Displays}" SelectedItem="{Binding Display}" IsEnabled="{Binding CanChangeDisplay}" ToolTip="Display type"/>
+              <ComboBox MinWidth="70" ItemsSource="{Binding Sizes}" SelectedItem="{Binding Size}" ToolTip="Size: Small, Medium, Large, Wide (two columns)" AutomationProperties.Name="Size"/>
+              <Button Content="Remove" ToolTip="Remove from this layout" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+            </WrapPanel>
+            <Border x:Name="BodySlot" Height="120">
+              <ContentControl x:Name="Body" Content="{Binding Gauge}" ContentTemplate="{StaticResource BarBody}"/>
+            </Border>
+          </DockPanel>
+          <Border x:Name="DropOverlay" Tag="DropOverlay" AllowDrop="True" Background="Transparent" IsHitTestVisible="False" Drop="DashItem_Drop" DragOver="DashItem_DragOver"/>
+        </Grid>
       </Border>
       <DataTemplate.Triggers>
-        <DataTrigger Binding="{Binding Display}" Value="Dial"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource DialBody}"/><Setter TargetName="Card" Property="Width" Value="230"/><Setter TargetName="Card" Property="Height" Value="250"/></DataTrigger>
-        <DataTrigger Binding="{Binding Display}" Value="Tile"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TileBody}"/><Setter TargetName="Card" Property="Width" Value="180"/><Setter TargetName="Card" Property="Height" Value="130"/></DataTrigger>
-        <DataTrigger Binding="{Binding Display}" Value="Lamp"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource LampBody}"/><Setter TargetName="Card" Property="Width" Value="200"/><Setter TargetName="Card" Property="Height" Value="80"/></DataTrigger>
-        <DataTrigger Binding="{Binding Display}" Value="Tpms"><Setter TargetName="Body" Property="Content" Value="{Binding Tpms}"/><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TpmsBody}"/><Setter TargetName="Card" Property="Width" Value="300"/><Setter TargetName="Card" Property="Height" Value="290"/></DataTrigger>
-        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Dial"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="290"/><Setter TargetName="Card" Property="Height" Value="310"/></MultiDataTrigger>
+        <DataTrigger Binding="{Binding Display}" Value="Dial"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource DialBody}"/><Setter TargetName="Card" Property="Width" Value="230"/><Setter TargetName="BodySlot" Property="Height" Value="250"/></DataTrigger>
+        <DataTrigger Binding="{Binding Display}" Value="Tile"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TileBody}"/><Setter TargetName="Card" Property="Width" Value="180"/><Setter TargetName="BodySlot" Property="Height" Value="130"/></DataTrigger>
+        <DataTrigger Binding="{Binding Display}" Value="Lamp"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource LampBody}"/><Setter TargetName="Card" Property="Width" Value="200"/><Setter TargetName="BodySlot" Property="Height" Value="80"/></DataTrigger>
+        <DataTrigger Binding="{Binding Display}" Value="Tpms"><Setter TargetName="Body" Property="Content" Value="{Binding Tpms}"/><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TpmsBody}"/><Setter TargetName="Card" Property="Width" Value="300"/><Setter TargetName="BodySlot" Property="Height" Value="290"/></DataTrigger>
+        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Dial"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="290"/><Setter TargetName="BodySlot" Property="Height" Value="310"/></MultiDataTrigger>
         <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Bar"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="440"/></MultiDataTrigger>
-        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Tile"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="250"/><Setter TargetName="Card" Property="Height" Value="180"/></MultiDataTrigger>
+        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Tile"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="250"/><Setter TargetName="BodySlot" Property="Height" Value="180"/></MultiDataTrigger>
         <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Lamp"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="280"/></MultiDataTrigger>
-        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Tpms"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="380"/><Setter TargetName="Card" Property="Height" Value="320"/></MultiDataTrigger>
+        <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Tpms"/></MultiDataTrigger.Conditions><Setter TargetName="Card" Property="Width" Value="380"/><Setter TargetName="BodySlot" Property="Height" Value="320"/></MultiDataTrigger>
         <DataTrigger Binding="{Binding Size}" Value="Medium"><Setter TargetName="Card" Property="LayoutTransform"><Setter.Value><ScaleTransform ScaleX="1.2" ScaleY="1.2"/></Setter.Value></Setter></DataTrigger>
         <DataTrigger Binding="{Binding Size}" Value="Wide"><Setter TargetName="Card" Property="Width" Value="620"/></DataTrigger>
-        <DataTrigger Binding="{Binding DataContext.Customizing, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Accent}"/></DataTrigger>
+        <DataTrigger Binding="{Binding DataContext.Customizing, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+          <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+          <Setter TargetName="Card" Property="Cursor" Value="SizeAll"/>
+        </DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
     <!-- a dashboard bar card: LinearGauge + min/max/avg -->
@@ -387,13 +400,15 @@
                   <Button Command="{Binding DeleteLayoutCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Delete layout"/></StackPanel></Button>
                   <Button Command="{Binding ResetLayoutCommand}" ToolTip="Replace this layout's items with the built-in default"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset to default"/></StackPanel></Button>
                 </WrapPanel>
-                <TextBlock Margin="3,4,0,0" FontSize="11" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="Drag a card onto another to reorder, or use ◀ ▶ ▲ ▼ (keyboard: Tab to a card's button, then Ctrl+Arrow; Ctrl+Home/End = first/last). Pick Dial / Bar / Tile / Lamp and a size (Small / Medium / Large / Wide) per item. Reset to default restores the built-in layout. Changes are saved to Data\settings.json at once. Only the items on the dashboard are polled."/>
+                <TextBlock Margin="3,4,0,0" FontSize="11" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="Each card has Move left, Move right, Move up, and Move down. You can also drag a card by the Drag grip (or the gauge) and drop it on another card. Click a card, then Ctrl+Left/Right moves one place, Ctrl+Up/Down one row, Ctrl+Home/End jumps to first or last. Pick Dial / Bar / Tile / Lamp and a size (Small / Medium / Large / Wide). Reset to default restores the built-in layout. Changes are saved to Data\settings.json at once. Only the items on the dashboard are polled. Done locks the layout."/>
                 <TextBlock Margin="3,2,0,0" Foreground="{DynamicResource Warn}" Text="{Binding Hint}"/>
               </StackPanel>
             </Border>
             <WrapPanel DockPanel.Dock="Top" Margin="6,2"><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Mode 01 PID 01 bit 7"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding MilOn}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Check engine (MIL)" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Connected to the adapter"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LinkOk}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeOk}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Adapter link" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Below the Settings threshold (default 11.8 V)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowVoltage}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low voltage" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Coolant above the Settings threshold (default 110 °C)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Overheat}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Overheat" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="A tire is below the Settings TPMS threshold (default 30 psi). TPMS DIDs are UNVERIFIED"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowTire}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low tire" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Data\logs\dashboard-*.csv"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Recording}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Recording CSV" VerticalAlignment="Center"/></StackPanel></WrapPanel>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-              <ItemsControl x:Name="DashItemsHost" ItemsSource="{Binding Items}" ItemTemplate="{StaticResource DashItemCard}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
+            <ScrollViewer x:Name="DashScroll" VerticalScrollBarVisibility="Auto" AllowDrop="True" Background="Transparent" DragOver="DashHost_DragOver" Drop="DashHost_Drop">
+              <ItemsControl x:Name="DashItemsHost" ItemsSource="{Binding Items}" ItemTemplate="{StaticResource DashItemCard}" AllowDrop="True" Background="Transparent" DragOver="DashHost_DragOver" Drop="DashHost_Drop">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
             </ScrollViewer>
           </DockPanel>
         </TabItem>

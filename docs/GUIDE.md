@@ -137,11 +137,11 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
 - **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
 - **Output shaft speed (OSS, v0.3.4)**: add "Output shaft speed (OSS)" from the Customize catalog (not on the default layout). Shown in rpm from a Ford Mode 22 DID (**unverified**: 1E13, raw/4), asked of the PCM 0x7E0 first and the TCM 0x7E1 if the PCM does not answer. "unsupported" means neither answered; fix the DID in `Data\ford-enhanced-pids.json`. Read-only. DEMO shows a simulated value.
-- **Customize**: click Customize, then add items from the catalog, remove them (✕), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
-- **Rearranging (v0.3.3)**:
-  - Click **Customize** on the Dashboard. Each card gets a toolbar.
-  - **Reorder:** drag a card (grab it by the ⠿ handle or any empty spot) and drop it on another card. Or use ◀ ▶ (one place) and ▲ ▼ (one row).
-  - **Keyboard:** Tab to any button on a card's toolbar, then press Ctrl+Left/Right (one place), Ctrl+Up/Down (one row) or Ctrl+Home/End (first/last). Focus stays on the card, so you can keep pressing.
+- **Customize**: click Customize, then add items from the catalog, remove them (Remove), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
+- **Rearranging**:
+  - Click **Customize** on the Dashboard. Each card gets a toolbar and a colored border. **Done** locks the layout again; cards do not move while Customize is off.
+  - **Reorder:** use **Move left**, **Move right**, **Move up**, and **Move down** on the card. Or drag the **Drag** grip (or the gauge itself) and drop it on another card. Dropping on an empty gap moves the card to the nearest slot.
+  - **Keyboard:** click a card (or Tab to one of its buttons), then Ctrl+Left/Right (one place), Ctrl+Up/Down (one row), or Ctrl+Home/End (first/last). Focus stays on the card, so you can keep pressing.
   - **Size:** each card has a size box: Small, Medium (20% bigger), Large, or Wide (two columns).
   - **Reset to default** puts back the built-in items, order and sizes for the current layout.
   - Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.

@@ -54,5 +54,20 @@ public class V033Tests
         Assert.Contains("ModifierKeys.Control", cs);
         Assert.Contains("public bool MoveBy(DashItemVm? it, int delta)", vm);
         Assert.Contains("Changed($\"moved", vm); // every move persists (settings save)
+        // Drop must hit a full-card overlay. AllowDrop on the border alone never saw a drop on the gauge.
+        Assert.Contains("x:Name=\"DropOverlay\"", x);
+        Assert.Contains("IsHitTestVisible=\"False\"", x);
+        Assert.Contains("Content=\"Move left\"", x);
+        Assert.Contains("Content=\"Move right\"", x);
+        Assert.Contains("Content=\"Move up\"", x);
+        Assert.Contains("Content=\"Move down\"", x);
+        Assert.Contains("Command=\"{Binding MoveLeftCommand}\"", x);
+        Assert.Contains("Focusable=\"True\"", x);
+        Assert.Contains("SetDashDropTargets(true)", cs);
+        Assert.Contains("_dragKey", cs);
+        Assert.Contains("DataFormats.UnicodeText", cs);
+        Assert.DoesNotContain("typeof(DashItemVm)", cs);
+        Assert.Contains("DashReorder.Move", vm);
+        Assert.Contains("DashReorder.Drop", vm);
     }
 }
