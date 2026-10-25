@@ -248,7 +248,7 @@ public sealed class MainViewModel : ObservableObject
     public static string InformationalVersion => typeof(MainViewModel).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "?";
     public static string Revision { get { var v = InformationalVersion; var i = v.IndexOf('+'); return i < 0 ? "unknown" : v[(i + 1)..]; } }
     public static string BuildDate => typeof(MainViewModel).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false).OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "BuildDateUtc")?.Value is { } d ? d + " UTC" : "unknown";
-    public string AboutText => $"OBDLink Diag {AppVersion}-test\nRevision {Revision}, built {BuildDate}\n\nOBDLink EX / MX+ diagnostics for Ford vehicles (Ford-only): dashboard (read-only Mode 01 / 22), module scan, DTCs, As-Built backup/compare, raw console, firmware check.\n\nLicense: MIT (open source). Portable, no installer.\nSupported OS: Windows 10 1607+ / Windows 11 (x64 and ARM64). Windows 7 / 8.1 not supported.\n\nCredits:\n  Built by OBDLink MX+ Windows App (Grok Bot) for Dale Wilcox.\n  As-Built / PID community data: Livnitup, f150forum.com, jdunk54nl.\n\nhttps://github.com/{UpdateChecker.Repo}\nData folder: {DataDir}\n\nTEST BUILD: use at your own risk. Read-only mode is ON by default.";
+    public string AboutText => $"OBDLink Diag {AppVersion}\nRevision {Revision}, built {BuildDate}\n\nOBDLink EX / MX+ diagnostics for Ford vehicles (Ford-only): dashboard (read-only Mode 01 / 22), module scan, DTCs, As-Built backup/compare, raw console, firmware check.\n\nLicense: MIT (open source). Portable, no installer.\nSupported OS: Windows 10 1607+ / Windows 11 (x64 and ARM64). Windows 7 / 8.1 not supported.\n\nCredits:\n  Built by OBDLink MX+ Windows App (Grok Bot) for Dale Wilcox.\n  As-Built / PID community data: Livnitup, f150forum.com, jdunk54nl.\n\nhttps://github.com/{UpdateChecker.Repo}\nData folder: {DataDir}\n\nUse at your own risk. Read-only mode is ON by default. The exe is unsigned.";
 
     private void SaveSettings() { try { _settings.Save(SettingsPath); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Settings", "Could not save settings", ex); } }
     private WriteGate Gate => new(() => _settings.ReadOnlyTestMode);
@@ -685,6 +685,7 @@ public sealed class MainViewModel : ObservableObject
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
             _lastSti = info.StnId;
+            // v0.4.0: DEMO (including a first-run simulated session) never queries the firmware feed.
             _ = RunFirmwareCheckAsync(info.StnId);
             ResetVehicleForAdapter(sel.IsSimulated);
             if (!sel.IsSimulated && _settings.Adapter.LastPort != sel.Name) { _settings.Adapter.LastPort = sel.Name; SaveSettings(); }
@@ -851,7 +852,16 @@ public sealed class MainViewModel : ObservableObject
     private AsyncCommand? _checkFw;
     private async Task RunFirmwareCheckAsync(string? sti, bool force = false)
     {
-        if (!_settings.FirmwareCheck && !force) return;
+        if (!FirmwareCheckPolicy.ShouldQuery(_connectedSim, _settings.FirmwareCheck, force))
+        {
+            if (_connectedSim)
+            {
+                _fw = null; FirmwareBannerVisible = false; FwChanged();
+                EventLog.Message(LogEventLevel.Information, "Firmware", "Firmware check skipped: DEMO / simulated adapter. No request is sent to OBDLink.");
+                if (force) Info("Firmware check", "DEMO mode does not check adapter firmware, including on a first-run simulated session. Connect a real OBDLink adapter to compare with OBDLink's public feed. This app never installs firmware.");
+            }
+            return;
+        }
         try
         {
             var r = await new FirmwareChecker().CheckAsync(sti);

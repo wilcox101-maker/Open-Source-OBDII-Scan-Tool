@@ -252,16 +252,19 @@
     </Setter>
   </Style>
 
-  <!-- v0.2.0 left navigation rail: a TabControl with TabStripPlacement=Left uses NavTabStyle items -->
-  <Style x:Key="NavTabControlStyle" TargetType="TabControl">
+  <!-- v0.4.0 left rail: vertical ScrollViewer when short; icon-only (IsCompact) when tighter. Alt+number shortcuts are unchanged. -->
+  <Style x:Key="NavTabControlStyle" TargetType="c:NavTabControl">
     <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/>
     <Setter Property="Template">
       <Setter.Value>
-        <ControlTemplate TargetType="TabControl">
+        <ControlTemplate TargetType="c:NavTabControl">
           <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Border Background="{DynamicResource NavBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0" Effect="{DynamicResource RaisedShadow}">
-              <StackPanel IsItemsHost="True" Margin="6,8" Width="112"/>
+            <Border Background="{DynamicResource NavBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0" Effect="{DynamicResource RaisedShadow}" VerticalAlignment="Stretch">
+              <ScrollViewer x:Name="PART_NavScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" VerticalAlignment="Stretch">
+                <StackPanel IsItemsHost="True" Margin="6,8" Width="{Binding RailWidth, RelativeSource={RelativeSource TemplatedParent}}"/>
+              </ScrollViewer>
             </Border>
             <ContentPresenter Grid.Column="1" ContentSource="SelectedContent" Margin="6,4,4,4"/>
           </Grid>
@@ -278,7 +281,7 @@
             <Border x:Name="B" Background="Transparent" CornerRadius="8" Padding="6,8">
               <StackPanel>
                 <TextBlock x:Name="G" Text="{TemplateBinding Tag}" FontFamily="{DynamicResource Icons}" FontSize="20" HorizontalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
-                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" Margin="0,4,0,0" TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="11.5"/>
+                <ContentPresenter x:Name="Label" ContentSource="Header" HorizontalAlignment="Center" Margin="0,4,0,0" TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontSize="11.5"/>
               </StackPanel>
             </Border>
             <Border x:Name="Bar" Width="3" CornerRadius="2" HorizontalAlignment="Left" Margin="0,8" Background="{DynamicResource Accent}" Visibility="Hidden"/>
@@ -286,6 +289,10 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Hover}"/><Setter Property="Foreground" Value="{DynamicResource Fg}"/></Trigger>
             <Trigger Property="IsSelected" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource NavSel}"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=c:NavTabControl}}" Value="True">
+              <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+              <Setter Property="ToolTip" Value="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}"/>
+            </DataTrigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>

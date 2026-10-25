@@ -1,5 +1,5 @@
 {
-  "_comment": "Ford Mode 22 (enhanced) PIDs for the dashboard. ALL ENTRIES ARE UNVERIFIED community values (Torque Pro / UltraGauge forum posts for 2011-2017 F-150 6R80; TPMS: Torque Pro Ford extended PID lists, BCM 726). Edit Data\\ford-enhanced-pids.json to fix them: value = (raw * scale) + offset, raw = big-endian 'bytes' after 62 DID DID (two's complement if signed). 'map' turns a raw integer into a label. Read-only service 22 only.",
+  "_comment": "Ford Mode 22 (enhanced) PIDs for the dashboard. Entries are UNVERIFIED community values unless verified is true. TPMS DIDs 2813-2816 (BCM 726) were verified by Dale on a 2017 F-150. OSS DID 1E13 stays UNVERIFIED. Edit Data\\ford-enhanced-pids.json to fix them: value = (raw * scale) + offset, raw = big-endian 'bytes' after 62 DID DID (two's complement if signed). 'map' turns a raw integer into a label. Read-only service 22 only.",
   "pids": [
     { "key": "gear", "name": "Transmission gear (GEAR_OSC)", "header": "7E0", "did": "1E12", "bytes": 1, "signed": false, "scale": 1, "offset": 0, "unit": "", "min": 0, "max": 10,
       "map": { "0": "N/P", "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "7": "7", "8": "8", "9": "9", "10": "10" },
@@ -11,12 +11,12 @@
     { "key": "gearActual", "name": "Transmission gear actual (?)", "header": "7E0", "did": "1E1F", "bytes": 1, "signed": false, "scale": 1, "offset": 0, "unit": "", "min": 0, "max": 10, "enabled": false,
       "verified": false, "source": "Placeholder DID suggested for 'gear actual'; no confirmed source. Disabled by default." },
     { "key": "tpms_lf", "name": "Tire pressure LF", "header": "726", "did": "2813", "bytes": 2, "signed": false, "scale": 0.333333, "offset": 7.333333, "unit": "kPa", "quantity": "Pressure", "min": 0, "max": 480,
-      "verified": false, "source": "Torque Pro community PIDs (2gfusions.net 'Torque App and Extended Ford PIDs'; focusrs.org Torque PID list; torque-bhp.com 'Custom PIDs for Ford F150 (2011 tested)' gives (A*256+B)/20 psi, about the same scale). Header 726 (BCM), equation (((256*A)+B)/3+22/3) kPa. Not confirmed on a 2015-2020 F-150." },
+      "verified": true, "source": "Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2813 (LF). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa." },
     { "key": "tpms_rf", "name": "Tire pressure RF", "header": "726", "did": "2814", "bytes": 2, "signed": false, "scale": 0.333333, "offset": 7.333333, "unit": "kPa", "quantity": "Pressure", "min": 0, "max": 480,
-      "verified": false, "source": "Torque Pro community PIDs (2gfusions.net 'Torque App and Extended Ford PIDs'; focusrs.org Torque PID list; torque-bhp.com 'Custom PIDs for Ford F150 (2011 tested)' gives (A*256+B)/20 psi, about the same scale). Header 726 (BCM), equation (((256*A)+B)/3+22/3) kPa. Not confirmed on a 2015-2020 F-150." },
+      "verified": true, "source": "Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2814 (RF). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa." },
     { "key": "tpms_rr", "name": "Tire pressure RR", "header": "726", "did": "2815", "bytes": 2, "signed": false, "scale": 0.333333, "offset": 7.333333, "unit": "kPa", "quantity": "Pressure", "min": 0, "max": 480,
-      "verified": false, "source": "Torque Pro community PIDs (2gfusions.net 'Torque App and Extended Ford PIDs'; focusrs.org Torque PID list; torque-bhp.com 'Custom PIDs for Ford F150 (2011 tested)' gives (A*256+B)/20 psi, about the same scale). Header 726 (BCM), equation (((256*A)+B)/3+22/3) kPa. Not confirmed on a 2015-2020 F-150." },
+      "verified": true, "source": "Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2815 (RR). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa." },
     { "key": "tpms_lr", "name": "Tire pressure LR", "header": "726", "did": "2816", "bytes": 2, "signed": false, "scale": 0.333333, "offset": 7.333333, "unit": "kPa", "quantity": "Pressure", "min": 0, "max": 480,
-      "verified": false, "source": "Torque Pro community PIDs (2gfusions.net 'Torque App and Extended Ford PIDs'; focusrs.org Torque PID list; torque-bhp.com 'Custom PIDs for Ford F150 (2011 tested)' gives (A*256+B)/20 psi, about the same scale). Header 726 (BCM), equation (((256*A)+B)/3+22/3) kPa. Not confirmed on a 2015-2020 F-150." }
+      "verified": true, "source": "Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2816 (LR). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa." }
   ]
 }

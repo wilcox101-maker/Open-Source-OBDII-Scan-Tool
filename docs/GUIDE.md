@@ -6,7 +6,7 @@ Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.g
 **Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe.
 
 ## Adapter firmware check
-When you connect, the app reads the adapter firmware (STI) and, if you are online, compares it with the latest **stable** release in OBDLink's public firmware feed. If you are offline, nothing is shown. If your firmware is older, a banner shows the installed and latest versions:
+When you connect a **real** adapter, the app reads the adapter firmware (STI) and, if you are online, compares it with the latest **stable** release in OBDLink's public firmware feed. **DEMO / simulated mode skips this check**, including the first time you run the app on a DEMO port, and Ctrl+Alt+F does not contact OBDLink either. If you are offline, nothing is shown. If your firmware is older, a banner shows the installed and latest versions:
 - **Download firmware** saves the official scantool.net package to `Data\firmware\<model>\<version>\`. The app checks the size, the zip and the `STNFWv` header, and keeps the changelog.
 - **Open folder** opens that folder.
 - **Official updater page** opens OBDLink's page ([EX](https://www.scantool.net/downloads/updates/obdlink_ex/), [MX+](https://www.scantool.net/downloads/updates/obdlink_mxp/)).
@@ -39,6 +39,7 @@ This app **never flashes firmware** and does **not** include OBDLink's updater. 
 | Exported Events / Messages / Traffic logs (.txt/.csv) | `exports\` |
 | As-Built files: exported/imported `.abt`, factory `.ab` | `asbuilt\` |
 | Vehicle profiles from **Identify vehicle** | `vehicles\<VIN with first 11 masked>.json` |
+| Dashboard background image | `backgrounds\` (custom picture only; the choice itself is in `settings.json`) |
 
 Every Save/Open dialog starts in the matching folder above (never the folder Windows used last). You can still browse elsewhere; the full path is written to the Events log.
 
@@ -135,7 +136,7 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
 - Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
-- **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
+- **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**verified** by Dale on a 2017 F-150; the kPa formula is still the community equation, and you can edit it in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
 - **Output shaft speed (OSS, v0.3.4)**: add "Output shaft speed (OSS)" from the Customize catalog (not on the default layout). Shown in rpm from a Ford Mode 22 DID (**unverified**: 1E13, raw/4), asked of the PCM 0x7E0 first and the TCM 0x7E1 if the PCM does not answer. "unsupported" means neither answered; fix the DID in `Data\ford-enhanced-pids.json`. Read-only. DEMO shows a simulated value.
 - **Customize**: click Customize, then add items from the catalog, remove them (✕), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
 - **Rearranging (v0.3.3)**:
@@ -146,6 +147,9 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
   - **Reset to default** puts back the built-in items, order and sizes for the current layout.
   - Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.
   - Click **Done** to leave Customize. The dashboard stays read-only; only the items shown are polled.
+- **Narrow windows (v0.4.0):** the saved order and sizes stay as you left them, including the width of the dashboard when you last customized. Gauge-height cards (bars, tiles, lamps) line up in one column only when the window is so narrow that a saved card would not fit. Dials and the tire widget keep their size.
+- **Background (v0.4.0):** the Background box on the dashboard (and on Settings) offers wood grain, steel plate, mirror, onyx black, sports-car leather, carbon fiber, and brushed aluminum. **Pick image** copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds`. The choice is saved in `Data\settings.json`.
+- **Left rail:** when the window is short the page list scrolls. Shorter still, the captions hide and the icons remain. Alt+1 through Alt+9 still open the same pages.
 - Units and refresh rate are on the **Settings** page.
 
 ## As-Built backup

@@ -23,7 +23,7 @@ public sealed class AppPaths
     public string AsBuiltDir => Path.Combine(DataDir, "asbuilt");
     public string VehiclesDir => Path.Combine(DataDir, "vehicles");
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
-    public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles" };
+    public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles", "backgrounds" };
     /// <summary>Returns <paramref name="dir"/> after making sure it exists (for Save/Open dialog InitialDirectory).</summary>
     public static string Ensure(string dir) { try { Directory.CreateDirectory(dir); } catch (Exception ex) { Serilog.Log.Warning("Could not create folder {Dir}: {Err}", dir, ex.Message); } return dir; }
 
