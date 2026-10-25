@@ -96,10 +96,11 @@ public static class DashCatalog
     /// <summary>Mode 01 PIDs (only the supported ones when <paramref name="supported"/> is known), Ford DIDs, TPMS, gear, ATRV, MIL/DTC lamps.</summary>
     public static List<CatalogEntry> Build(EnhancedPidTable enhanced, ISet<byte>? supported = null)
     {
+        var tiresVerified = TpmsKeys.Tires.All(k => enhanced.Pids.FirstOrDefault(p => string.Equals(p.Key, k, StringComparison.OrdinalIgnoreCase)) is { Verified: true });
         var list = new List<CatalogEntry>
         {
             new("gear", "Transmission gear (Ford DID or estimate)", "Mode 22 / estimate", new[] { DisplayKind.Tile }, false),
-            new(TpmsKeys.Widget, "Tire pressures (top view, 4 tires)", "BCM 726 Mode 22", new[] { DisplayKind.Tpms }, false),
+            new(TpmsKeys.Widget, "Tire pressures (top view, 4 tires)", "BCM 726 Mode 22", new[] { DisplayKind.Tpms }, tiresVerified),
             new("atrv", "Battery voltage (adapter ATRV)", "Adapter", Numeric),
             new("mil", "Check engine lamp (MIL)", "Mode 01 PID 01", new[] { DisplayKind.Lamp, DisplayKind.Tile }),
             new("dtcCount", "Stored DTC count", "Mode 01 PID 01", new[] { DisplayKind.Tile, DisplayKind.Lamp }),

@@ -16,13 +16,13 @@ public class V021Tests
     private static EnhancedPidTable Table() => EnhancedPidTable.Parse(EnhancedPidTable.DefaultJson());
 
     [Fact]
-    public void Tpms_entries_are_unverified_bcm_dids()
+    public void Tpms_entries_are_verified_bcm_dids()
     {
         var t = Table();
         foreach (var (k, did) in new[] { ("tpms_lf", "2813"), ("tpms_rf", "2814"), ("tpms_rr", "2815"), ("tpms_lr", "2816") })
         {
             var e = t.Pids.Single(p => p.Key == k);
-            Assert.Equal("726", e.Header); Assert.Equal(did, e.Did); Assert.False(e.Verified); Assert.True(e.Enabled);
+            Assert.Equal("726", e.Header); Assert.Equal(did, e.Did); Assert.True(e.Verified); Assert.True(e.Enabled);
             Assert.Equal("Pressure", e.Quantity?.ToString());
         }
         // raw 0x02DA = 730 -> 730/3 + 22/3 = 250.67 kPa = 36.4 psi
@@ -69,7 +69,7 @@ public class V021Tests
     {
         var cat = DashCatalog.Build(Table(), new HashSet<byte> { 0x0C });
         Assert.Contains(cat, c => c.Key == "rpm"); Assert.DoesNotContain(cat, c => c.Key == "speed");
-        Assert.Contains(cat, c => c.Key == "tft"); Assert.Contains(cat, c => c.Key == "tpms" && !c.Verified);
+        Assert.Contains(cat, c => c.Key == "tft"); Assert.Contains(cat, c => c.Key == "tpms" && c.Verified);
         Assert.Contains(cat, c => c.Key == "gear"); Assert.Single(cat, c => c.Key == "gear");
         Assert.Contains(cat, c => c.Key == "tpms_lf"); // single tires can also be tiles
     }

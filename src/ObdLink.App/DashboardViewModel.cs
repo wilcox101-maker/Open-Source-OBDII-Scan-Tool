@@ -55,7 +55,14 @@ public sealed class DashItemVm : ObservableObject
     public GaugeVm Gauge { get; }
     public CatalogEntry? Entry { get; }
     public TpmsVm? Tpms { get; init; }
-    public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry) { _owner = owner; Item = item; Gauge = gauge; Entry = entry; }
+    public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry)
+    {
+        _owner = owner; Item = item; Gauge = gauge; Entry = entry;
+        _flowWidth = DashboardFlow.Metrics(item.Display, item.Size).Width;
+    }
+    private double _flowWidth;
+    /// <summary>Pre-transform card width. Saved size, or the stacked width when the window is narrower than the widest card.</summary>
+    public double FlowWidth { get => _flowWidth; internal set => Set(ref _flowWidth, value); }
     public string Key => Item.Key;
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
@@ -143,12 +150,84 @@ public sealed class DashboardViewModel : ObservableObject
             var d = _settings().Dashboard; if (d.Layouts.Count <= 1) { Hint = "This is the only layout; use Reset to go back to the default."; return; }
             d.Layouts.Remove(Layout); d.ActiveLayout = d.Layouts[0].Name; RefreshLayoutNames(); BuildGauges(); Changed("deleted layout");
         });
+        PickBackgroundCommand = new("Dashboard pick background image", log, _ => PickBackground());
         RefreshLayoutNames();
         BuildGauges();
     }
 
+    public RelayCommand PickBackgroundCommand { get; }
+    public IReadOnlyList<DashboardBackgroundChoice> BackgroundChoices => DashboardBackgrounds.Choices;
+    public string BackgroundId
+    {
+        get => _settings().Dashboard.Background;
+        set
+        {
+            var id = DashboardBackgrounds.Normalize(value);
+            var d = _settings().Dashboard;
+            if (id == DashboardBackgrounds.Custom && string.IsNullOrEmpty(d.BackgroundFile))
+            {
+                OnPropertyChanged();
+                PickBackground();
+                return;
+            }
+            if (id == d.Background) return;
+            d.Background = id;
+            _save();
+            NotifyBackground();
+            _log.UserAction("Dashboard background", ("id", id));
+        }
+    }
+    public string? BackgroundFile => _settings().Dashboard.BackgroundFile;
+    public string? BackgroundFullPath => DashboardBackgroundFiles.FullPath(_pidDir, BackgroundFile);
+    private double _hostMax = double.PositiveInfinity;
+    public double HostMaxWidth { get => _hostMax; private set => Set(ref _hostMax, value); }
+    private double _viewport;
+    /// <summary>View-time layout. Does not rewrite the saved item list. Pins the wrap to the width last used in Customize when the window is at least that wide.</summary>
+    public void ApplyViewport(double availableWidth)
+    {
+        if (availableWidth > 1) _viewport = availableWidth;
+        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, _settings().Dashboard.ArrangeWidth);
+        for (int i = 0; i < Items.Count && i < plan.Widths.Length; i++) Items[i].FlowWidth = plan.Widths[i];
+        HostMaxWidth = plan.HostMaxWidth;
+    }
+    private void NotifyBackground()
+    {
+        OnPropertyChanged(nameof(BackgroundId));
+        OnPropertyChanged(nameof(BackgroundFile));
+        OnPropertyChanged(nameof(BackgroundFullPath));
+    }
+    private void PickBackground()
+    {
+        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, DashboardBackgroundFiles.Folder));
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif", InitialDirectory = dir, Title = "Dashboard background image" };
+        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
+        var name = DashboardBackgroundFiles.Import(_pidDir, dlg.FileName);
+        if (name is null)
+        {
+            DialogService.Info("Choose a PNG, JPEG, BMP or GIF image, 15 MB or smaller. The copy is stored in Data\\backgrounds.", "Dashboard background");
+            OnPropertyChanged(nameof(BackgroundId));
+            return;
+        }
+        var d = _settings().Dashboard;
+        d.BackgroundFile = name;
+        d.Background = DashboardBackgrounds.Custom;
+        _save();
+        NotifyBackground();
+        _log.UserAction("Dashboard background image", ("file", name));
+    }
+
     private DashboardLayout Layout => _settings().Dashboard.Current();
-    private bool _customizing; public bool Customizing { get => _customizing; set { if (Set(ref _customizing, value)) { if (value) RefreshCatalog(); OnPropertyChanged(nameof(CustomizeText)); } } }
+    private bool _customizing; public bool Customizing
+    {
+        get => _customizing;
+        set
+        {
+            if (!Set(ref _customizing, value)) return;
+            if (value) RefreshCatalog();
+            else if (_viewport > 1) { _settings().Dashboard.ArrangeWidth = _viewport; _save(); }
+            OnPropertyChanged(nameof(CustomizeText));
+        }
+    }
     public string CustomizeText => Customizing ? "Done" : "Customize";
     private CatalogEntry? _selCat; public CatalogEntry? SelectedCatalog { get => _selCat; set => Set(ref _selCat, value); }
     private string? _newName; public string? NewLayoutName { get => _newName; set => Set(ref _newName, value); }
@@ -160,8 +239,18 @@ public sealed class DashboardViewModel : ObservableObject
     }
     private void RefreshLayoutNames() { LayoutNames.Clear(); foreach (var l in _settings().Dashboard.Layouts) LayoutNames.Add(l.Name); OnPropertyChanged(nameof(ActiveLayout)); }
 
-    /// <summary>Called after any layout edit: persists settings and makes the poller pick up the new item list.</summary>
-    internal void Changed(string what) { _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what); if (Customizing) RefreshCatalog(); }
+    /// <summary>Called after any layout edit: persists settings (including the width the user arranged at) and makes the poller pick up the new item list.</summary>
+    internal void Changed(string what)
+    {
+        RememberArrangeWidth();
+        _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what);
+        if (Customizing) RefreshCatalog();
+        ApplyViewport(_viewport);
+    }
+    private void RememberArrangeWidth()
+    {
+        if (_viewport > 1) _settings().Dashboard.ArrangeWidth = _viewport;
+    }
     private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
     /// <summary>v0.3.3: move by any delta (buttons, Ctrl+Arrow). Clamped at the ends; returns false when nothing moved.</summary>
     public bool MoveBy(DashItemVm? it, int delta)
@@ -222,12 +311,18 @@ public sealed class DashboardViewModel : ObservableObject
             if (it.Key == TpmsKeys.Widget)
             {
                 var t = new TpmsVm { LF = MakeGauge("tpms_lf", s), RF = MakeGauge("tpms_rf", s), RR = MakeGauge("tpms_rr", s), LR = MakeGauge("tpms_lr", s) };
-                var holder = new GaugeVm { Key = "tpms", Title = "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile, Note = "BCM 726 DIDs 2813-2817 (UNVERIFIED community PIDs)", Units = s.Units };
+                var verified = entry?.Verified == true;
+                var holder = new GaugeVm
+                {
+                    Key = "tpms", Title = verified ? "Tire pressures" : "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile,
+                    Note = verified ? "BCM 726 DIDs 2813-2816 (verified)" : "BCM 726 DIDs 2813-2816 (UNVERIFIED)", Units = s.Units,
+                };
                 Items.Add(new DashItemVm(this, it, holder, entry) { Tpms = t });
             }
             else Items.Add(new DashItemVm(this, it, MakeGauge(it.Key, s), entry));
         }
         _reconfigure = true;
+        ApplyViewport(_viewport);
     }
     private IEnumerable<GaugeVm> Shown => Items.SelectMany(i => i.Tpms?.All ?? new[] { i.Gauge });
     public void ApplyUnits() { var u = _settings().Units; foreach (var g in _gauges.Values) { g.Units = u; g.Refresh(); } }

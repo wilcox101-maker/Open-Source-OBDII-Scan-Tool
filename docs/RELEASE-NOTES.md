@@ -1,3 +1,28 @@
+## v0.4.0
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start.
+
+**Download `ObdLinkApp-win-x64-v0.4.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.4.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**Left navigation.** The page rail (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) scrolls vertically when the window is short. Shrink it further and the captions hide, leaving the icons; they come back when there is room. Alt+1 through Alt+9, the menus, and the light/dark theme are unchanged.
+
+**Firmware check skips DEMO.** Connecting a simulated adapter, including the first time you try the app in DEMO, does not contact OBDLink's firmware feed. Ctrl+Alt+F explains that it was skipped. A real adapter on the internet still shows the banner and can download the official package into `Data\firmware` (download only; the app never installs firmware and never bundles it).
+
+**Dashboard.** Customize still remembers order, display, and size in `Data\settings.json`, and now also the width you arranged at, so a wider window keeps those rows. Gauge-height cards (bars, tiles, lamps) stack to the window width only when the dashboard is narrower than the widest saved card. Dials and the tire widget keep their saved size, clamped so they are not clipped.
+
+**Dashboard backgrounds.** Wood grain, steel plate, mirror, onyx black, sports-car leather, carbon fiber, and brushed aluminum, or pick an image. The choice is stored in `Data\settings.json`. A custom image is copied into `Data\backgrounds` (PNG, JPEG, BMP, or GIF, 15 MB or smaller). Nothing is written outside `Data\`.
+
+**Tire pressure DIDs 2813-2816 are verified** (Dale, BCM 0x726, LF/RF/RR/LR). The dashboard no longer marks them UNVERIFIED. Output shaft speed DID **1E13 stays UNVERIFIED**.
+
+### Windows verify
+
+1. Shrink the window height until the left rail shows a scrollbar. Shrink further until only icons show, then grow it until the labels return. Alt+1..9 and View → Theme (Light and Dark) still work.
+2. Connect **DEMO-EX**. There is no firmware banner, and the Events log does not show a feed request. Ctrl+Alt+F says the check is skipped in DEMO.
+3. Connect a real EX or MX+ while online. If the adapter is behind, the banner offers **Download firmware**. The zip lands in `Data\firmware` and the app does not install it.
+4. Dashboard → Customize: reorder a card, click Done, restart. The layout is unchanged. Zoom in (Ctrl++) or use a Wide card until it cannot fit: bars and tiles stack. Zoom back out: saved sizes return.
+5. Pick Wood grain, then **Pick image** and choose a picture. Restart. The picture is still selected and the file is under `Data\backgrounds`. `Data\settings.json` has `Background`.
+6. The status bar says read-only at startup. Tire pressures do not say UNVERIFIED. Add Output shaft speed: it still says UNVERIFIED.
+
 ## v0.3.5-test
 
 **Untested on Windows (new build).** Compiled on Linux. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64.

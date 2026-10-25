@@ -81,7 +81,8 @@ public class V020Tests
     public void Enhanced_pid_table_default_is_unverified_and_decodes()
     {
         var t = EnhancedPidTable.Parse(EnhancedPidTable.DefaultJson());
-        Assert.All(t.Pids, p => Assert.False(p.Verified));
+        Assert.All(t.Pids.Where(p => !p.Key.StartsWith("tpms_")), p => Assert.False(p.Verified));
+        Assert.All(t.Pids.Where(p => p.Key.StartsWith("tpms_")), p => Assert.True(p.Verified));
         var tft = t.Pids.Single(p => p.Key == "tft");
         Assert.Equal(0x7E0u, tft.TxId); Assert.Equal(new byte[] { 0x22, 0x1E, 0x1C }, tft.Request);
         Assert.Equal(87.5, tft.Decode(new byte[] { 0x62, 0x1E, 0x1C, 0x05, 0x78 }), 3); // 1400/16
