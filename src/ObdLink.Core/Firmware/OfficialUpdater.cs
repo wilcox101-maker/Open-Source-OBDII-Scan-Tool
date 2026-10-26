@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ObdLink.Core.Security;
 
 namespace ObdLink.Core.Firmware;
 
@@ -103,12 +104,16 @@ public static class OfficialUpdater
         try { var p = Path.Combine(dir, ManifestName); return File.Exists(p) ? JsonSerializer.Deserialize<UpdaterManifest>(File.ReadAllText(p)) : null; } catch (Exception ex) { Serilog.Log.Warning("Updater manifest unreadable, will download again: {Err}", ex.Message); return null; }
     }
 
-    /// <summary>Existing download still matches its manifest (size + SHA-256).</summary>
+    /// <summary>Manifest file names stay inside <paramref name="dir"/>. A name with a directory is refused.</summary>
+    public static string? ConfinedFile(string dir, string? name) => SafePaths.ConfineFile(dir, name);
+
+    /// <summary>Existing download still matches its manifest (size + SHA-256) and the file name stays in <paramref name="dir"/>.</summary>
     public static bool ExistingValid(string dir, out UpdaterManifest? m)
     {
         m = LoadManifest(dir);
-        var f = m is null ? null : Path.Combine(dir, m.FileName);
-        return m is not null && File.Exists(f) && new FileInfo(f!).Length == m.Size && Sha256(f!) == m.Sha256;
+        if (m is null) return false;
+        var f = ConfinedFile(dir, m.FileName);
+        return f is not null && File.Exists(f) && new FileInfo(f).Length == m.Size && Sha256(f) == m.Sha256;
     }
 
     /// <summary>Server copy differs from ours (different URL, size, Last-Modified or ETag). Unknown headers = treat as same.</summary>
@@ -198,16 +203,16 @@ public static class OfficialUpdater
             }
             catch (InvalidOperationException) { throw; }
             catch (Exception ex) { Serilog.Log.Information("Updater HEAD check failed, comparing with the saved copy only: {Err}", ex.Message); }
-            if (!ServerIsNewer(old, url, len, lm, etag))
+            if (!ServerIsNewer(old, url, len, lm, etag) && ConfinedFile(dir, old.FileName) is { } p)
             {
-                var p = Path.Combine(dir, old.FileName);
                 var trust = Evaluate(verifySignature(p), old.Sha256);
                 if (trust != UpdaterTrust.Rejected) return (old, trust, true);
             }
         }
-        var name = Path.GetFileName(new Uri(url).AbsolutePath);
-        if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) name = InstallerFileName;
-        var file = Path.Combine(dir, name); var tmp = file + ".part";
+        var rawName = Path.GetFileName(new Uri(url).AbsolutePath);
+        var name = ConfinedFile(dir, rawName) is null ? InstallerFileName : rawName;
+        var file = ConfinedFile(dir, name) ?? Path.Combine(dir, InstallerFileName);
+        var tmp = file + ".part";
         try
         {
             using (var resp = await SendCheckedAsync(http, HttpMethod.Get, url, ct))

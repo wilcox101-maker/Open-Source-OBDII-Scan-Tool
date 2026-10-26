@@ -2,6 +2,7 @@ using System.Text.Json;
 using ObdLink.Core.Logging;
 using ObdLink.Core.Elm;
 using ObdLink.Core.Modules;
+using ObdLink.Core.Security;
 
 namespace ObdLink.Core.Vehicles;
 
@@ -32,7 +33,7 @@ public sealed class VehicleProfile
         && Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(vin))).Equals(LegacyLogDemoVinSha256, StringComparison.OrdinalIgnoreCase);
 
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
-    public static string FileNameFor(string vin) => VinRedactor.MaskVin(vin) + ".json";
+    public static string FileNameFor(string vin) => SafePaths.Token(VinRedactor.MaskVin(vin)) + ".json";
     public string Save(string dir) { Directory.CreateDirectory(dir); var p = Path.Combine(dir, FileNameFor(Vin)); File.WriteAllText(p, JsonSerializer.Serialize(this, Json)); return p; }
     public static VehicleProfile Load(string path) => JsonSerializer.Deserialize<VehicleProfile>(File.ReadAllText(path), Json) ?? throw new InvalidDataException("Empty vehicle profile");
 

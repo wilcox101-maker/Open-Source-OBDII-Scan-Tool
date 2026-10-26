@@ -90,11 +90,25 @@ public static class FirmwareFeed
     }
     private static string? Str(JsonElement e, string p) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    /// <summary>Only https downloads from scantool.net are accepted.</summary>
-    public static bool IsOfficialUrl(string? url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps
-        && (u.Host.Equals("www.scantool.net", StringComparison.OrdinalIgnoreCase) || u.Host.Equals("scantool.net", StringComparison.OrdinalIgnoreCase))
-        && u.AbsolutePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Only https downloads from scantool.net are accepted. Default port, no user-info, path must end in .zip and must not climb out with "..".</summary>
+    public static bool IsOfficialUrl(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
+        if (u.Scheme != Uri.UriSchemeHttps || !u.IsDefaultPort || !string.IsNullOrEmpty(u.UserInfo)) return false;
+        if (!u.Host.Equals("www.scantool.net", StringComparison.OrdinalIgnoreCase) && !u.Host.Equals("scantool.net", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!u.AbsolutePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || u.AbsolutePath.Contains('\\')) return false;
+        return !u.AbsolutePath.Split('/').Any(s => s is "..");
+    }
+
+    /// <summary>Last path segment of an official zip URL, or null when it is not a single safe file name.</summary>
+    public static string? SafeZipFileName(string? url)
+    {
+        if (!IsOfficialUrl(url) || !Uri.TryCreate(url, UriKind.Absolute, out var u)) return null;
+        var name = Path.GetFileName(u.AbsolutePath.Replace('\\', '/'));
+        if (string.IsNullOrWhiteSpace(name) || name is "." or ".." || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+        if (name.IndexOfAny(new[] { '/', '\\', ':' }) >= 0) return null;
+        return name;
+    }
 }
 
 /// <summary>Automatic, silent-when-offline firmware check. Never flashes anything.</summary>
@@ -152,19 +166,40 @@ public sealed record FirmwareDownload(string Folder, string ZipPath, string? Cha
 public static class FirmwareDownloader
 {
     public const long MaxBytes = 20 * 1024 * 1024;
+    /// <summary>Cap on bytes read out of a zip entry. The package itself is at most <see cref="MaxBytes"/> compressed.</summary>
+    public const long MaxUncompressed = 64L * 1024 * 1024;
     public static string FolderFor(string firmwareRoot, StnFirmware fw, FirmwareRelease r) => Path.Combine(firmwareRoot, fw.Model, r.Version.ToString(3));
 
     public static async Task<FirmwareDownload> DownloadAsync(HttpClient http, string firmwareRoot, StnFirmware fw, FirmwareRelease r, IProgress<double>? progress = null, CancellationToken ct = default)
     {
         if (!FirmwareFeed.IsOfficialUrl(r.PackageUrl)) throw new InvalidOperationException($"Refusing to download from a non-official URL: {r.PackageUrl}");
         var dir = FolderFor(firmwareRoot, fw, r); Directory.CreateDirectory(dir);
-        var name = Path.GetFileName(new Uri(r.PackageUrl!).AbsolutePath);
+        var url = r.PackageUrl!;
+        var name = FirmwareFeed.SafeZipFileName(url) ?? "firmware.zip";
         var zip = Path.Combine(dir, name); var tmp = zip + ".part";
-        using (var resp = await http.GetAsync(r.PackageUrl, HttpCompletionOption.ResponseHeadersRead, ct))
+        HttpResponseMessage? resp = null;
+        try
         {
-            resp.EnsureSuccessStatusCode();
+            for (int hop = 0; ; hop++)
+            {
+                resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+                if ((int)resp.StatusCode is >= 300 and < 400 && resp.Headers.Location is { } loc)
+                {
+                    if (hop >= OfficialUpdater.MaxRedirects) throw new InvalidOperationException("Too many redirects");
+                    var next = new Uri(new Uri(url), loc).ToString();
+                    resp.Dispose(); resp = null;
+                    if (!FirmwareFeed.IsOfficialUrl(next)) throw new InvalidOperationException("Download was redirected off scantool.net: " + next);
+                    url = next;
+                    name = FirmwareFeed.SafeZipFileName(url) ?? name;
+                    zip = Path.Combine(dir, name); tmp = zip + ".part";
+                    continue;
+                }
+                break;
+            }
+            resp!.EnsureSuccessStatusCode();
             var final = resp.RequestMessage?.RequestUri?.ToString();
-            if (final is not null && !FirmwareFeed.IsOfficialUrl(final)) throw new InvalidOperationException("Download was redirected off scantool.net: " + final);
+            if (string.IsNullOrEmpty(final) || !FirmwareFeed.IsOfficialUrl(final))
+                throw new InvalidOperationException("Download was redirected off scantool.net: " + (final ?? "(unknown)"));
             var len = resp.Content.Headers.ContentLength;
             if (len > MaxBytes) throw new InvalidOperationException($"Package is too large ({len} bytes)");
             await using (var src = await resp.Content.ReadAsStreamAsync(ct))
@@ -179,22 +214,34 @@ public static class FirmwareDownloader
                 }
                 if (len is not null && total != len) throw new InvalidDataException($"Size mismatch: got {total} of {len} bytes");
             }
-        }
-        try
-        {
             var (bin, log) = Verify(tmp);
             File.Move(tmp, zip, true);
             string? clPath = null;
+            var leaf = log is null ? null : SafeEntryName(log);
             using (var z = ZipFile.OpenRead(zip))
             {
-                if (log is not null) { clPath = Path.Combine(dir, Path.GetFileName(log)); z.GetEntry(log)!.ExtractToFile(clPath, true); }
+                if (leaf is not null)
+                {
+                    clPath = Path.Combine(dir, leaf);
+                    if (!ObdLink.Core.Security.SafePaths.IsUnder(dir, clPath)) throw new InvalidDataException("Changelog path escapes the firmware folder");
+                    z.GetEntry(log!)!.ExtractToFile(clPath, true);
+                }
             }
             if (clPath is null && r.Changelog.Count > 0) { clPath = Path.Combine(dir, "changelog.txt"); File.WriteAllText(clPath, $"{r.DeviceName} v{r.Version} ({r.ReleaseDate:yyyy-MM-dd})\n{r.Summary}\n\n{r.ChangelogText}\n"); }
             File.WriteAllText(Path.Combine(dir, "README.txt"),
-                $"Official OBDLink firmware package downloaded by OBDLink Diag on {DateTime.Now:yyyy-MM-dd HH:mm}.\nSource: {r.PackageUrl}\nAdapter: STN{fw.Chip}, installed v{fw.Version}; this package v{r.Version}.\n\nOBDLink Diag does NOT flash firmware. Use OBDLink's official firmware updater:\n{FirmwareFeed.OfficialPage(fw.Chip)}\n");
+                $"Official OBDLink firmware package downloaded by OBDLink Diag on {DateTime.Now:yyyy-MM-dd HH:mm}.\nSource: {url}\nAdapter: STN{fw.Chip}, installed v{fw.Version}; this package v{r.Version}.\n\nOBDLink Diag does NOT flash firmware. Use OBDLink's official firmware updater:\n{FirmwareFeed.OfficialPage(fw.Chip)}\n");
             return new(dir, zip, clPath, new FileInfo(zip).Length, bin);
         }
         catch { try { File.Delete(tmp); } catch { /* temp cleanup only; the original error is rethrown */ } throw; }
+        finally { resp?.Dispose(); }
+    }
+
+    /// <summary>Zip entry leaf name. Slashes and backslashes never become a path.</summary>
+    public static string? SafeEntryName(string entry)
+    {
+        var leaf = entry.Replace('\\', '/').Split('/').Last();
+        if (string.IsNullOrWhiteSpace(leaf) || leaf is "." or ".." || leaf.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+        return leaf;
     }
 
     /// <summary>Checks that the zip opens, every entry reads (CRC), and exactly one .bin starts with "STNFWv". Returns (bin entry, changelog entry).</summary>
@@ -204,7 +251,10 @@ public static class FirmwareDownloader
         string? bin = null, log = null;
         foreach (var e in z.Entries)
         {
-            using (var s = e.Open()) { var head = new byte[6]; int got = s.ReadAtLeast(head, 6, false); var rest = new byte[81920]; while (s.Read(rest) > 0) { }
+            using (var s = e.Open())
+            {
+                var head = new byte[6]; int got = s.ReadAtLeast(head, 6, false); var rest = new byte[81920]; long expanded = got;
+                int n; while ((n = s.Read(rest)) > 0) { expanded += n; if (expanded > MaxUncompressed) throw new InvalidDataException($"{e.Name} expands past {MaxUncompressed} bytes"); }
                 if (e.Name.EndsWith(".bin", StringComparison.OrdinalIgnoreCase))
                 {
                     if (got < 6 || Encoding.ASCII.GetString(head) != "STNFWv") throw new InvalidDataException($"{e.Name} is not an STN firmware image (missing STNFWv header)");

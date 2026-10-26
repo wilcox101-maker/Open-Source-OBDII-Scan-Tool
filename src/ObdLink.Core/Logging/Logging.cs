@@ -69,10 +69,9 @@ public sealed class RawConsoleService
     public bool AllowWrites { get; set; }
     /// <summary>When true (read-only test mode), state-changing services are blocked even if AllowWrites is set.</summary>
     public bool ReadOnlyMode { get; set; }
+    /// <summary>ELM CAN auto-formatting (ATCAF). True after ATZ. While writes are locked, ATCAF0 is refused.</summary>
+    public bool CanAutoFormat { get; private set; } = true;
     public RawConsoleService(ElmLink link) => _link = link;
-
-    // UDS services that change ECU state; blocked unless AllowWrites (0x2E write DID, 0x31 routine, 0x34-0x37 download, 0x11 reset, 0x14 clear, 0x27 security, 0x3B/0x2F IO).
-    private static readonly string[] Risky = { "2E", "2F", "31", "34", "35", "36", "37", "3B", "11", "14", "27", "04" };
 
     public async Task<string> ExecuteAsync(string input, CancellationToken ct = default)
     {
@@ -80,11 +79,10 @@ public sealed class RawConsoleService
         History.Add(cmd);
         var compact = cmd.Replace(" ", "").ToUpperInvariant();
         if (compact is "HELP" or "?" or "/?" or "/HELP") return ObdLink.Core.ConsoleCmds.ConsoleHelp.Text();
-        if (ReadOnlyMode && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))
-            return "BLOCKED: read-only test mode is ON (Settings) - state-changing services disabled";
-        if (!AllowWrites && !compact.StartsWith("AT") && !compact.StartsWith("ST") && Risky.Any(compact.StartsWith))
-            return "BLOCKED: state-changing service; enable writes in console settings first";
+        var decision = ObdLink.Core.ConsoleCmds.ConsoleGuard.Evaluate(cmd, ReadOnlyMode, AllowWrites, CanAutoFormat);
+        if (!decision.Allowed) return decision.Reason!;
         var r = await _link.SendAsync(cmd, ct: ct);
+        CanAutoFormat = ObdLink.Core.ConsoleCmds.ConsoleGuard.NextAutoFormat(CanAutoFormat, cmd);
         return string.Join(Environment.NewLine, r.Lines) + (r.Ok ? "" : $"  [{r.Error}]");
     }
 }

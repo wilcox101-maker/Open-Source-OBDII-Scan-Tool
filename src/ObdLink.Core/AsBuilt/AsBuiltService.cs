@@ -1,4 +1,5 @@
 using ObdLink.Core.Safety;
+using ObdLink.Core.Security;
 using ObdLink.Core.Uds;
 using Serilog;
 
@@ -35,7 +36,9 @@ public sealed class AsBuiltService
         var dict = new Dictionary<string, string>();
         foreach (var b in blocks) dict[b.ToString("X2")] = Convert.ToHexString((await ReadBlockAsync(module, b, ct)).Data);
         var bk = new AsBuiltBackup(vin, DateTimeOffset.Now, module, dict);
-        var path = Path.Combine(_backupDir, $"{vin}_{module:X3}_{DateTime.Now:yyyyMMdd_HHmmss}.asbuilt.json");
+        var name = $"{SafePaths.Token(vin)}_{module:X3}_{DateTime.Now:yyyyMMdd_HHmmss}.asbuilt.json";
+        var path = Path.Combine(_backupDir, name);
+        if (!SafePaths.IsUnder(_backupDir, path)) throw new InvalidOperationException("Backup path escaped the backup folder");
         await File.WriteAllTextAsync(path, bk.Serialize(), ct);
         Log.Information("As-Built backup {Path}", path);
         return path;

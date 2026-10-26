@@ -77,11 +77,16 @@ public sealed class AppPaths
             || string.Equals(Path.GetFullPath(legacyDir).TrimEnd('\\', '/'), Path.GetFullPath(DataDir).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
             return new(false, 0, 0, 0, notes);
         int moved = 0, skipped = 0, kept = 0;
-        foreach (var src in Directory.GetFiles(legacyDir, "*", SearchOption.AllDirectories))
+        // Do not follow directory junctions or file symlinks: a link in the old folder must not be copied and then deleted.
+        var opts = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+        foreach (var src in Directory.GetFiles(legacyDir, "*", opts))
         {
             var rel = Path.GetRelativePath(legacyDir, src);
             if (rel == MigratedNote || Path.GetFileName(rel) == FallbackNoticeFlag) continue;
-            var dst = Path.Combine(DataDir, rel);
+            if (rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(p => p is ".." or "."))
+            { kept++; notes.Add($"refusing path outside the data folder: {rel}"); continue; }
+            var dst = Path.GetFullPath(Path.Combine(DataDir, rel));
+            if (!Security.SafePaths.IsUnder(DataDir, dst)) { kept++; notes.Add($"refusing path outside the data folder: {rel}"); continue; }
             try
             {
                 if (File.Exists(dst) && File.GetLastWriteTimeUtc(dst) >= File.GetLastWriteTimeUtc(src))
