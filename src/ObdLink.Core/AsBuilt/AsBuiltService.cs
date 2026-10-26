@@ -16,8 +16,18 @@ public sealed class AsBuiltService
 
     public async Task<AsBuiltBlock> ReadBlockAsync(ushort module, byte block, CancellationToken ct = default)
     {
-        var data = await _clientFactory(module).ReadDataByIdentifierAsync(AsBuiltBlock.DidForBlock(block), ct);
-        return new AsBuiltBlock { Module = module, Block = block, Data = data };
+        var did = AsBuiltBlock.DidForBlock(block);
+        try
+        {
+            var data = await _clientFactory(module).ReadDataByIdentifierAsync(did, ct);
+            return new AsBuiltBlock { Module = module, Block = block, Data = data };
+        }
+        catch (UdsNegativeResponseException ex) when (ex.Service == 0x22 && ex.Nrc == 0x31)
+        {
+            // NRC 0x31 on an As-Built DID means the module has no As-Built data. Do not wrap the UDS exception:
+            // ErrorText walks InnerException and would put the raw rejection text back on screen.
+            throw new AsBuiltNotSupportedException(module, did);
+        }
     }
 
     public async Task<string> BackupAsync(string vin, ushort module, IEnumerable<byte> blocks, CancellationToken ct = default)

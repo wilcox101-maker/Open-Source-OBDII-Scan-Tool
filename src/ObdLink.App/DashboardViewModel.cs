@@ -18,7 +18,13 @@ public sealed class GaugeVm : ObservableObject
     public string BaseUnit { get; init; } = "";
     public double BaseMin { get; init; } public double BaseMax { get; init; } = 100;
     public double? BaseWarnHigh { get; init; } public double? BaseWarnLow { get; init; }
-    public string Note { get; init; } = "";
+    private string _note = "";
+    public string Note { get => _note; set { if (Set(ref _note, value)) OnPropertyChanged(nameof(TileFooter)); } }
+    private string _subtitle = "";
+    public string Subtitle { get => _subtitle; set { if (Set(ref _subtitle, value)) { OnPropertyChanged(nameof(HasSubtitle)); OnPropertyChanged(nameof(TileFooter)); } } }
+    public bool HasSubtitle => _subtitle.Length > 0;
+    /// <summary>Tile footer. An UNVERIFIED source line replaces min/max/avg so the warning is the thing you read.</summary>
+    public string TileFooter => HasSubtitle ? Subtitle : StatsText;
     public GaugeStats Stats { get; } = new();
     internal UnitPrefs Units = new();
 
@@ -42,7 +48,7 @@ public sealed class GaugeVm : ObservableObject
     public void Update(double baseValue) { _base = baseValue; Stats.Add(baseValue); Refresh(); }
     public void Refresh()
     {
-        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
+        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
     }
     public void Clear() { _base = double.NaN; Stats.Reset(); Refresh(); }
 }
@@ -182,11 +188,13 @@ public sealed class DashboardViewModel : ObservableObject
     private double _hostMax = double.PositiveInfinity;
     public double HostMaxWidth { get => _hostMax; private set => Set(ref _hostMax, value); }
     private double _viewport;
+    private bool _stacking;
     /// <summary>View-time layout. Does not rewrite the saved item list. Pins the wrap to the width last used in Customize when the window is at least that wide.</summary>
     public void ApplyViewport(double availableWidth)
     {
         if (availableWidth > 1) _viewport = availableWidth;
-        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, _settings().Dashboard.ArrangeWidth);
+        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, _settings().Dashboard.ArrangeWidth, _stacking);
+        if (availableWidth > 1) _stacking = plan.Stacking;
         for (int i = 0; i < Items.Count && i < plan.Widths.Length; i++) Items[i].FlowWidth = plan.Widths[i];
         HostMaxWidth = plan.HostMaxWidth;
     }
@@ -283,14 +291,16 @@ public sealed class DashboardViewModel : ObservableObject
         else if (key == "atrv")
             g = new GaugeVm { Key = "atrv", Title = "Battery (adapter ATRV)", Kind = GaugeKind.Bar, Quantity = Quantity.Voltage, BaseUnit = "V", BaseMin = 8, BaseMax = 16, BaseWarnLow = s.Dashboard.LowVoltage, BaseWarnHigh = 15.2, Note = "ATRV", Units = s.Units };
         else if (key == "gear")
-            g = new GaugeVm { Key = "gear", Title = "Trans gear", Kind = GaugeKind.Tile, Note = "Ford DID 1E12 (UNVERIFIED) or estimate", Units = s.Units, TextOverride = "--" };
+            g = new GaugeVm { Key = "gear", Title = UnverifiedLabels.GearTitle, Kind = GaugeKind.Tile, Note = "Ford DID 1E12 (UNVERIFIED) or estimate", Subtitle = UnverifiedLabels.GearTitle, Units = s.Units, TextOverride = "--" };
         else if (key == "mil")
             g = new GaugeVm { Key = "mil", Title = "Check engine (MIL)", Kind = GaugeKind.Tile, BaseMin = 0, BaseMax = 1, BaseWarnHigh = 0.5, Note = "Mode 01 PID 01 bit 7", Units = s.Units };
         else if (key == "dtcCount")
             g = new GaugeVm { Key = "dtcCount", Title = "Stored DTCs", Kind = GaugeKind.Tile, BaseMin = 0, BaseMax = 20, BaseWarnHigh = 0.5, Note = "Mode 01 PID 01", Units = s.Units };
         else if (_enhanced.Pids.FirstOrDefault(p => p.Key == key) is { } e)
-            g = new GaugeVm { Key = e.Key, Title = e.Name + (e.Verified ? "" : " (UNVERIFIED)"), Kind = GaugeKind.Bar, Quantity = e.QuantityValue, BaseUnit = e.Unit, BaseMin = e.Min, BaseMax = e.Max,
-                BaseWarnHigh = e.WarnHigh, BaseWarnLow = key.StartsWith("tpms_") ? tpmsLow : e.WarnLow, Note = $"Mode 22 {e.Header} DID {e.Did}" + (e.Verified ? "" : " UNVERIFIED"), Units = s.Units };
+            g = new GaugeVm { Key = e.Key, Title = UnverifiedLabels.Mark(e.Name, e.Verified), Kind = GaugeKind.Bar, Quantity = e.QuantityValue, BaseUnit = e.Unit, BaseMin = e.Min, BaseMax = e.Max,
+                BaseWarnHigh = e.WarnHigh, BaseWarnLow = key.StartsWith("tpms_") ? tpmsLow : e.WarnLow,
+                Note = e.Key == "oss" && uint.TryParse(e.Header, System.Globalization.NumberStyles.HexNumber, null, out var ossTx0) ? UnverifiedLabels.OssSource(ossTx0, e.Did) : $"Mode 22 {e.Header} DID {e.Did}" + (e.Verified ? "" : " UNVERIFIED"),
+                Subtitle = e.Verified ? "" : "UNVERIFIED", Units = s.Units };
         else
             g = new GaugeVm { Key = key, Title = key + " (unknown)", Kind = GaugeKind.Tile, Note = "Not in the PID list or the Ford PID table", Units = s.Units, Unsupported = true };
         return _gauges[key] = g;
@@ -424,11 +434,28 @@ public sealed class DashboardViewModel : ObservableObject
         if (v.TryGetValue("coolant", out var ct)) Overheat = ct >= s.Dashboard.OverheatC;
         if (v.TryGetValue("voltage", out var vv) || v.TryGetValue("atrv", out vv)) LowVoltage = vv < s.Dashboard.LowVoltage;
         LowTire = TpmsKeys.Tires.Any(k => _gauges.TryGetValue(k, out var g) && g.IsLow);
-        if (v.TryGetValue("gear", out var gr) && _enhanced.Pids.FirstOrDefault(p => p.Key == "gear") is { } gp)
-        { Gear = gp.Label(gr); GearSource = $"PCM {gp.Header} DID {gp.Did} (UNVERIFIED)"; }
+        var gearItem = _engine?.Scheduler.Items.FirstOrDefault(i => i.Key == "gear");
+        if (v.TryGetValue("gear", out var gr) && _enhanced.Pids.FirstOrDefault(p => p.Key == "gear") is { } gp && (gearItem == null || gearItem.Failures == 0))
+        {
+            Gear = gp.Label(gr);
+            var src = UnverifiedLabels.GearFromDid(gp.Header, gp.Did);
+            GearSource = src;
+            if (_gauges.TryGetValue("gear", out var gg)) { gg.Note = src; gg.Subtitle = src; }
+        }
         else if (s.Dashboard.EstimateGear && v.TryGetValue("speed", out var kmh) && v.TryGetValue("rpm", out var rpm)
                  && (_engine?.Enhanced.ContainsKey("gear") != true || _engine.Scheduler.Items.First(i => i.Key == "gear").Failures > 0))
-        { var e = est.Estimate(rpm, kmh); Gear = e?.ToString() ?? (kmh < 5 ? "N/P" : "--"); GearSource = "estimated from RPM/speed (6R80 ratios)"; }
+        {
+            var e = est.Estimate(rpm, kmh); Gear = e?.ToString() ?? (kmh < 5 ? "N/P" : "--");
+            var src = UnverifiedLabels.GearFromEstimate();
+            GearSource = src;
+            if (_gauges.TryGetValue("gear", out var gg)) { gg.Note = src; gg.Subtitle = src; }
+        }
+        if (_enhanced.Pids.FirstOrDefault(p => p.Key == "oss") is { } oss && _gauges.TryGetValue("oss", out var og)
+            && _engine?.AnsweredBy.TryGetValue("oss", out var ossTx) == true)
+        {
+            var src = UnverifiedLabels.OssSource(ossTx, oss.Did);
+            og.Note = src; og.Subtitle = src;
+        }
         if (_rec != null) _rec.Write(DateTime.Now, v);
     }
 

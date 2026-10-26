@@ -223,10 +223,8 @@ public class V040Tests
     [Fact]
     public void Version_is_0_4_0_and_notes_record_windows_tested_v03()
     {
-        Assert.Contains("<Version>0.4.0</Version>", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "ObdLink.App.csproj")));
-        Assert.Contains("<Version>0.4.0</Version>", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.Core", "ObdLink.Core.csproj")));
         var notes = File.ReadAllText(Path.Combine(Root(), "docs", "RELEASE-NOTES.md"));
-        Assert.StartsWith("## v0.4.0", notes.TrimStart());
+        Assert.Contains("## v0.4.0", notes);
         Assert.DoesNotContain("v0.4.0-test", notes);
         Assert.Contains("Windows-tested", notes);
         Assert.Contains("2813", notes);

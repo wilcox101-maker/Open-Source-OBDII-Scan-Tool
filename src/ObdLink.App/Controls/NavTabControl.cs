@@ -30,7 +30,7 @@ public class NavTabControl : TabControl
     {
         var h = sv.ViewportHeight;
         if (double.IsNaN(h) || h < 1) h = sv.ActualHeight;
-        var d = NavRailLayout.Decide(h, Items.Count);
+        var d = NavRailLayout.Decide(h, Items.Count, IsCompact);
         IsCompact = d.Compact;
         RailWidth = d.Width;
     }
