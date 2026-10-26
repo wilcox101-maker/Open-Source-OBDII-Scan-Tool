@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using ObdLink.Core.Modules;
 
 namespace ObdLink.Core.Safety;
 
@@ -36,6 +38,8 @@ public sealed class AppSettings
     public int LogRetentionDays { get; set; } = 30;
     /// <summary>Offer the Demo (simulated) connection in the port list.</summary>
     public bool SimulatorEnabled { get; set; } = true;
+    /// <summary>v0.5.0: CAN bus a real module answered on, keyed by transmitter id ("720" = HS-CAN2). Demo sessions do not write this.</summary>
+    public Dictionary<string, string> ModuleBuses { get; set; } = new();
 
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
     public static AppSettings Load(string path)
@@ -72,6 +76,12 @@ public sealed class AppSettings
         Dashboard.RefreshMs = Math.Clamp(Dashboard.RefreshMs, 100, 5000);
         Adapter.TimeoutMs = Math.Clamp(Adapter.TimeoutMs, 50, 10000);
         LogRetentionDays = Math.Clamp(LogRetentionDays, 0, 3650);
+        ModuleBuses ??= new();
+        foreach (var key in ModuleBuses.Keys.ToList())
+        {
+            if (!uint.TryParse(key, NumberStyles.HexNumber, null, out var tx) || tx > 0x7FF || !ModuleBusMemory.TryParse(ModuleBuses[key], out _))
+                ModuleBuses.Remove(key);
+        }
         if (Units.Speed is not ("mph" or "km/h")) Units.Speed = "mph";
         if (Units.Temperature is not ("°F" or "°C")) Units.Temperature = "°F";
         if (Units.Pressure is not ("psi" or "kPa")) Units.Pressure = "psi";

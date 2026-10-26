@@ -30,21 +30,25 @@ public sealed class SimulatedAdapter
     public SimulatedAdapter() { Clock = () => _sw.Elapsed.TotalSeconds; SeedDemoAsBuilt(this); }
 
     /// <summary>
-    /// SYNTHETIC As-Built blocks DE00-DE07 for the F-150 demo modules (PCM 7E0, IPC 720, BCM 726) so "Read" works in demo mode.
+    /// SYNTHETIC As-Built blocks DE00-DE07 for the F-150 demo modules (PCM 7E0, TCM 7E1, IPC 720, BCM 726) so "Read" works in demo mode.
+    /// TCM blocks are synthetic so DEMO can exercise the As-Built page. A 2017 F-150 factory .ab has no TCM (7E1) blocks;
+    /// on a real module, NRC 0x31 for DE00 means "no As-Built", not a failed request.
     /// Values are made up (not from any real vehicle). Each block is 3 lines of 5 data bytes.
     /// </summary>
     public static void SeedDemoAsBuilt(SimulatedAdapter sim)
     {
-        foreach (var m in new uint[] { 0x7E0, 0x720, 0x726 })
+        foreach (var m in new uint[] { 0x7E0, 0x7E1, 0x720, 0x726 })
         {
             if (!sim.Dids.TryGetValue(m, out var d)) sim.Dids[m] = d = new();
             for (int b = 0; b < 8; b++)
                 d.TryAdd((ushort)(0xDE00 + b), Enumerable.Range(0, 15).Select(i => (byte)((m + b * 17 + i * 31) & 0xFF)).ToArray());
         }
         // SYNTHETIC identification DIDs (made-up Ford-style part numbers) for the Identify vehicle demo.
+        // DEMO-TCM-0001-* is not a real part number.
         var ids = new (uint M, string F188, string F111, string F113, string F124)[]
         {
             (0x7E0, "DEMO-14C204-AA", "DEMO-12A650-AA", "DEMO-12A650-AB", "DEMO-14C204-AC"),
+            (0x7E1, "DEMO-TCM-0001-AA", "DEMO-TCM-0001-AB", "DEMO-TCM-0001-AC", "DEMO-TCM-0001-AD"),
             (0x720, "DEMO-14C026-AA", "DEMO-10849-AA", "DEMO-10849-AB", "DEMO-14C088-AA"),
             (0x726, "DEMO-14C184-AA", "DEMO-14B476-AA", "DEMO-14B476-AB", "DEMO-14C184-AB"),
             (0x727, "DEMO-14D099-AA", "DEMO-18C815-AA", "DEMO-18C815-AB", "DEMO-14D099-AB"),

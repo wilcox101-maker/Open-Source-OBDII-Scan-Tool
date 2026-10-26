@@ -26,12 +26,14 @@ public sealed class AsyncCommand : ICommand
 {
     private readonly string _name; private readonly IEventLog _log; private readonly Func<Task> _run;
     private readonly Action<string, Exception> _onError; private readonly Func<(string, object?)[]>? _params;
+    private readonly Func<bool>? _can;
     private bool _busy;
-    public AsyncCommand(string name, IEventLog log, Func<Task> run, Action<string, Exception> onError, Func<(string, object?)[]>? parameters = null)
-    { _name = name; _log = log; _run = run; _onError = onError; _params = parameters; }
+    public AsyncCommand(string name, IEventLog log, Func<Task> run, Action<string, Exception> onError, Func<(string, object?)[]>? parameters = null, Func<bool>? canExecute = null)
+    { _name = name; _log = log; _run = run; _onError = onError; _params = parameters; _can = canExecute; }
     public string Name => _name;
     public event EventHandler? CanExecuteChanged;
-    public bool CanExecute(object? p) => !_busy;
+    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    public bool CanExecute(object? p) => !_busy && (_can?.Invoke() ?? true);
     public async void Execute(object? p)
     {
         // v0.3.4 audit: async void must never throw (an exception here would crash the dispatcher)

@@ -31,9 +31,10 @@ On Windows, choose **DEMO (simulated)** in the Port box to try the UI without an
 | Windows 11 Pro 24H2 (x64) | v0.2.0-test, v0.2.1-test, v0.2.2-test | Simulator / demo | Run and tested by Dale |
 | Windows | v0.3.0 through v0.3.5 | Windows-tested by Dale | **Windows-tested** (Dale confirmed) |
 | Windows | v0.4.0 | - | New build; verify on Windows (see release notes) |
+| Windows | v0.5.0 | - | New build; verify on Windows (see release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
-Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0 is compiled on Linux and still needs the Windows checks in the v0.4.0 release notes.
+Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0 and v0.5.0 are compiled on Linux and still need the Windows checks in the release notes.
 
 ## Verified facts and sources
 | Item | Value | Source |

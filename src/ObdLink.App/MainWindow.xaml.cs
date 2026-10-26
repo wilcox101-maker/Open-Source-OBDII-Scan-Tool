@@ -140,7 +140,7 @@ public partial class MainWindow : Window
     private void ShowAbout() => DialogService.Info(_vm.AboutText, "About OBDLink Diag");
     private void Shortcuts_Click(object s, RoutedEventArgs e) => ShowShortcuts();
     private void Go(string page) => _vm.SelectedTab = page;
-    private void SetZoom(double z) { _zoom = Math.Clamp(Math.Round(z, 1), 0.7, 2.0); Zoom.ScaleX = Zoom.ScaleY = _zoom; _vm.EventLog.UserAction("Zoom", ("zoom", _zoom)); }
+    private void SetZoom(double z) { _zoom = Math.Clamp(Math.Round(z, 1), 0.7, 2.0); Zoom.ScaleX = Zoom.ScaleY = _zoom; ApplyDashFlow(); _vm.EventLog.UserAction("Zoom", ("zoom", _zoom)); }
     private WindowState _prevState; private WindowStyle _prevStyle; private bool _full;
     private void ToggleFullScreen()
     {

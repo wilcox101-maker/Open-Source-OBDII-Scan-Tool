@@ -1,3 +1,35 @@
+## v0.5.0
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0 still needs that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
+
+**Download `ObdLinkApp-win-x64-v0.5.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.5.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**DEMO TCM As-Built.** DEMO TCM (0x7E1) now answers synthetic As-Built blocks DE00-DE07, same shape as PCM, so Read all blocks, Read, and Backup can be exercised. The bytes are made up. A 2017 F-150 factory `.ab` has no TCM blocks (the 6R80 data lives with the PCM). On a real module, NRC 0x31 for DID DE00 means that module has no As-Built.
+
+**Modules with no As-Built.** If DE00 comes back NRC 0x31 (requestOutOfRange), the app treats that as "no As-Built". Read, Backup, and Write stay off, the module drops out of the As-Built list (Show all modules puts it back, still with the actions off), and an info message explains it. The Events log records that at Information, not as `UdsNegativeResponseException`. Modules that do answer DE00 keep working. A timeout does not hide the module.
+
+**Bus memory.** When a real module answers on HS-CAN, HS-CAN2, or MS-CAN, that bus is saved in `Data\settings.json` and tried first on the next request and the next connect. DEMO sessions do not write this map, so a simulated bus cannot stick to a later real connection.
+
+**Gear and OSS stay UNVERIFIED.** Gear DID **1E12** and output-shaft DID **1E13** are not marked verified. The gear tile title is "Gear (UNVERIFIED)", and the source line is shown in the warning color (PCM DID, or the RPM/speed estimate when 1E12 does not answer). OSS still asks PCM 0x7E0 first, then TCM 0x7E1, and the title and subtitle say UNVERIFIED. Tire-pressure DIDs **2813-2816 stay verified**.
+
+**Truck pass before either DID is called verified** (do not invent a replacement DID):
+
+- Gear 1E12: with the ignition on, shift P, R, N, D and a couple of forward gears. The tile should match the cluster. If it does not, leave 1E12 unverified.
+- OSS 1E13: at a steady speed, compare the rpm tile with `mph × axle ratio × 336 / tire diameter in inches` (3.55 and the door-sticker tire size are the usual F-150 starting point). PCM 0x7E0 is asked first, then TCM 0x7E1. If neither matches, leave 1E13 unverified.
+
+**Navigation.** The left rail can now actually reach icon-only: the window minimum height is 480 and the content row can shrink to 160. Labels hide when fewer than four labeled tabs fit, and they come back only when five would fit, so the boundary does not flicker. Dashboard cards that have stacked stay stacked until there is real extra width (about 24 px), so a scrollbar does not bounce them. Background images are still copied only into `Data\backgrounds`.
+
+**DEMO and Identify.** Firmware check is still skipped for a simulated adapter, including the first run. Identify vehicle rebuilds the module list even when the profile name did not change, and a module list from a sweep with no 17-character VIN is applied too. Choosing a real COM port drops a DEMO profile instead of keeping those simulated modules.
+
+### Windows verify
+
+1. Connect **DEMO-EX**. Modules → Transmission Control Module (TCM, 0x7E1) → As-Built → **Read all blocks**, then **Backup**. Both finish, a file `*7E1*.asbuilt.json` appears under `Data\asbuilt`, and there is no error dialog.
+2. As-Built → **Show all modules** → Audio Control Module (ACM, 0x727, MS-CAN). It has no DE00 blocks. You get an info message ("no As-Built"), not an `UdsNegativeResponseException` error. Read, Backup, and Write stay off. Turn Show all modules off and ACM leaves the list. PCM read and backup still work.
+3. Shrink the window until the left rail shows only icons, then grow it until the labels return. They should not flicker at the boundary. Alt+1..9 still change pages.
+4. Dashboard → pick Wood grain, then **Pick image**. Restart. The picture is still selected and the file is under `Data\backgrounds` only.
+5. The status bar says read-only at startup. There is no firmware banner on DEMO-EX. Gear says UNVERIFIED. Add Output shaft speed: it says UNVERIFIED, and tire pressures do not.
+6. If you have a real EX or MX+: connect, scan, and read As-Built on a module that supports it (PCM or BCM). A module that returns NRC 0x31 shows the info message and stays off. Disconnect and connect again: a module that answered on MS-CAN or HS-CAN2 is tried on that bus first.
+
 ## v0.4.0
 
 **Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start.

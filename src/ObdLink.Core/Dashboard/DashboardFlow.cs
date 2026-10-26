@@ -58,7 +58,7 @@ public static class DashboardFlow
         return Metrics(display, size).LayoutHeight <= GaugeComparableHeight;
     }
 
-    public static FlowPlan Plan(IReadOnlyList<(DisplayKind Display, ItemSize Size)> items, double availableWidth, double arrangeWidth)
+    public static FlowPlan Plan(IReadOnlyList<(DisplayKind Display, ItemSize Size)> items, double availableWidth, double arrangeWidth, bool currentlyStacking = false)
     {
         var boxes = new CardBox[items.Count];
         var widths = new double[items.Count];
@@ -72,7 +72,9 @@ public static class DashboardFlow
 
         var widest = 0.0;
         for (int i = 0; i < boxes.Length; i++) widest = Math.Max(widest, boxes[i].LayoutWidth + CardMargin);
-        if (widest > availableWidth + 0.5)
+        // Stay stacked until there is real room. A vertical scrollbar can shrink the viewport by a few pixels and flicker the layout.
+        var slack = currentlyStacking ? 24 : 0;
+        if (widest > availableWidth + 0.5 - slack)
         {
             var fit = Math.Max(80, availableWidth - CardMargin);
             for (int i = 0; i < items.Count; i++)

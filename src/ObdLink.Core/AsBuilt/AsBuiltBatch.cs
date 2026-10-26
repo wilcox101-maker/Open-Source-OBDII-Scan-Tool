@@ -3,7 +3,7 @@ using ObdLink.Core.Modules;
 namespace ObdLink.Core.AsBuilt;
 
 /// <summary>Outcome for one module in a batch run (As-Built backup or DTC read).</summary>
-public sealed record BatchItemResult(ModuleDefinition Module, bool Ok, string Detail, string? Path = null);
+public sealed record BatchItemResult(ModuleDefinition Module, bool Ok, string Detail, string? Path = null, bool NoAsBuilt = false);
 
 /// <summary>Progress report for a batch: modules done so far, total, and what is happening now.</summary>
 public readonly record struct BatchProgress(int Done, int Total, string Text)
@@ -85,9 +85,28 @@ public static class AsBuiltBatch
             progress?.Report(new(i, modules.Count, $"{m.Acronym} (0x{m.TxId:X3}) {i + 1}/{modules.Count}"));
             try { res.Add(await work(m, ct)); }
             catch (OperationCanceledException) { throw; }
+            catch (AsBuiltNotSupportedException ex) { res.Add(new(m, false, ex.Message, NoAsBuilt: true)); }
             catch (Exception ex) { res.Add(new(m, false, ex.Message)); }
         }
         progress?.Report(new(modules.Count, modules.Count, $"Done: {res.Count(r => r.Ok)} of {modules.Count} OK"));
         return res;
+    }
+
+    /// <summary>A module with no As-Built is not a failed backup. Timeouts and other errors still are.</summary>
+    public static bool HasHardFailure(IReadOnlyList<BatchItemResult> results) => results.Any(r => !r.Ok && !r.NoAsBuilt);
+
+    public static string Line(BatchItemResult r)
+    {
+        var head = $"{r.Module.Acronym} 0x{r.Module.TxId:X3}: ";
+        if (r.NoAsBuilt) return head + "no As-Built - " + r.Detail;
+        return head + (r.Ok ? "OK - " : "failed - ") + r.Detail;
+    }
+
+    public static string BackupSummary(IReadOnlyList<BatchItemResult> results, string dir)
+    {
+        var saved = results.Count(r => r.Ok);
+        var none = results.Count(r => r.NoAsBuilt);
+        var failed = results.Count(r => !r.Ok && !r.NoAsBuilt);
+        return $"As-Built backup: {saved} saved, {none} with no As-Built, {failed} failed to {dir}";
     }
 }
