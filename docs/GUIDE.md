@@ -54,7 +54,7 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 - **AT / ST commands** (`ATZ`, `ATI`, `STI`, `STP33`...) go straight to the ELM327/STN adapter. They configure the adapter, not the vehicle.
 - **Hex requests** (`0100`, `22F190`, `19 02 FF`) are OBD-II or UDS requests sent to the current header (set with `ATSH7E0` etc.). Spaces are ignored. The reply is shown raw (header + bytes).
 - **Built-ins** (`help`, `?`, `cls`) are handled by the app and send nothing.
-- **Allow writes** (checkbox): services that change a module are blocked unless it is ticked, and are *always* blocked while **Read-only test mode** is on (the default).
+- **Allow writes** (checkbox): services that change a module are blocked unless it is ticked, and are *always* blocked while **Read-only test mode** is on (the default). `STPX` and `ATWM` are blocked too, because they can put an arbitrary frame on the bus, and `ATCAF0` is blocked so a PCI byte cannot hide a service id (`06 2E ...` once formatting is off). A line that contains a control character is refused so it cannot hide a second command.
 
 **Examples**
 
@@ -85,14 +85,24 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 | SID | Service |
 |---|---|
 | `04` | OBD clear DTCs |
+| `08` | OBD control of on-board system |
 | `11` | ECUReset |
 | `14` | ClearDiagnosticInformation |
 | `27` | SecurityAccess |
+| `28` | CommunicationControl |
+| `2C` | DynamicallyDefineDataIdentifier |
 | `2E` | WriteDataByIdentifier (As-Built write) |
 | `2F` | InputOutputControl |
 | `31` | RoutineControl |
 | `34-37` | Request download/upload/transfer (flashing) |
+| `38` | RequestFileTransfer |
 | `3B` | WriteDataByLocalIdentifier |
+| `3D` | WriteMemoryByAddress |
+| `85` | ControlDTCSetting |
+| `86` | ResponseOnEvent |
+| `87` | LinkControl |
+| `STPX` | STN pass-through transmit (arbitrary bus frame) |
+| `ATWM` | Wakeup message the adapter transmits |
 
 **Negative responses**: a reply `7F <SID> <NRC>` means the module refused the request. Common NRCs:
 

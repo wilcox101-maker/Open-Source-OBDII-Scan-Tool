@@ -11,6 +11,15 @@ public sealed class UpdateChecker
     public const string Repo = "wilcox101-maker/Open-Source-OBDII-Scan-Tool";
     public const string ReleasesUrl = "https://github.com/" + Repo + "/releases";
     public static string ApiUrl => $"https://api.github.com/repos/{Repo}/releases?per_page=10";
+
+    /// <summary>Release pages are shown to the user. Only https://github.com is kept; anything else becomes <see cref="ReleasesUrl"/>.</summary>
+    public static string SafeReleaseUrl(string? url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps && u.IsDefaultPort && string.IsNullOrEmpty(u.UserInfo)
+            && u.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+            return u.AbsoluteUri;
+        return ReleasesUrl;
+    }
     private readonly HttpClient _http;
     public UpdateChecker(HttpMessageHandler? handler = null, TimeSpan? timeout = null)
     {
@@ -37,7 +46,7 @@ public sealed class UpdateChecker
             {
                 if (r.TryGetProperty("draft", out var dr) && dr.GetBoolean()) continue;
                 var tag = r.GetProperty("tag_name").GetString() ?? ""; var v = ParseTag(tag); if (v is null) continue;
-                if (bestV is null || v > bestV) { bestV = v; best = new(tag, r.TryGetProperty("name", out var n) ? n.GetString() ?? tag : tag, r.GetProperty("html_url").GetString() ?? ReleasesUrl, r.TryGetProperty("prerelease", out var p) && p.GetBoolean(), false); }
+                if (bestV is null || v > bestV) { bestV = v; best = new(tag, r.TryGetProperty("name", out var n) ? n.GetString() ?? tag : tag, SafeReleaseUrl(r.GetProperty("html_url").GetString()), r.TryGetProperty("prerelease", out var p) && p.GetBoolean(), false); }
             }
             return best is null ? null : best with { Newer = bestV! > new Version(current.Major, current.Minor, Math.Max(0, current.Build)) };
         }

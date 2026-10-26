@@ -473,8 +473,9 @@ public sealed class MainViewModel : ObservableObject
         CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Canceling after the current module…"; });
         ClearModuleDtcsCommand = C("Clear module DTCs", async () =>
         {
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Clear DTCs", $"Clear all DTCs in {SelectedModule?.Label}? Freeze-frame data will be lost.") });
-            await Uds().ClearDtcsAsync();
+            if (SelectedModule is not { } m) return;
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Clear DTCs", $"Clear all DTCs in {m.Label} on {ModuleReplies.BusName(m.Bus)}? Freeze-frame data will be lost. Other buses are not tried.") });
+            await OnBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), allowFallback: false);
         }, Mod);
         ReadVinCommand = C("Read VIN", async () => { _vin = await new ObdService(Ch).ReadVinAsync() ?? _vin; EventLog.Message(LogEventLevel.Information, "Read VIN", $"VIN {_vin}"); });
         ReadAsBuiltCommand = C("Read As-Built block", ReadAsBuiltAsync, ModBlk, AsBuiltCan);
@@ -488,17 +489,23 @@ public sealed class MainViewModel : ObservableObject
         }, ModBlk, AsBuiltCan);
         WriteAsBuiltCommand = C("Write + verify As-Built block", async () =>
         {
-            if (SelectedModule is { } m) RequireAsBuilt(m);
+            if (SelectedModule is not { } m) return;
+            RequireAsBuilt(m);
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) on {ModuleReplies.BusName(m.Bus)}. A write does not try another bus.") });
             var data = AsBuiltRows.SelectMany(r => Convert.FromHexString(r.Data.Replace(" ", ""))).ToArray();
-            await AsBuilt.WriteBlockAsync(_vin, new AsBuiltBlock { Module = Module, Block = Block, Data = data });
-            if (SelectedModule is { } wrote) MarkAsBuilt(wrote, AsBuiltSupport.Supported);
-            Info("Write", "Written and verified by read-back.");
+            await OnBus(m, () => AsBuilt.WriteBlockAsync(_vin, new AsBuiltBlock { Module = (ushort)m.Def.TxId, Block = Block, Data = data }), allowFallback: false);
+            MarkAsBuilt(m, AsBuiltSupport.Supported);
+            Info("Write", $"Written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.");
         }, ModBlk, AsBuiltCan);
         RestoreAsBuiltCommand = C("Restore As-Built from backup", async () =>
         {
-            if (SelectedModule is { } m) RequireAsBuilt(m);
             var f = OpenFile("As-Built backup", "As-Built backup|*.asbuilt.json", Paths.BackupsDir);
-            await AsBuilt.RestoreAsync(f);
+            var bk = AsBuiltBackup.Deserialize(File.ReadAllText(f));
+            var row = Modules.FirstOrDefault(r => r.Def.TxId == bk.Module)
+                ?? throw new InvalidOperationException($"Backup is for module 0x{bk.Module:X3}, which is not in this vehicle's module list. Nothing was written.");
+            RequireAsBuilt(row);
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"Restore 0x{row.Def.TxId:X3} ({row.Label}) on {ModuleReplies.BusName(row.Bus)}. A restore does not try another bus.") });
+            await OnBus(row, () => AsBuilt.RestoreAsync(f), allowFallback: false);
         }, can: AsBuiltCan);
         ImportFactoryAbCommand = C("Import factory .ab", () =>
         {
@@ -879,7 +886,7 @@ public sealed class MainViewModel : ObservableObject
             using var http = OfficialUpdater.CreateClient();
             EventLog.Message(LogEventLevel.Information, "Updater", $"Checking {OfficialUpdater.PageUrl} for the official installer");
             var (m, t, reused) = await OfficialUpdater.DownloadAsync(http, dir, UpdaterWindows.VerifySignature);
-            var file = Path.Combine(dir, m.FileName);
+            var file = OfficialUpdater.ConfinedFile(dir, m.FileName) ?? throw new InvalidDataException("Updater file name is not inside the updater folder");
             EventLog.Message(LogEventLevel.Information, "Updater", $"{(reused ? "Up to date, kept existing" : "Downloaded")} {m.FileName} v{m.Version ?? "?"} ({m.Size:N0} bytes) SHA-256 {m.Sha256}; {TrustText(t, m)}; from {m.Url}");
             if (t == UpdaterTrust.Unverified)
             {
@@ -905,7 +912,7 @@ public sealed class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(ovr) && !File.Exists(ovr)) EventLog.Message(LogEventLevel.Warning, "Updater", $"Settings override not found: {ovr}; auto-detecting");
         var installed = UpdaterWindows.FindInstalled();
         string? downloaded = null;
-        if (OfficialUpdater.ExistingValid(UpdaterDir, out var man) && man is not null) downloaded = Path.Combine(UpdaterDir, man.FileName);
+        if (OfficialUpdater.ExistingValid(UpdaterDir, out var man) && man is not null) downloaded = OfficialUpdater.ConfinedFile(UpdaterDir, man.FileName);
         var (exe, kind) = OfficialUpdater.ResolveLaunch(ovr, installed, downloaded, File.Exists);
         if (kind == "installed" && downloaded is not null)
         {
@@ -917,7 +924,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (!DialogService.YesNo("The official updater is not installed and has not been downloaded yet. Download it now from scantool.net?", "Run official updater")) return;
             var g = await GetUpdaterCoreAsync(false); if (g is null) return;
-            exe = Path.Combine(UpdaterDir, g.Value.m.FileName); kind = "installer";
+            exe = OfficialUpdater.ConfinedFile(UpdaterDir, g.Value.m.FileName); kind = "installer";
         }
         else if (kind == "installer")
         {
@@ -994,7 +1001,7 @@ public sealed class MainViewModel : ObservableObject
         FirmwareDownloading = true; FwChanged();
         try
         {
-            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            using var http = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(2) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("OBDLinkDiag-firmware-download");
             var d = await FirmwareDownloader.DownloadAsync(http, FirmwareRoot, inst, rel);
             _fwFolder = d.Folder;
@@ -1137,10 +1144,10 @@ public sealed class MainViewModel : ObservableObject
     /// v0.3.2: runs <paramref name="f"/> on the module's bus. If the module does not answer there and the adapter can switch buses
     /// (EX / MX+), it tries the other Ford bus once and remembers where the module answered. A final no-reply becomes a friendly message.
     /// </summary>
-    private async Task OnBus(ModuleRow m, Func<Task> f)
+    private async Task OnBus(ModuleRow m, Func<Task> f, bool allowFallback = true)
     {
         try { await OnBusCore(m.Bus, m, f); NoteAnsweredBus(m, m.Bus); return; }
-        catch (Exception ex) when (ModuleReplies.IsNoReply(ex) && CanSwitchBus && m.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2)
+        catch (Exception ex) when (allowFallback && ModuleReplies.IsNoReply(ex) && CanSwitchBus && m.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2)
         {
             EventLog.Message(LogEventLevel.Warning, "Bus", $"{m.Acronym} 0x{m.Address}: no reply on {ModuleReplies.BusName(m.Bus)} ({ex.Message}); trying the other buses");
             var next = ModuleBusMemory.Remaining(m.Bus, m.Def.Bus);
@@ -1160,8 +1167,14 @@ public sealed class MainViewModel : ObservableObject
     }
     private async Task OnBusCore(Bus bus, ModuleRow m, Func<Task> f)
     {
-        if (bus == Bus.HsCan) { await f(); return; }
-        if (!CanSwitchBus) throw new InvalidOperationException($"{m.Acronym} is on {ModuleReplies.BusName(bus)}; this adapter cannot use the MS-CAN pins (OBDLink MX+ / EX can).");
+        if (bus != Bus.HsCan && !CanSwitchBus) throw new InvalidOperationException($"{m.Acronym} is on {ModuleReplies.BusName(bus)}; this adapter cannot use the MS-CAN pins (OBDLink MX+ / EX can).");
+        // HS-CAN reads used to assume the adapter was already there. A previous MS-CAN / HS-CAN2 session, or the console, may have left another protocol selected.
+        if (bus == Bus.HsCan)
+        {
+            if (_session!.CurrentProtocol != StnProtocol.HsCan11_500) await _session.SelectBusAsync(Bus.HsCan);
+            await f();
+            return;
+        }
         await _session!.SelectBusAsync(bus);
         try { await f(); } finally { await SelectDiagProtocol(); }
     }

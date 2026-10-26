@@ -1,4 +1,5 @@
 using ObdLink.Core.Modules;
+using ObdLink.Core.Security;
 
 namespace ObdLink.Core.AsBuilt;
 
@@ -43,13 +44,14 @@ public static class AsBuiltBatch
 
     /// <summary>File name used for a module backup; the VIN is masked unless <paramref name="vin"/> is empty.</summary>
     public static string FileName(string vinMasked, uint module, DateTime now) =>
-        $"{(string.IsNullOrWhiteSpace(vinMasked) ? "NOVIN" : vinMasked)}_{module:X3}_{now:yyyyMMdd_HHmmss}.asbuilt.json";
+        $"{SafePaths.Token(vinMasked)}_{module:X3}_{now:yyyyMMdd_HHmmss}.asbuilt.json";
 
     public static async Task<string> SaveAsync(string dir, string vinMasked, ushort module, IReadOnlyList<AsBuiltBlock> blocks, DateTime now, CancellationToken ct = default)
     {
         Directory.CreateDirectory(dir);
         var bk = new AsBuiltBackup(vinMasked, new DateTimeOffset(now), module, blocks.ToDictionary(b => b.Block.ToString("X2"), b => Convert.ToHexString(b.Data)));
         var path = Path.Combine(dir, FileName(vinMasked, module, now));
+        if (!SafePaths.IsUnder(dir, path)) throw new InvalidOperationException("As-Built backup path escaped the destination folder");
         await File.WriteAllTextAsync(path, bk.Serialize(), ct);
         return path;
     }

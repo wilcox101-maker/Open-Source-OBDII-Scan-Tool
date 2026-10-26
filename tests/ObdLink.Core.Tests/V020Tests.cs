@@ -236,9 +236,10 @@ public class V020Tests
     [Fact]
     public async Task Update_checker_picks_newest()
     {
-        var h = new Fake("[{\"tag_name\":\"v0.1.5-test\",\"html_url\":\"u1\",\"prerelease\":true},{\"tag_name\":\"v0.3.0-test\",\"name\":\"n\",\"html_url\":\"u3\",\"prerelease\":true},{\"tag_name\":\"v9.0.0\",\"draft\":true,\"html_url\":\"x\"}]");
+        var h = new Fake("[{\"tag_name\":\"v0.1.5-test\",\"html_url\":\"https://evil.example/phish\",\"prerelease\":true},{\"tag_name\":\"v0.3.0-test\",\"name\":\"n\",\"html_url\":\"https://github.com/wilcox101-maker/Open-Source-OBDII-Scan-Tool/releases/tag/v0.3.0-test\",\"prerelease\":true},{\"tag_name\":\"v9.0.0\",\"draft\":true,\"html_url\":\"x\"}]");
         var u = await new UpdateChecker(h).CheckAsync(new Version(0, 2, 0));
-        Assert.Equal("v0.3.0-test", u!.Tag); Assert.True(u.Newer); Assert.Equal("u3", u.Url);
+        Assert.Equal("v0.3.0-test", u!.Tag); Assert.True(u.Newer); Assert.Equal("https://github.com/wilcox101-maker/Open-Source-OBDII-Scan-Tool/releases/tag/v0.3.0-test", u.Url);
+        Assert.Equal(UpdateChecker.ReleasesUrl, (await new UpdateChecker(new Fake("[{\"tag_name\":\"v0.9.0\",\"html_url\":\"https://evil.example/phish\"}]")).CheckAsync(new Version(0, 2, 0)))!.Url);
         Assert.Equal("api.github.com", h.Seen!.Host);
         Assert.False((await new UpdateChecker(new Fake("[{\"tag_name\":\"v0.2.0-test\",\"html_url\":\"u\"}]")).CheckAsync(new Version(0, 2, 0, 0)))!.Newer);
         Assert.Null(await new UpdateChecker(new Fake("not json")).CheckAsync(new Version(0, 2, 0)));
