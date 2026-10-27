@@ -1,3 +1,30 @@
+## v0.5.2
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0, v0.5.0, and v0.5.1 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
+
+**Download `ObdLinkApp-win-x64-v0.5.2.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.5.2.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**Dashboard backgrounds.** The built-in wood, steel, mirror, onyx, leather, carbon, and brushed textures are gone. Those were small drawings repeated across the dashboard (`TileMode.Tile` on a tiny viewport), which is why they looked tiled and low resolution. Each built-in is now one late-model full-size pickup cabin photograph, drawn once with cover stretch so it fills the dashboard and is cropped to fit. It is not tiled.
+
+The list includes both kinds of cluster:
+
+- **Analog gauges** — physical needles, round speedometer and tachometer, the layout of a 2015-2020 truck.
+- **Digital dash** — full digital instrument cluster and a wide center screen, daylight.
+- **Digital cluster** — close-up of a digital cluster.
+
+Also: Night cabin, Highway view, Dusk cabin, Black leather cabin, and Center stack. **None** is still the app theme color. **Pick image** still copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds` (15 MB or smaller) and that picture uses the same cover stretch. A light dark overlay sits on the photo so the gauge cards stay readable in light and dark themes. The cards themselves are unchanged.
+
+A background saved in an older version still loads. Wood now shows the digital dash, Steel the digital cluster, and the other saved ids show the new cabin photos. Nothing is written outside `Data\`.
+
+The photographs were generated for this app and ship under the MIT license. They are not Ford marketing photos and were not copied from the web. See `assets/backgrounds/PROVENANCE.txt`.
+
+### Windows verify
+
+1. Dashboard → Background. Pick **Analog gauges**, then **Digital dash**, then **Digital cluster**. Each picture fills the area once. You should not see a repeated tile. Switch View → Theme to Light, then Dark. The gauge cards stay readable on both.
+2. Pick **None**. The dashboard goes back to the app theme color.
+3. **Pick image**, choose a picture, restart. It is still selected, the file is under `Data\backgrounds` only, and the picture covers the dashboard without tiling.
+4. The v0.5.1 checks still apply: Customize **Move left / right / up / down** and **Drag** still reorder cards.
+
 ## v0.5.1
 
 **Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0 and v0.5.0 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.

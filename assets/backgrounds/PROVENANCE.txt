@@ -1,0 +1,25 @@
+Dashboard background photographs
+Generated for OBDLink Diag v0.5.2.
+
+These JPEG files were generated for this app. They are not Ford Motor Company
+marketing photos, screenshots, or files copied from the web. They are original
+generated pictures of a late-model full-size pickup cabin, including a physical
+analog instrument cluster and a digital instrument cluster. They ship with this
+project under the MIT license (see LICENSE).
+
+No Ford oval or Ford wordmark was left in the files. A readable embossed word
+on the steering wheel of digital-dash.jpg was painted out with nearby leather
+before the file was saved.
+
+Each file is a 1920x1080 baseline JPEG, so a 1080p dashboard can show it
+without upscaling. The app draws each photo once with cover stretch
+(UniformToFill) and a light dark scrim. The photos are not tiled.
+
+analog.jpg           Analog gauges (physical needles)
+digital-dash.jpg     Digital dash (daylight, full digital cluster)
+digital-cluster.jpg  Digital cluster (close-up)
+highway.jpg          Highway view
+night.jpg            Night cabin
+leather.jpg          Black leather cabin
+dusk.jpg             Dusk cabin
+center-stack.jpg     Center stack
