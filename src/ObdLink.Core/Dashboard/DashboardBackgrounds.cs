@@ -4,25 +4,34 @@ namespace ObdLink.Core.Dashboard;
 public static class DashboardBackgrounds
 {
     public const string None = "None";
+    /// <summary>Saved-settings id. The picture is the digital dash (the old wood-grain texture is gone).</summary>
     public const string Wood = "Wood";
+    /// <summary>Saved-settings id. The picture is the digital cluster close-up.</summary>
     public const string Steel = "Steel";
+    /// <summary>Saved-settings id. The picture is the highway cabin.</summary>
     public const string Mirror = "Mirror";
+    /// <summary>Saved-settings id. The picture is the night cabin.</summary>
     public const string Onyx = "Onyx";
     public const string Leather = "Leather";
+    /// <summary>Saved-settings id. The picture is the dusk cabin.</summary>
     public const string Carbon = "Carbon";
+    /// <summary>Saved-settings id. The picture is the center stack.</summary>
     public const string Brushed = "Brushed";
+    /// <summary>Physical analog instrument cluster (late-model truck). New in v0.5.2.</summary>
+    public const string Analog = "Analog";
     public const string Custom = "Custom";
 
     public static readonly IReadOnlyList<DashboardBackgroundChoice> Choices = new DashboardBackgroundChoice[]
     {
         new(None, "None (app theme)"),
-        new(Wood, "Wood grain"),
-        new(Steel, "Steel plate"),
-        new(Mirror, "Mirror"),
-        new(Onyx, "Onyx black"),
-        new(Leather, "Sports-car leather"),
-        new(Carbon, "Carbon fiber"),
-        new(Brushed, "Brushed aluminum"),
+        new(Analog, "Analog gauges"),
+        new(Wood, "Digital dash"),
+        new(Steel, "Digital cluster"),
+        new(Onyx, "Night cabin"),
+        new(Mirror, "Highway view"),
+        new(Carbon, "Dusk cabin"),
+        new(Leather, "Black leather cabin"),
+        new(Brushed, "Center stack"),
         new(Custom, "Custom image"),
     };
 
@@ -31,6 +40,41 @@ public static class DashboardBackgrounds
 }
 
 public sealed record DashboardBackgroundChoice(string Id, string Name);
+
+/// <summary>
+/// Built-in cabin photos cover the dashboard once. v0.5.1 and earlier drew small
+/// <c>DrawingBrush</c> tiles (<c>TileMode.Tile</c> plus a tiny absolute viewport), which is why
+/// those backdrops looked repeated and low resolution.
+/// </summary>
+public static class DashboardBackdropPolicy
+{
+    public const bool TileBuiltIns = false;
+    public const string CoverStretch = "UniformToFill";
+    /// <summary>Black overlay on photos so gauge cards stay readable in light and dark themes. 0-255.</summary>
+    public const byte ScrimAlpha = 0x48;
+
+    public sealed record BackdropAsset(string Id, string FileName);
+
+    public static readonly IReadOnlyList<BackdropAsset> Assets = new BackdropAsset[]
+    {
+        new(DashboardBackgrounds.Analog, "analog.jpg"),
+        new(DashboardBackgrounds.Wood, "digital-dash.jpg"),
+        new(DashboardBackgrounds.Steel, "digital-cluster.jpg"),
+        new(DashboardBackgrounds.Mirror, "highway.jpg"),
+        new(DashboardBackgrounds.Onyx, "night.jpg"),
+        new(DashboardBackgrounds.Leather, "leather.jpg"),
+        new(DashboardBackgrounds.Carbon, "dusk.jpg"),
+        new(DashboardBackgrounds.Brushed, "center-stack.jpg"),
+    };
+
+    public static string? FileFor(string? id)
+    {
+        var norm = DashboardBackgrounds.Normalize(id);
+        foreach (var asset in Assets)
+            if (string.Equals(asset.Id, norm, StringComparison.Ordinal)) return asset.FileName;
+        return null;
+    }
+}
 
 /// <summary>Copies a user-picked image into Data\backgrounds and refuses anything that is not a file name under that folder.</summary>
 public static class DashboardBackgroundFiles

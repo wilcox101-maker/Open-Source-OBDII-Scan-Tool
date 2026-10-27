@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OBDLinkDiag</AssemblyName>
-    <Version>0.5.1</Version>
+    <Version>0.5.2</Version>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -19,6 +19,7 @@
   <ItemGroup>
     <Resource Include="..\..\assets\icons\icon-*.png" Link="Assets\%(Filename)%(Extension)" />
     <Resource Include="..\..\assets\icons\icon-3.ico" Link="Assets\icon-3.ico" />
+    <Resource Include="..\..\assets\backgrounds\*.jpg" Link="Assets\Backgrounds\%(Filename)%(Extension)" />
   </ItemGroup>
   <!-- v0.3.0: embed git short hash (InformationalVersion "+hash" via SourceRevisionId) and the UTC build date. -->
   <Target Name="ObdEmbedRevision" BeforeTargets="InitializeSourceControlInformation;GetAssemblyVersion;GenerateAssemblyInfo" Condition="'$(SourceRevisionId)' == ''">
