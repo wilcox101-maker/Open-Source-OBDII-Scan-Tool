@@ -22,17 +22,20 @@ On Windows, choose **DEMO (simulated)** in the Port box to try the UI without an
 
 ## Supported Windows / portable
 
-**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; **x64: download `ObdLinkApp-test-win-x64-v<version>.zip` (almost all PCs).** `ObdLinkApp-ARM64-only-v<version>.zip` is for Snapdragon/ARM Windows PCs only; most PCs need the x64 download (check Settings → System → About → System type). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe. There is no installer and none is planned.
+**Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; **x64: download `ObdLinkApp-win-x64-v<version>.zip` (almost all PCs).** Older test builds used the name `ObdLinkApp-test-win-x64-v<version>.zip`. `ObdLinkApp-ARM64-only-v<version>.zip` is for Snapdragon/ARM Windows PCs only; most PCs need the x64 download (check Settings → System → About → System type). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe. There is no installer and none is planned.
 
 ## Tested platforms
 | Platform | Build | Mode | Result |
 |---|---|---|---|
 | Windows 11 Pro 24H2 (x64) | v0.1.3-test, v0.1.4-test | Simulator / demo (DEMO-MX+, DEMO-EX) | Run and tested by Dale |
 | Windows 11 Pro 24H2 (x64) | v0.2.0-test, v0.2.1-test, v0.2.2-test | Simulator / demo | Run and tested by Dale |
-| Windows | v0.3.5-test | - | **Untested** (new build) |
-| Real vehicle (2017 F-150, OBDLink MX+/EX) | - | - | **Pending** |
+| Windows | v0.3.0 through v0.3.5 | Windows-tested by Dale | **Windows-tested** (Dale confirmed) |
+| Windows | v0.4.0 | - | New build; verify on Windows (see release notes) |
+| Windows | v0.5.0 | - | New build; verify on Windows (see release notes) |
+| Windows | v0.5.1 | - | New build; verify on Windows (dashboard drag-to-reorder; see release notes) |
+| Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
-Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale; v0.3.0-v0.3.5 have not been run on Windows yet.
+Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, and v0.5.1 are compiled on Linux and still need the Windows checks in the release notes.
 
 ## Verified facts and sources
 | Item | Value | Source |

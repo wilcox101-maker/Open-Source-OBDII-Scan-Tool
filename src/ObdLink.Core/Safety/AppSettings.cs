@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using ObdLink.Core.Modules;
 
 namespace ObdLink.Core.Safety;
 
@@ -36,6 +38,8 @@ public sealed class AppSettings
     public int LogRetentionDays { get; set; } = 30;
     /// <summary>Offer the Demo (simulated) connection in the port list.</summary>
     public bool SimulatorEnabled { get; set; } = true;
+    /// <summary>v0.5.0: CAN bus a real module answered on, keyed by transmitter id ("720" = HS-CAN2). Demo sessions do not write this.</summary>
+    public Dictionary<string, string> ModuleBuses { get; set; } = new();
 
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
     public static AppSettings Load(string path)
@@ -63,10 +67,21 @@ public sealed class AppSettings
         if (Dashboard.Layouts.Count == 0)
             Dashboard.Layouts.Add(Dashboard.Gauges.SequenceEqual(DashboardOptions.DefaultGauges) ? ObdLink.Core.Dashboard.DashboardLayout.Default() : ObdLink.Core.Dashboard.DashboardLayout.FromLegacy(Dashboard.Gauges));
         if (Dashboard.Layouts.All(l => l.Name != Dashboard.ActiveLayout)) Dashboard.ActiveLayout = Dashboard.Layouts[0].Name;
+        Dashboard.Background = ObdLink.Core.Dashboard.DashboardBackgrounds.Normalize(Dashboard.Background);
+        Dashboard.BackgroundFile = ObdLink.Core.Dashboard.DashboardBackgroundFiles.SanitizeFileName(Dashboard.BackgroundFile);
+        if (Dashboard.Background == ObdLink.Core.Dashboard.DashboardBackgrounds.Custom && Dashboard.BackgroundFile is null)
+            Dashboard.Background = ObdLink.Core.Dashboard.DashboardBackgrounds.None;
+        if (double.IsNaN(Dashboard.ArrangeWidth) || double.IsInfinity(Dashboard.ArrangeWidth) || Dashboard.ArrangeWidth < 0) Dashboard.ArrangeWidth = 0;
         Dashboard.TpmsLowKpa = Math.Clamp(Dashboard.TpmsLowKpa, 50, 600);
         Dashboard.RefreshMs = Math.Clamp(Dashboard.RefreshMs, 100, 5000);
         Adapter.TimeoutMs = Math.Clamp(Adapter.TimeoutMs, 50, 10000);
         LogRetentionDays = Math.Clamp(LogRetentionDays, 0, 3650);
+        ModuleBuses ??= new();
+        foreach (var key in ModuleBuses.Keys.ToList())
+        {
+            if (!uint.TryParse(key, NumberStyles.HexNumber, null, out var tx) || tx > 0x7FF || !ModuleBusMemory.TryParse(ModuleBuses[key], out _))
+                ModuleBuses.Remove(key);
+        }
         if (Units.Speed is not ("mph" or "km/h")) Units.Speed = "mph";
         if (Units.Temperature is not ("°F" or "°C")) Units.Temperature = "°F";
         if (Units.Pressure is not ("psi" or "kPa")) Units.Pressure = "psi";
@@ -130,6 +145,12 @@ public sealed class DashboardOptions
     public double OverheatC { get; set; } = 110;
     /// <summary>Low tire pressure warning, kPa (207 kPa = 30 psi). F-150 door-placard pressure is usually 35 psi.</summary>
     public double TpmsLowKpa { get; set; } = 207;
+    /// <summary>v0.4.0 backdrop: a <see cref="ObdLink.Core.Dashboard.DashboardBackgrounds"/> id, or Custom.</summary>
+    public string Background { get; set; } = ObdLink.Core.Dashboard.DashboardBackgrounds.None;
+    /// <summary>File name only (Data\backgrounds\…), never an absolute path. Used when <see cref="Background"/> is Custom.</summary>
+    public string? BackgroundFile { get; set; }
+    /// <summary>Dashboard width (px) last used while customizing. 0 = not saved yet (older settings). The view pins rows to this width while the window is at least this wide.</summary>
+    public double ArrangeWidth { get; set; }
     /// <summary>Saved dashboard layouts (v0.2.1). Empty = built from <see cref="Gauges"/> (v0.2.0 settings) or the default.</summary>
     public List<ObdLink.Core.Dashboard.DashboardLayout> Layouts { get; set; } = new();
     public string ActiveLayout { get; set; } = ObdLink.Core.Dashboard.DashboardLayout.DefaultName;

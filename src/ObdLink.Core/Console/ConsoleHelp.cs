@@ -26,12 +26,15 @@ public static class ConsoleHelp
         ("19 02 FF", "UDS ReadDTCInformation, all DTCs by status mask FF (spaces are ignored)"),
     };
 
-    /// <summary>UDS/OBD service ids blocked unless "Allow writes" is on, and always blocked in read-only test mode.</summary>
+    /// <summary>UDS/OBD service ids blocked unless "Allow writes" is on, and always blocked in read-only test mode. The guard also matches these ids behind an ISO-TP PCI byte.</summary>
     public static readonly IReadOnlyList<(string Sid, string Name)> Blocked = new[]
     {
-        ("04", "OBD clear DTCs"), ("11", "ECUReset"), ("14", "ClearDiagnosticInformation"), ("27", "SecurityAccess"),
+        ("04", "OBD clear DTCs"), ("08", "OBD control of on-board system"), ("11", "ECUReset"), ("14", "ClearDiagnosticInformation"),
+        ("27", "SecurityAccess"), ("28", "CommunicationControl"), ("2C", "DynamicallyDefineDataIdentifier"),
         ("2E", "WriteDataByIdentifier (As-Built write)"), ("2F", "InputOutputControl"), ("31", "RoutineControl"),
-        ("34-37", "Request download/upload/transfer (flashing)"), ("3B", "WriteDataByLocalIdentifier"),
+        ("34-37", "Request download/upload/transfer (flashing)"), ("38", "RequestFileTransfer"), ("3B", "WriteDataByLocalIdentifier"),
+        ("3D", "WriteMemoryByAddress"), ("85", "ControlDTCSetting"), ("86", "ResponseOnEvent"), ("87", "LinkControl"),
+        ("STPX", "STN pass-through transmit (arbitrary bus frame)"), ("ATWM", "Wakeup message the adapter transmits"),
     };
 
     public static readonly IReadOnlyList<(string Nrc, string Meaning)> Nrcs = new[]
@@ -47,7 +50,9 @@ public static class ConsoleHelp
     {
         var nl = Environment.NewLine;
         return "Console syntax: one command per line. Lines starting with AT or ST go to the adapter as-is; anything else is sent as hex bytes" + nl
-             + "to the current header (ATSH). Spaces are optional. Replies are shown raw (header + data). 7F xx yy = negative response (NRC yy)." + nl + nl
+             + "to the current header (ATSH). Spaces are optional. Replies are shown raw (header + data). 7F xx yy = negative response (NRC yy)." + nl
+             + "While writes are off, STPX, ATWM and ATCAF0 are refused. If formatting was already off, a service id behind an ISO-TP PCI byte is refused too." + nl
+             + "A line that contains a control character is refused so it cannot smuggle a second command." + nl + nl
              + "Examples:" + nl + string.Join(nl, Examples.Select(e => $"  {e.Cmd,-26} {e.What}")) + nl + nl
              + "Blocked unless 'Allow writes' is ticked (and always blocked while Read-only test mode is on):" + nl
              + string.Join(nl, Blocked.Select(b => $"  {b.Sid,-6} {b.Name}")) + nl + nl

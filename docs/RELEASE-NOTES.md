@@ -1,6 +1,76 @@
-## Unreleased
+## v0.5.1
 
-- **Fix: dashboard cards did not move in Customize mode.** Dragging a gauge onto another gauge did nothing: Windows only drop-targets the element under the pointer, and the gauge covered the card border that was marked to accept a drop. Customize now shows **Move left / right / up / down** and a **Drag** grip. Drop a card on another card (or on a gap) to reorder. With Customize off, the layout stays put. Order and sizes are still saved at once to `Data\settings.json`.
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0 and v0.5.0 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
+
+**Download `ObdLinkApp-win-x64-v0.5.1.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.5.1.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**Fix: dashboard cards did not move in Customize mode.** Dragging a gauge onto another gauge did nothing: Windows only drop-targets the element under the pointer, and the gauge covered the card border that was marked to accept a drop. Customize now shows **Move left / right / up / down** and a **Drag** grip. Drop a card on another card (or on a gap) to reorder. With Customize off, the layout stays put.
+
+Saved order, display, size, and the width you arranged at still go to `Data\settings.json` (v0.4.0). Gauge-height cards still stack only when the window is narrower than the widest saved card. Backgrounds are unchanged.
+
+### Windows verify
+
+1. Dashboard → **Customize**. Each card shows **Move left**, **Move right**, **Move up**, **Move down**, and a **Drag** grip. Drag a gauge onto another gauge: the cards change places. Drop on an empty gap: the card moves to the nearest slot. **Done**, then restart. The order is unchanged.
+2. With Customize off, dragging a card does nothing.
+3. Narrow the window until bars and tiles stack, then widen it. Saved sizes and the arranged width come back.
+4. The v0.5.0 checks still apply: DEMO TCM As-Built, the no-As-Built info message, nav icons, a background image, and UNVERIFIED gear.
+
+## v0.5.0
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0 still needs that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
+
+**Download `ObdLinkApp-win-x64-v0.5.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.5.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**DEMO TCM As-Built.** DEMO TCM (0x7E1) now answers synthetic As-Built blocks DE00-DE07, same shape as PCM, so Read all blocks, Read, and Backup can be exercised. The bytes are made up. A 2017 F-150 factory `.ab` has no TCM blocks (the 6R80 data lives with the PCM). On a real module, NRC 0x31 for DID DE00 means that module has no As-Built.
+
+**Modules with no As-Built.** If DE00 comes back NRC 0x31 (requestOutOfRange), the app treats that as "no As-Built". Read, Backup, and Write stay off, the module drops out of the As-Built list (Show all modules puts it back, still with the actions off), and an info message explains it. The Events log records that at Information, not as `UdsNegativeResponseException`. Modules that do answer DE00 keep working. A timeout does not hide the module.
+
+**Bus memory.** When a real module answers on HS-CAN, HS-CAN2, or MS-CAN, that bus is saved in `Data\settings.json` and tried first on the next request and the next connect. DEMO sessions do not write this map, so a simulated bus cannot stick to a later real connection.
+
+**Gear and OSS stay UNVERIFIED.** Gear DID **1E12** and output-shaft DID **1E13** are not marked verified. The gear tile title is "Gear (UNVERIFIED)", and the source line is shown in the warning color (PCM DID, or the RPM/speed estimate when 1E12 does not answer). OSS still asks PCM 0x7E0 first, then TCM 0x7E1, and the title and subtitle say UNVERIFIED. Tire-pressure DIDs **2813-2816 stay verified**.
+
+**Truck pass before either DID is called verified** (do not invent a replacement DID):
+
+- Gear 1E12: with the ignition on, shift P, R, N, D and a couple of forward gears. The tile should match the cluster. If it does not, leave 1E12 unverified.
+- OSS 1E13: at a steady speed, compare the rpm tile with `mph × axle ratio × 336 / tire diameter in inches` (3.55 and the door-sticker tire size are the usual F-150 starting point). PCM 0x7E0 is asked first, then TCM 0x7E1. If neither matches, leave 1E13 unverified.
+
+**Navigation.** The left rail can now actually reach icon-only: the window minimum height is 480 and the content row can shrink to 160. Labels hide when fewer than four labeled tabs fit, and they come back only when five would fit, so the boundary does not flicker. Dashboard cards that have stacked stay stacked until there is real extra width (about 24 px), so a scrollbar does not bounce them. Background images are still copied only into `Data\backgrounds`.
+
+**DEMO and Identify.** Firmware check is still skipped for a simulated adapter, including the first run. Identify vehicle rebuilds the module list even when the profile name did not change, and a module list from a sweep with no 17-character VIN is applied too. Choosing a real COM port drops a DEMO profile instead of keeping those simulated modules.
+
+### Windows verify
+
+1. Connect **DEMO-EX**. Modules → Transmission Control Module (TCM, 0x7E1) → As-Built → **Read all blocks**, then **Backup**. Both finish, a file `*7E1*.asbuilt.json` appears under `Data\asbuilt`, and there is no error dialog.
+2. As-Built → **Show all modules** → Audio Control Module (ACM, 0x727, MS-CAN). It has no DE00 blocks. You get an info message ("no As-Built"), not an `UdsNegativeResponseException` error. Read, Backup, and Write stay off. Turn Show all modules off and ACM leaves the list. PCM read and backup still work.
+3. Shrink the window until the left rail shows only icons, then grow it until the labels return. They should not flicker at the boundary. Alt+1..9 still change pages.
+4. Dashboard → pick Wood grain, then **Pick image**. Restart. The picture is still selected and the file is under `Data\backgrounds` only.
+5. The status bar says read-only at startup. There is no firmware banner on DEMO-EX. Gear says UNVERIFIED. Add Output shaft speed: it says UNVERIFIED, and tire pressures do not.
+6. If you have a real EX or MX+: connect, scan, and read As-Built on a module that supports it (PCM or BCM). A module that returns NRC 0x31 shows the info message and stays off. Disconnect and connect again: a module that answered on MS-CAN or HS-CAN2 is tried on that bus first.
+
+## v0.4.0
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start.
+
+**Download `ObdLinkApp-win-x64-v0.4.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.4.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download.
+
+**Left navigation.** The page rail (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) scrolls vertically when the window is short. Shrink it further and the captions hide, leaving the icons; they come back when there is room. Alt+1 through Alt+9, the menus, and the light/dark theme are unchanged.
+
+**Firmware check skips DEMO.** Connecting a simulated adapter, including the first time you try the app in DEMO, does not contact OBDLink's firmware feed. Ctrl+Alt+F explains that it was skipped. A real adapter on the internet still shows the banner and can download the official package into `Data\firmware` (download only; the app never installs firmware and never bundles it).
+
+**Dashboard.** Customize still remembers order, display, and size in `Data\settings.json`, and now also the width you arranged at, so a wider window keeps those rows. Gauge-height cards (bars, tiles, lamps) stack to the window width only when the dashboard is narrower than the widest saved card. Dials and the tire widget keep their saved size, clamped so they are not clipped.
+
+**Dashboard backgrounds.** Wood grain, steel plate, mirror, onyx black, sports-car leather, carbon fiber, and brushed aluminum, or pick an image. The choice is stored in `Data\settings.json`. A custom image is copied into `Data\backgrounds` (PNG, JPEG, BMP, or GIF, 15 MB or smaller). Nothing is written outside `Data\`.
+
+**Tire pressure DIDs 2813-2816 are verified** (Dale, BCM 0x726, LF/RF/RR/LR). The dashboard no longer marks them UNVERIFIED. Output shaft speed DID **1E13 stays UNVERIFIED**.
+
+### Windows verify
+
+1. Shrink the window height until the left rail shows a scrollbar. Shrink further until only icons show, then grow it until the labels return. Alt+1..9 and View → Theme (Light and Dark) still work.
+2. Connect **DEMO-EX**. There is no firmware banner, and the Events log does not show a feed request. Ctrl+Alt+F says the check is skipped in DEMO.
+3. Connect a real EX or MX+ while online. If the adapter is behind, the banner offers **Download firmware**. The zip lands in `Data\firmware` and the app does not install it.
+4. Dashboard → Customize: reorder a card, click Done, restart. The layout is unchanged. Zoom in (Ctrl++) or use a Wide card until it cannot fit: bars and tiles stack. Zoom back out: saved sizes return.
+5. Pick Wood grain, then **Pick image** and choose a picture. Restart. The picture is still selected and the file is under `Data\backgrounds`. `Data\settings.json` has `Background`.
+6. The status bar says read-only at startup. Tire pressures do not say UNVERIFIED. Add Output shaft speed: it still says UNVERIFIED.
 
 ## v0.3.5-test
 

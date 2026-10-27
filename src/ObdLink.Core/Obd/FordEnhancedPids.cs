@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace ObdLink.Core.Obd;
 
-/// <summary>One Ford Mode 22 PID from the editable JSON table (all UNVERIFIED by default).</summary>
+/// <summary>One Ford Mode 22 PID from the editable JSON table. UNVERIFIED unless <see cref="Verified"/> is set (TPMS 2813-2816 are verified; OSS 1E13 is not).</summary>
 public sealed class EnhancedPid
 {
     public string Key { get; set; } = ""; public string Name { get; set; } = "";
@@ -67,10 +67,18 @@ public sealed class EnhancedPidTable
     /// <summary>v0.3.4: a Data\pids file written by an older version keeps the user's edits but gains new built-in entries (e.g. "oss") in memory.</summary>
     /// <summary>Only keys added after v0.2.0 are merged, so entries a user deliberately deleted stay deleted.</summary>
     public static readonly IReadOnlySet<string> AddedLater = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "oss" };
+    /// <summary>Stock DIDs Dale verified. A user file that still has that DID is treated as verified. A changed DID is left alone. OSS 1E13 is not here.</summary>
+    public static readonly IReadOnlyDictionary<string, string> VerifiedStockDids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["tpms_lf"] = "2813", ["tpms_rf"] = "2814", ["tpms_rr"] = "2815", ["tpms_lr"] = "2816",
+    };
     public static EnhancedPidTable WithBuiltIns(EnhancedPidTable user)
     {
         foreach (var d in Parse(DefaultJson()).Pids.Where(d => AddedLater.Contains(d.Key)))
             if (user.Pids.All(p => !string.Equals(p.Key, d.Key, StringComparison.OrdinalIgnoreCase))) user.Pids.Add(d);
+        foreach (var p in user.Pids)
+            if (VerifiedStockDids.TryGetValue(p.Key, out var did) && string.Equals(p.Did, did, StringComparison.OrdinalIgnoreCase))
+                p.Verified = true;
         return user;
     }
 }

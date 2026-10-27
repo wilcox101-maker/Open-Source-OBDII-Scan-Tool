@@ -23,7 +23,7 @@ public sealed class AppPaths
     public string AsBuiltDir => Path.Combine(DataDir, "asbuilt");
     public string VehiclesDir => Path.Combine(DataDir, "vehicles");
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
-    public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles" };
+    public static readonly string[] SubFolders = { "logs", "captures", "backups", "exports", "asbuilt", "vehicles", "backgrounds" };
     /// <summary>Returns <paramref name="dir"/> after making sure it exists (for Save/Open dialog InitialDirectory).</summary>
     public static string Ensure(string dir) { try { Directory.CreateDirectory(dir); } catch (Exception ex) { Serilog.Log.Warning("Could not create folder {Dir}: {Err}", dir, ex.Message); } return dir; }
 
@@ -77,11 +77,16 @@ public sealed class AppPaths
             || string.Equals(Path.GetFullPath(legacyDir).TrimEnd('\\', '/'), Path.GetFullPath(DataDir).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
             return new(false, 0, 0, 0, notes);
         int moved = 0, skipped = 0, kept = 0;
-        foreach (var src in Directory.GetFiles(legacyDir, "*", SearchOption.AllDirectories))
+        // Do not follow directory junctions or file symlinks: a link in the old folder must not be copied and then deleted.
+        var opts = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+        foreach (var src in Directory.GetFiles(legacyDir, "*", opts))
         {
             var rel = Path.GetRelativePath(legacyDir, src);
             if (rel == MigratedNote || Path.GetFileName(rel) == FallbackNoticeFlag) continue;
-            var dst = Path.Combine(DataDir, rel);
+            if (rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(p => p is ".." or "."))
+            { kept++; notes.Add($"refusing path outside the data folder: {rel}"); continue; }
+            var dst = Path.GetFullPath(Path.Combine(DataDir, rel));
+            if (!Security.SafePaths.IsUnder(DataDir, dst)) { kept++; notes.Add($"refusing path outside the data folder: {rel}"); continue; }
             try
             {
                 if (File.Exists(dst) && File.GetLastWriteTimeUtc(dst) >= File.GetLastWriteTimeUtc(src))

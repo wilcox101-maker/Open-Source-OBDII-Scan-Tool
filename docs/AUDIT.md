@@ -52,6 +52,7 @@ How to repeat:
 Also in v0.3.4: the **OSS (output shaft speed)** widget. Ford Mode 22 DID 1E13, raw/4 rpm, **UNVERIFIED** (no
 confirmed community DID was found for 6R80/10R80); tried on PCM 0x7E0 then TCM 0x7E1, remembering which answered.
 An older `Data\ford-enhanced-pids.json` gains only the new `oss` entry; deleted entries stay deleted.
+v0.4.0: BCM tire-pressure DIDs **2813-2816 are verified** by Dale. **1E13 stays UNVERIFIED.**
 
 ## Checked, no change needed
 
@@ -65,7 +66,7 @@ An older `Data\ford-enhanced-pids.json` gains only the new `oss` entry; deleted 
 ## Open findings for Dale
 
 - **F1 OSS DID is a guess.** Please check 1E13 with FORScan (look for OSS / OSS_SRC on PCM or TCM) and send the
-  real DID; it is a one-line edit in `Data\ford-enhanced-pids.json`.
+  real DID; it is a one-line edit in `Data\ford-enhanced-pids.json`. Tire pressure DIDs 2813-2816 were verified in v0.4.0; this one was not.
 - **F2 Simulator VIN tail - RESOLVED in v0.3.5.** The log-based DEMO simulator used a masked VIN whose last 6
   characters came from the real truck. It now reports the synthetic `1FTDEMX95HF000001` (`SimulatedAdapter.DemoVin`),
   and all redacted fixtures, tests and docs use `XXXXXXXXXXX000000` (As-Built checksums recomputed). Profiles saved with

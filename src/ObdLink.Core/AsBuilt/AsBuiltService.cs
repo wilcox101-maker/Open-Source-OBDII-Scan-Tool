@@ -1,4 +1,5 @@
 using ObdLink.Core.Safety;
+using ObdLink.Core.Security;
 using ObdLink.Core.Uds;
 using Serilog;
 
@@ -16,8 +17,18 @@ public sealed class AsBuiltService
 
     public async Task<AsBuiltBlock> ReadBlockAsync(ushort module, byte block, CancellationToken ct = default)
     {
-        var data = await _clientFactory(module).ReadDataByIdentifierAsync(AsBuiltBlock.DidForBlock(block), ct);
-        return new AsBuiltBlock { Module = module, Block = block, Data = data };
+        var did = AsBuiltBlock.DidForBlock(block);
+        try
+        {
+            var data = await _clientFactory(module).ReadDataByIdentifierAsync(did, ct);
+            return new AsBuiltBlock { Module = module, Block = block, Data = data };
+        }
+        catch (UdsNegativeResponseException ex) when (ex.Service == 0x22 && ex.Nrc == 0x31)
+        {
+            // NRC 0x31 on an As-Built DID means the module has no As-Built data. Do not wrap the UDS exception:
+            // ErrorText walks InnerException and would put the raw rejection text back on screen.
+            throw new AsBuiltNotSupportedException(module, did);
+        }
     }
 
     public async Task<string> BackupAsync(string vin, ushort module, IEnumerable<byte> blocks, CancellationToken ct = default)
@@ -25,7 +36,9 @@ public sealed class AsBuiltService
         var dict = new Dictionary<string, string>();
         foreach (var b in blocks) dict[b.ToString("X2")] = Convert.ToHexString((await ReadBlockAsync(module, b, ct)).Data);
         var bk = new AsBuiltBackup(vin, DateTimeOffset.Now, module, dict);
-        var path = Path.Combine(_backupDir, $"{vin}_{module:X3}_{DateTime.Now:yyyyMMdd_HHmmss}.asbuilt.json");
+        var name = $"{SafePaths.Token(vin)}_{module:X3}_{DateTime.Now:yyyyMMdd_HHmmss}.asbuilt.json";
+        var path = Path.Combine(_backupDir, name);
+        if (!SafePaths.IsUnder(_backupDir, path)) throw new InvalidOperationException("Backup path escaped the backup folder");
         await File.WriteAllTextAsync(path, bk.Serialize(), ct);
         Log.Information("As-Built backup {Path}", path);
         return path;

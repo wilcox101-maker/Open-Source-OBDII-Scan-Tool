@@ -6,7 +6,7 @@ Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.g
 **Supported Windows:** Windows 10 version 1607 (Anniversary Update) or later, or Windows 11; x64 (win-x64 zip) or ARM64 (win-arm64 zip). Windows 7, 8 and 8.1 are **not supported** (.NET 8 does not run there, so the exe will not start). **Portable, no installer:** unzip the folder and run OBDLinkDiag.exe; settings and data stay in the `Data` folder next to the exe.
 
 ## Adapter firmware check
-When you connect, the app reads the adapter firmware (STI) and, if you are online, compares it with the latest **stable** release in OBDLink's public firmware feed. If you are offline, nothing is shown. If your firmware is older, a banner shows the installed and latest versions:
+When you connect a **real** adapter, the app reads the adapter firmware (STI) and, if you are online, compares it with the latest **stable** release in OBDLink's public firmware feed. **DEMO / simulated mode skips this check**, including the first time you run the app on a DEMO port, and Ctrl+Alt+F does not contact OBDLink either. If you are offline, nothing is shown. If your firmware is older, a banner shows the installed and latest versions:
 - **Download firmware** saves the official scantool.net package to `Data\firmware\<model>\<version>\`. The app checks the size, the zip and the `STNFWv` header, and keeps the changelog.
 - **Open folder** opens that folder.
 - **Official updater page** opens OBDLink's page ([EX](https://www.scantool.net/downloads/updates/obdlink_ex/), [MX+](https://www.scantool.net/downloads/updates/obdlink_mxp/)).
@@ -39,6 +39,7 @@ This app **never flashes firmware** and does **not** include OBDLink's updater. 
 | Exported Events / Messages / Traffic logs (.txt/.csv) | `exports\` |
 | As-Built files: exported/imported `.abt`, factory `.ab` | `asbuilt\` |
 | Vehicle profiles from **Identify vehicle** | `vehicles\<VIN with first 11 masked>.json` |
+| Dashboard background image | `backgrounds\` (custom picture only; the choice itself is in `settings.json`) |
 
 Every Save/Open dialog starts in the matching folder above (never the folder Windows used last). You can still browse elsewhere; the full path is written to the Events log.
 
@@ -53,7 +54,7 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 - **AT / ST commands** (`ATZ`, `ATI`, `STI`, `STP33`...) go straight to the ELM327/STN adapter. They configure the adapter, not the vehicle.
 - **Hex requests** (`0100`, `22F190`, `19 02 FF`) are OBD-II or UDS requests sent to the current header (set with `ATSH7E0` etc.). Spaces are ignored. The reply is shown raw (header + bytes).
 - **Built-ins** (`help`, `?`, `cls`) are handled by the app and send nothing.
-- **Allow writes** (checkbox): services that change a module are blocked unless it is ticked, and are *always* blocked while **Read-only test mode** is on (the default).
+- **Allow writes** (checkbox): services that change a module are blocked unless it is ticked, and are *always* blocked while **Read-only test mode** is on (the default). `STPX` and `ATWM` are blocked too, because they can put an arbitrary frame on the bus, and `ATCAF0` is blocked so a PCI byte cannot hide a service id (`06 2E ...` once formatting is off). A line that contains a control character is refused so it cannot hide a second command.
 
 **Examples**
 
@@ -84,14 +85,24 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 | SID | Service |
 |---|---|
 | `04` | OBD clear DTCs |
+| `08` | OBD control of on-board system |
 | `11` | ECUReset |
 | `14` | ClearDiagnosticInformation |
 | `27` | SecurityAccess |
+| `28` | CommunicationControl |
+| `2C` | DynamicallyDefineDataIdentifier |
 | `2E` | WriteDataByIdentifier (As-Built write) |
 | `2F` | InputOutputControl |
 | `31` | RoutineControl |
 | `34-37` | Request download/upload/transfer (flashing) |
+| `38` | RequestFileTransfer |
 | `3B` | WriteDataByLocalIdentifier |
+| `3D` | WriteMemoryByAddress |
+| `85` | ControlDTCSetting |
+| `86` | ResponseOnEvent |
+| `87` | LinkControl |
+| `STPX` | STN pass-through transmit (arbitrary bus frame) |
+| `ATWM` | Wakeup message the adapter transmits |
 
 **Negative responses**: a reply `7F <SID> <NRC>` means the module refused the request. Common NRCs:
 
@@ -133,10 +144,10 @@ Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-onl
 Open **Dashboard** on the left rail while you are connected. It is read-only and sends only Mode 01 and Mode 22 requests.
 - RPM and speed are read most often. The other gauges are read less often, and the poll rate slows down if the bus is slow.
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
-- Gear: a Ford DID is used if you enable one in `Data\ford-enhanced-pids.json` (the entries are **unverified**). Otherwise the gear is estimated from RPM, speed and ratios, and shown as "est.".
+- Gear: the tile is titled **Gear (UNVERIFIED)**. Ford DID **1E12** is used when it answers; otherwise the gear is estimated from RPM, speed and 6R80 ratios. Either way the source line stays UNVERIFIED (warning color) until a truck pass matches the cluster through P, R, N, D and the forward gears. Do not mark 1E12 verified in the PID table before that.
 - **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
-- **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**unverified**, community PIDs; edit them in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
-- **Output shaft speed (OSS, v0.3.4)**: add "Output shaft speed (OSS)" from the Customize catalog (not on the default layout). Shown in rpm from a Ford Mode 22 DID (**unverified**: 1E13, raw/4), asked of the PCM 0x7E0 first and the TCM 0x7E1 if the PCM does not answer. "unsupported" means neither answered; fix the DID in `Data\ford-enhanced-pids.json`. Read-only. DEMO shows a simulated value.
+- **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**verified** by Dale on a 2017 F-150; the kPa formula is still the community equation, and you can edit it in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
+- **Output shaft speed (OSS)**: add "Output shaft speed (OSS) (UNVERIFIED)" from the Customize catalog (not on the default layout). Shown in rpm from Ford Mode 22 DID **1E13** (still **UNVERIFIED**, raw/4). The PCM 0x7E0 is asked first and the TCM 0x7E1 if the PCM does not answer; the card says which one answered. "unsupported" means neither answered. At a steady speed, compare it with `mph × axle ratio × 336 / tire diameter in inches` before anyone marks 1E13 verified. Read-only. DEMO shows a simulated value.
 - **Customize**: click Customize, then add items from the catalog, remove them (Remove), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
 - **Rearranging**:
   - Click **Customize** on the Dashboard. Each card gets a toolbar and a colored border. **Done** locks the layout again; cards do not move while Customize is off.
@@ -146,10 +157,13 @@ Open **Dashboard** on the left rail while you are connected. It is read-only and
   - **Reset to default** puts back the built-in items, order and sizes for the current layout.
   - Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.
   - Click **Done** to leave Customize. The dashboard stays read-only; only the items shown are polled.
+- **Narrow windows (v0.4.0):** the saved order and sizes stay as you left them, including the width of the dashboard when you last customized. Gauge-height cards (bars, tiles, lamps) line up in one column only when the window is so narrow that a saved card would not fit. Dials and the tire widget keep their size.
+- **Background (v0.4.0):** the Background box on the dashboard (and on Settings) offers wood grain, steel plate, mirror, onyx black, sports-car leather, carbon fiber, and brushed aluminum. **Pick image** copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds`. The choice is saved in `Data\settings.json`.
+- **Left rail:** when the window is short the page list scrolls. Shorter still (the window can shrink to a 480 px minimum), the captions hide and the icons remain. Labels come back only once there is room for them with a little extra, so the rail does not flicker. Alt+1 through Alt+9 still open the same pages.
 - Units and refresh rate are on the **Settings** page.
 
 ## As-Built backup
-Open **As-Built** and pick a module (only modules with As-Built blocks are listed unless "Show all modules" is ticked). If you are not connected the app offers to connect, and it scans first if needed. **Read all blocks** saves the module to `Data\asbuilt\<date>\`; **Read all modules (backup)** backs up every As-Built module that answered, with progress and Cancel. Everything is read-only. The DTCs page has the same picker and **Read all modules**.
+Open **As-Built** and pick a module (only modules with As-Built blocks are listed unless "Show all modules" is ticked). If a module answers DID DE00 with NRC 0x31, it has no As-Built: it leaves the list, Read / Backup / Write stay off, and an info message explains that. That is not an error. **Show all modules** puts it back in the list with the actions still off. Modules that do answer DE00 keep working. A real adapter remembers which Ford bus (HS-CAN, HS-CAN2, or MS-CAN) each module answered on and tries that bus first next time; DEMO does not save that. If you are not connected the app offers to connect, and it scans first if needed. **Read all blocks** saves the module to `Data\asbuilt\<date>\`; **Read all modules (backup)** backs up every As-Built module that answered, with progress and Cancel, and counts "no As-Built" separately from failures. Everything is read-only until you turn read-only mode off. The DTCs page has the same picker and **Read all modules**. DEMO TCM (0x7E1) has synthetic DE00-DE07 blocks so you can try the page; a 2017 F-150 factory file has no TCM As-Built.
 
 ## Keyboard shortcuts
 Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next to the item. While you type in a text box or the console, Ctrl+I, Ctrl+B, Ctrl+W and Ctrl+Shift+Delete are left to the text box. Clear DTCs and Write still ask first and are blocked in read-only mode. The menus also have Alt access keys (Alt+F = File, Alt+E = Edit, Alt+V = View, Alt+H = Help, and so on).

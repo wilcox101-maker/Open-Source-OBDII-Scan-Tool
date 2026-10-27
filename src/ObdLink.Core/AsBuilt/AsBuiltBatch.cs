@@ -1,9 +1,10 @@
 using ObdLink.Core.Modules;
+using ObdLink.Core.Security;
 
 namespace ObdLink.Core.AsBuilt;
 
 /// <summary>Outcome for one module in a batch run (As-Built backup or DTC read).</summary>
-public sealed record BatchItemResult(ModuleDefinition Module, bool Ok, string Detail, string? Path = null);
+public sealed record BatchItemResult(ModuleDefinition Module, bool Ok, string Detail, string? Path = null, bool NoAsBuilt = false);
 
 /// <summary>Progress report for a batch: modules done so far, total, and what is happening now.</summary>
 public readonly record struct BatchProgress(int Done, int Total, string Text)
@@ -43,13 +44,14 @@ public static class AsBuiltBatch
 
     /// <summary>File name used for a module backup; the VIN is masked unless <paramref name="vin"/> is empty.</summary>
     public static string FileName(string vinMasked, uint module, DateTime now) =>
-        $"{(string.IsNullOrWhiteSpace(vinMasked) ? "NOVIN" : vinMasked)}_{module:X3}_{now:yyyyMMdd_HHmmss}.asbuilt.json";
+        $"{SafePaths.Token(vinMasked)}_{module:X3}_{now:yyyyMMdd_HHmmss}.asbuilt.json";
 
     public static async Task<string> SaveAsync(string dir, string vinMasked, ushort module, IReadOnlyList<AsBuiltBlock> blocks, DateTime now, CancellationToken ct = default)
     {
         Directory.CreateDirectory(dir);
         var bk = new AsBuiltBackup(vinMasked, new DateTimeOffset(now), module, blocks.ToDictionary(b => b.Block.ToString("X2"), b => Convert.ToHexString(b.Data)));
         var path = Path.Combine(dir, FileName(vinMasked, module, now));
+        if (!SafePaths.IsUnder(dir, path)) throw new InvalidOperationException("As-Built backup path escaped the destination folder");
         await File.WriteAllTextAsync(path, bk.Serialize(), ct);
         return path;
     }
@@ -85,9 +87,28 @@ public static class AsBuiltBatch
             progress?.Report(new(i, modules.Count, $"{m.Acronym} (0x{m.TxId:X3}) {i + 1}/{modules.Count}"));
             try { res.Add(await work(m, ct)); }
             catch (OperationCanceledException) { throw; }
+            catch (AsBuiltNotSupportedException ex) { res.Add(new(m, false, ex.Message, NoAsBuilt: true)); }
             catch (Exception ex) { res.Add(new(m, false, ex.Message)); }
         }
         progress?.Report(new(modules.Count, modules.Count, $"Done: {res.Count(r => r.Ok)} of {modules.Count} OK"));
         return res;
+    }
+
+    /// <summary>A module with no As-Built is not a failed backup. Timeouts and other errors still are.</summary>
+    public static bool HasHardFailure(IReadOnlyList<BatchItemResult> results) => results.Any(r => !r.Ok && !r.NoAsBuilt);
+
+    public static string Line(BatchItemResult r)
+    {
+        var head = $"{r.Module.Acronym} 0x{r.Module.TxId:X3}: ";
+        if (r.NoAsBuilt) return head + "no As-Built - " + r.Detail;
+        return head + (r.Ok ? "OK - " : "failed - ") + r.Detail;
+    }
+
+    public static string BackupSummary(IReadOnlyList<BatchItemResult> results, string dir)
+    {
+        var saved = results.Count(r => r.Ok);
+        var none = results.Count(r => r.NoAsBuilt);
+        var failed = results.Count(r => !r.Ok && !r.NoAsBuilt);
+        return $"As-Built backup: {saved} saved, {none} with no As-Built, {failed} failed to {dir}";
     }
 }

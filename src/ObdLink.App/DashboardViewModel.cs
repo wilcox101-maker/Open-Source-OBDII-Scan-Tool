@@ -18,7 +18,13 @@ public sealed class GaugeVm : ObservableObject
     public string BaseUnit { get; init; } = "";
     public double BaseMin { get; init; } public double BaseMax { get; init; } = 100;
     public double? BaseWarnHigh { get; init; } public double? BaseWarnLow { get; init; }
-    public string Note { get; init; } = "";
+    private string _note = "";
+    public string Note { get => _note; set { if (Set(ref _note, value)) OnPropertyChanged(nameof(TileFooter)); } }
+    private string _subtitle = "";
+    public string Subtitle { get => _subtitle; set { if (Set(ref _subtitle, value)) { OnPropertyChanged(nameof(HasSubtitle)); OnPropertyChanged(nameof(TileFooter)); } } }
+    public bool HasSubtitle => _subtitle.Length > 0;
+    /// <summary>Tile footer. An UNVERIFIED source line replaces min/max/avg so the warning is the thing you read.</summary>
+    public string TileFooter => HasSubtitle ? Subtitle : StatsText;
     public GaugeStats Stats { get; } = new();
     internal UnitPrefs Units = new();
 
@@ -42,7 +48,7 @@ public sealed class GaugeVm : ObservableObject
     public void Update(double baseValue) { _base = baseValue; Stats.Add(baseValue); Refresh(); }
     public void Refresh()
     {
-        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
+        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
     }
     public void Clear() { _base = double.NaN; Stats.Reset(); Refresh(); }
 }
@@ -60,11 +66,15 @@ public sealed class DashItemVm : ObservableObject
     public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry)
     {
         _owner = owner; Item = item; Gauge = gauge; Entry = entry;
+        _flowWidth = DashboardFlow.Metrics(item.Display, item.Size).Width;
         // Parameterless commands: the button's DataContext is this card, so the click cannot lose the item
         // the way a parent-ItemsControl CommandParameter binding can.
         MoveLeftCommand = new("Dashboard move item left", null, _ => _owner.MoveLeftCommand.Execute(this));
         MoveRightCommand = new("Dashboard move item right", null, _ => _owner.MoveRightCommand.Execute(this));
     }
+    private double _flowWidth;
+    /// <summary>Pre-transform card width. Saved size, or the stacked width when the window is narrower than the widest card.</summary>
+    public double FlowWidth { get => _flowWidth; internal set => Set(ref _flowWidth, value); }
     public string Key => Item.Key;
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
@@ -152,12 +162,86 @@ public sealed class DashboardViewModel : ObservableObject
             var d = _settings().Dashboard; if (d.Layouts.Count <= 1) { Hint = "This is the only layout; use Reset to go back to the default."; return; }
             d.Layouts.Remove(Layout); d.ActiveLayout = d.Layouts[0].Name; RefreshLayoutNames(); BuildGauges(); Changed("deleted layout");
         });
+        PickBackgroundCommand = new("Dashboard pick background image", log, _ => PickBackground());
         RefreshLayoutNames();
         BuildGauges();
     }
 
+    public RelayCommand PickBackgroundCommand { get; }
+    public IReadOnlyList<DashboardBackgroundChoice> BackgroundChoices => DashboardBackgrounds.Choices;
+    public string BackgroundId
+    {
+        get => _settings().Dashboard.Background;
+        set
+        {
+            var id = DashboardBackgrounds.Normalize(value);
+            var d = _settings().Dashboard;
+            if (id == DashboardBackgrounds.Custom && string.IsNullOrEmpty(d.BackgroundFile))
+            {
+                OnPropertyChanged();
+                PickBackground();
+                return;
+            }
+            if (id == d.Background) return;
+            d.Background = id;
+            _save();
+            NotifyBackground();
+            _log.UserAction("Dashboard background", ("id", id));
+        }
+    }
+    public string? BackgroundFile => _settings().Dashboard.BackgroundFile;
+    public string? BackgroundFullPath => DashboardBackgroundFiles.FullPath(_pidDir, BackgroundFile);
+    private double _hostMax = double.PositiveInfinity;
+    public double HostMaxWidth { get => _hostMax; private set => Set(ref _hostMax, value); }
+    private double _viewport;
+    private bool _stacking;
+    /// <summary>View-time layout. Does not rewrite the saved item list. Pins the wrap to the width last used in Customize when the window is at least that wide.</summary>
+    public void ApplyViewport(double availableWidth)
+    {
+        if (availableWidth > 1) _viewport = availableWidth;
+        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, _settings().Dashboard.ArrangeWidth, _stacking);
+        if (availableWidth > 1) _stacking = plan.Stacking;
+        for (int i = 0; i < Items.Count && i < plan.Widths.Length; i++) Items[i].FlowWidth = plan.Widths[i];
+        HostMaxWidth = plan.HostMaxWidth;
+    }
+    private void NotifyBackground()
+    {
+        OnPropertyChanged(nameof(BackgroundId));
+        OnPropertyChanged(nameof(BackgroundFile));
+        OnPropertyChanged(nameof(BackgroundFullPath));
+    }
+    private void PickBackground()
+    {
+        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, DashboardBackgroundFiles.Folder));
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif", InitialDirectory = dir, Title = "Dashboard background image" };
+        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
+        var name = DashboardBackgroundFiles.Import(_pidDir, dlg.FileName);
+        if (name is null)
+        {
+            DialogService.Info("Choose a PNG, JPEG, BMP or GIF image, 15 MB or smaller. The copy is stored in Data\\backgrounds.", "Dashboard background");
+            OnPropertyChanged(nameof(BackgroundId));
+            return;
+        }
+        var d = _settings().Dashboard;
+        d.BackgroundFile = name;
+        d.Background = DashboardBackgrounds.Custom;
+        _save();
+        NotifyBackground();
+        _log.UserAction("Dashboard background image", ("file", name));
+    }
+
     private DashboardLayout Layout => _settings().Dashboard.Current();
-    private bool _customizing; public bool Customizing { get => _customizing; set { if (Set(ref _customizing, value)) { if (value) RefreshCatalog(); OnPropertyChanged(nameof(CustomizeText)); } } }
+    private bool _customizing; public bool Customizing
+    {
+        get => _customizing;
+        set
+        {
+            if (!Set(ref _customizing, value)) return;
+            if (value) RefreshCatalog();
+            else if (_viewport > 1) { _settings().Dashboard.ArrangeWidth = _viewport; _save(); }
+            OnPropertyChanged(nameof(CustomizeText));
+        }
+    }
     public string CustomizeText => Customizing ? "Done" : "Customize";
     private CatalogEntry? _selCat; public CatalogEntry? SelectedCatalog { get => _selCat; set => Set(ref _selCat, value); }
     private string? _newName; public string? NewLayoutName { get => _newName; set => Set(ref _newName, value); }
@@ -169,8 +253,18 @@ public sealed class DashboardViewModel : ObservableObject
     }
     private void RefreshLayoutNames() { LayoutNames.Clear(); foreach (var l in _settings().Dashboard.Layouts) LayoutNames.Add(l.Name); OnPropertyChanged(nameof(ActiveLayout)); }
 
-    /// <summary>Called after any layout edit: persists settings and makes the poller pick up the new item list.</summary>
-    internal void Changed(string what) { _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what); if (Customizing) RefreshCatalog(); }
+    /// <summary>Called after any layout edit: persists settings (including the width the user arranged at) and makes the poller pick up the new item list.</summary>
+    internal void Changed(string what)
+    {
+        RememberArrangeWidth();
+        _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what);
+        if (Customizing) RefreshCatalog();
+        ApplyViewport(_viewport);
+    }
+    private void RememberArrangeWidth()
+    {
+        if (_viewport > 1) _settings().Dashboard.ArrangeWidth = _viewport;
+    }
     private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
     /// <summary>Keyboard / button move. No-op while Customize is off, so the saved layout stays put.</summary>
     public bool MoveBy(DashItemVm? it, int delta)
@@ -219,14 +313,16 @@ public sealed class DashboardViewModel : ObservableObject
         else if (key == "atrv")
             g = new GaugeVm { Key = "atrv", Title = "Battery (adapter ATRV)", Kind = GaugeKind.Bar, Quantity = Quantity.Voltage, BaseUnit = "V", BaseMin = 8, BaseMax = 16, BaseWarnLow = s.Dashboard.LowVoltage, BaseWarnHigh = 15.2, Note = "ATRV", Units = s.Units };
         else if (key == "gear")
-            g = new GaugeVm { Key = "gear", Title = "Trans gear", Kind = GaugeKind.Tile, Note = "Ford DID 1E12 (UNVERIFIED) or estimate", Units = s.Units, TextOverride = "--" };
+            g = new GaugeVm { Key = "gear", Title = UnverifiedLabels.GearTitle, Kind = GaugeKind.Tile, Note = "Ford DID 1E12 (UNVERIFIED) or estimate", Subtitle = UnverifiedLabels.GearTitle, Units = s.Units, TextOverride = "--" };
         else if (key == "mil")
             g = new GaugeVm { Key = "mil", Title = "Check engine (MIL)", Kind = GaugeKind.Tile, BaseMin = 0, BaseMax = 1, BaseWarnHigh = 0.5, Note = "Mode 01 PID 01 bit 7", Units = s.Units };
         else if (key == "dtcCount")
             g = new GaugeVm { Key = "dtcCount", Title = "Stored DTCs", Kind = GaugeKind.Tile, BaseMin = 0, BaseMax = 20, BaseWarnHigh = 0.5, Note = "Mode 01 PID 01", Units = s.Units };
         else if (_enhanced.Pids.FirstOrDefault(p => p.Key == key) is { } e)
-            g = new GaugeVm { Key = e.Key, Title = e.Name + (e.Verified ? "" : " (UNVERIFIED)"), Kind = GaugeKind.Bar, Quantity = e.QuantityValue, BaseUnit = e.Unit, BaseMin = e.Min, BaseMax = e.Max,
-                BaseWarnHigh = e.WarnHigh, BaseWarnLow = key.StartsWith("tpms_") ? tpmsLow : e.WarnLow, Note = $"Mode 22 {e.Header} DID {e.Did}" + (e.Verified ? "" : " UNVERIFIED"), Units = s.Units };
+            g = new GaugeVm { Key = e.Key, Title = UnverifiedLabels.Mark(e.Name, e.Verified), Kind = GaugeKind.Bar, Quantity = e.QuantityValue, BaseUnit = e.Unit, BaseMin = e.Min, BaseMax = e.Max,
+                BaseWarnHigh = e.WarnHigh, BaseWarnLow = key.StartsWith("tpms_") ? tpmsLow : e.WarnLow,
+                Note = e.Key == "oss" && uint.TryParse(e.Header, System.Globalization.NumberStyles.HexNumber, null, out var ossTx0) ? UnverifiedLabels.OssSource(ossTx0, e.Did) : $"Mode 22 {e.Header} DID {e.Did}" + (e.Verified ? "" : " UNVERIFIED"),
+                Subtitle = e.Verified ? "" : "UNVERIFIED", Units = s.Units };
         else
             g = new GaugeVm { Key = key, Title = key + " (unknown)", Kind = GaugeKind.Tile, Note = "Not in the PID list or the Ford PID table", Units = s.Units, Unsupported = true };
         return _gauges[key] = g;
@@ -247,12 +343,18 @@ public sealed class DashboardViewModel : ObservableObject
             if (it.Key == TpmsKeys.Widget)
             {
                 var t = new TpmsVm { LF = MakeGauge("tpms_lf", s), RF = MakeGauge("tpms_rf", s), RR = MakeGauge("tpms_rr", s), LR = MakeGauge("tpms_lr", s) };
-                var holder = new GaugeVm { Key = "tpms", Title = "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile, Note = "BCM 726 DIDs 2813-2817 (UNVERIFIED community PIDs)", Units = s.Units };
+                var verified = entry?.Verified == true;
+                var holder = new GaugeVm
+                {
+                    Key = "tpms", Title = verified ? "Tire pressures" : "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile,
+                    Note = verified ? "BCM 726 DIDs 2813-2816 (verified)" : "BCM 726 DIDs 2813-2816 (UNVERIFIED)", Units = s.Units,
+                };
                 Items.Add(new DashItemVm(this, it, holder, entry) { Tpms = t });
             }
             else Items.Add(new DashItemVm(this, it, MakeGauge(it.Key, s), entry));
         }
         _reconfigure = true;
+        ApplyViewport(_viewport);
     }
     private IEnumerable<GaugeVm> Shown => Items.SelectMany(i => i.Tpms?.All ?? new[] { i.Gauge });
     public void ApplyUnits() { var u = _settings().Units; foreach (var g in _gauges.Values) { g.Units = u; g.Refresh(); } }
@@ -354,11 +456,28 @@ public sealed class DashboardViewModel : ObservableObject
         if (v.TryGetValue("coolant", out var ct)) Overheat = ct >= s.Dashboard.OverheatC;
         if (v.TryGetValue("voltage", out var vv) || v.TryGetValue("atrv", out vv)) LowVoltage = vv < s.Dashboard.LowVoltage;
         LowTire = TpmsKeys.Tires.Any(k => _gauges.TryGetValue(k, out var g) && g.IsLow);
-        if (v.TryGetValue("gear", out var gr) && _enhanced.Pids.FirstOrDefault(p => p.Key == "gear") is { } gp)
-        { Gear = gp.Label(gr); GearSource = $"PCM {gp.Header} DID {gp.Did} (UNVERIFIED)"; }
+        var gearItem = _engine?.Scheduler.Items.FirstOrDefault(i => i.Key == "gear");
+        if (v.TryGetValue("gear", out var gr) && _enhanced.Pids.FirstOrDefault(p => p.Key == "gear") is { } gp && (gearItem == null || gearItem.Failures == 0))
+        {
+            Gear = gp.Label(gr);
+            var src = UnverifiedLabels.GearFromDid(gp.Header, gp.Did);
+            GearSource = src;
+            if (_gauges.TryGetValue("gear", out var gg)) { gg.Note = src; gg.Subtitle = src; }
+        }
         else if (s.Dashboard.EstimateGear && v.TryGetValue("speed", out var kmh) && v.TryGetValue("rpm", out var rpm)
                  && (_engine?.Enhanced.ContainsKey("gear") != true || _engine.Scheduler.Items.First(i => i.Key == "gear").Failures > 0))
-        { var e = est.Estimate(rpm, kmh); Gear = e?.ToString() ?? (kmh < 5 ? "N/P" : "--"); GearSource = "estimated from RPM/speed (6R80 ratios)"; }
+        {
+            var e = est.Estimate(rpm, kmh); Gear = e?.ToString() ?? (kmh < 5 ? "N/P" : "--");
+            var src = UnverifiedLabels.GearFromEstimate();
+            GearSource = src;
+            if (_gauges.TryGetValue("gear", out var gg)) { gg.Note = src; gg.Subtitle = src; }
+        }
+        if (_enhanced.Pids.FirstOrDefault(p => p.Key == "oss") is { } oss && _gauges.TryGetValue("oss", out var og)
+            && _engine?.AnsweredBy.TryGetValue("oss", out var ossTx) == true)
+        {
+            var src = UnverifiedLabels.OssSource(ossTx, oss.Did);
+            og.Note = src; og.Subtitle = src;
+        }
         if (_rec != null) _rec.Write(DateTime.Now, v);
     }
 
