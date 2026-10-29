@@ -127,7 +127,7 @@ The **Console** tab sends one line at a time to the adapter. Type `help` (or `?`
 `NO DATA` means no module answered at that header on the current bus (wrong bus, wrong address, or ignition off). `?` means the adapter did not understand the command. The **ERR** LED in the header flashes for both and for any NRC.
 
 ## Identify / scan a new vehicle
-Use **Identify vehicle** (Ctrl+I): the button next to Connect in the header, the button on the Dashboard when not connected, or Vehicle → Identify vehicle.
+Use **Identify vehicle** (Ctrl+I): the button next to Connect in the header, the button on the dashboard window when not connected, or Vehicle → Identify vehicle.
 
 
 Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-only: it only sends `09 02`, `3E 00` and `22 xxxx` (ReadDataByIdentifier).
@@ -141,25 +141,25 @@ Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-onl
 **Factory As-Built**: Ford's motorcraftservice.com needs a sign-in and a captcha, so the app cannot download it. **Get factory As-Built (Motorcraft)** opens the page in your browser and copies the VIN to the clipboard; download the `.ab` and click **Import downloaded .ab** (it is copied into `Data\asbuilt` and linked to the vehicle profile).
 
 ## Dashboard
-Open **Dashboard** on the left rail while you are connected. It is read-only and sends only Mode 01 and Mode 22 requests.
+Open the dashboard window with **View → Dashboard**, the **Dashboard** button in the header (after the title), or **Ctrl+Shift+G**. There is one window. Doing any of those again brings that same window to the front, including when it was minimized. It is read-only and sends only Mode 01 and Mode 22 requests. The left rail no longer has a Dashboard page; the main window opens on Modules.
 - RPM and speed are read most often. The other gauges are read less often, and the poll rate slows down if the bus is slow.
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
 - Gear: the tile is titled **Gear (UNVERIFIED)**. Ford DID **1E12** is used when it answers; otherwise the gear is estimated from RPM, speed and 6R80 ratios. Either way the source line stays UNVERIFIED (warning color) until a truck pass matches the cluster through P, R, N, D and the forward gears. Do not mark 1E12 verified in the PID table before that.
-- **Pause** stops polling. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`.
+- **Pause** stops polling and leaves the loop running (Ctrl+P). Closing the dashboard window also stops polling, unless **Keep live** is on. **Keep live** (the checkbox on the dashboard window, and View → **Keep dashboard live while closed**) keeps polling while the window is closed and is remembered in `Data\settings.json`. Reopening resumes polling that stopped because the window closed. A Pause you turned on stays on until you resume. **Reset stats** clears min/max/avg. **Record CSV** writes `Data\logs\dashboard-*.csv`. Closing the window does not close an open recording; rows resume when polling does.
 - **Tire pressures**: a truck top-view shows LF/RF/RR/LR from BCM 0x726 DIDs 2813-2816 (**verified** by Dale on a 2017 F-150; the kPa formula is still the community equation, and you can edit it in `Data\ford-enhanced-pids.json`). Below the low-tire threshold (Settings, default 30 psi) a tire turns red and the "Low tire" lamp lights. "unsupported" means the BCM did not answer.
 - **Output shaft speed (OSS)**: add "Output shaft speed (OSS) (UNVERIFIED)" from the Customize catalog (not on the default layout). Shown in rpm from Ford Mode 22 DID **1E13** (still **UNVERIFIED**, raw/4). The PCM 0x7E0 is asked first and the TCM 0x7E1 if the PCM does not answer; the card says which one answered. "unsupported" means neither answered. At a steady speed, compare it with `mph × axle ratio × 336 / tire diameter in inches` before anyone marks 1E13 verified. Read-only. DEMO shows a simulated value.
-- **Customize**: click Customize, then add items from the catalog, remove them (Remove), and pick dial/bar/tile/lamp per item. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled.
+- **Customize**: on the dashboard window, click Customize, then add items from the catalog, remove them (Remove), and pick dial/bar/tile/lamp per item. Needle gauges (the ones that offer Dial) also have **Analog** or **Digital**. Analog draws the needle and arc. Digital draws the title, the number, and the unit in the same card. Gear, tire pressure, the MIL lamp, and text-only tiles do not have that choice. "Save as" stores a named layout; pick layouts from the Layout box. Only the items on the dashboard are polled. Face is saved with the layout.
 - **Rearranging**:
-  - Click **Customize** on the Dashboard. Each card gets a toolbar and a colored border. **Done** locks the layout again; cards do not move while Customize is off.
+  - Click **Customize** on the dashboard window. Each card gets a toolbar and a colored border. **Done** locks the layout again; cards do not move while Customize is off.
   - **Reorder:** use **Move left**, **Move right**, **Move up**, and **Move down** on the card. Or drag the **Drag** grip (or the gauge itself) and drop it on another card. Dropping on an empty gap moves the card to the nearest slot.
   - **Keyboard:** click a card (or Tab to one of its buttons), then Ctrl+Left/Right (one place), Ctrl+Up/Down (one row), or Ctrl+Home/End (first/last). Focus stays on the card, so you can keep pressing.
   - **Size:** each card has a size box: Small, Medium (20% bigger), Large, or Wide (two columns).
   - **Reset to default** puts back the built-in items, order and sizes for the current layout.
   - Every change is saved at once to Data\settings.json (Dashboard.Layouts) in the app folder. Named layouts ("Save as" and the Layout box) keep their own order and sizes. Older settings files load unchanged.
   - Click **Done** to leave Customize. The dashboard stays read-only; only the items shown are polled.
-- **Narrow windows (v0.4.0):** the saved order and sizes stay as you left them, including the width of the dashboard when you last customized. Gauge-height cards (bars, tiles, lamps) line up in one column only when the window is so narrow that a saved card would not fit. Dials and the tire widget keep their size.
-- **Background (v0.5.2):** the Background box on the dashboard (and on Settings) offers late-model truck cabin photos: **Analog gauges**, **Digital dash**, **Digital cluster**, Night cabin, Highway view, Dusk cabin, Black leather cabin, and Center stack. Each photo covers the dashboard once (it is not tiled). A light dark overlay keeps the gauge cards readable in light and dark themes. **None** uses the app theme color. **Pick image** copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds`. The choice is saved in `Data\settings.json`. A choice saved in an older version (wood grain, steel, and the rest) still loads, and now shows the matching cabin photo.
-- **Left rail:** when the window is short the page list scrolls. Shorter still (the window can shrink to a 480 px minimum), the captions hide and the icons remain. Labels come back only once there is room for them with a little extra, so the rail does not flicker. Alt+1 through Alt+9 still open the same pages.
+- **Narrow dashboard window:** the saved order and sizes stay as you left them, including the width of the dashboard window when you last customized. Gauge-height cards (bars, tiles, lamps) line up in one column only when that window is so narrow that a saved card would not fit. Dials and the tire widget keep their size. The main window's width does not change the layout.
+- **Background:** the Background box on the dashboard window (and on Settings) offers material photos: **Fine wood grain**, **Brushed aluminum**, **High-gloss black**, **Diamond-plate metal**, **Carbon fiber**, and **Sports-car leather**, plus **None** and **Custom**. Each built-in photo covers the window once (`UniformToFill`, not tiled). A light dark overlay keeps the gauge cards readable in light and dark themes. **None** uses the app theme color. **Pick image** still copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds`. The choice is saved in `Data\settings.json`. A cabin choice saved in v0.5.2 opens as None.
+- **Left rail:** when the main window is short the page list scrolls. Shorter still (the window can shrink to a 480 px minimum), the captions hide and the icons remain. Labels come back only once there is room for them with a little extra, so the rail does not flicker. Alt+1 opens Modules. Alt+2 through Alt+8 open DTCs, As-Built, Vehicle, Console, Logs, Guide, and Settings. Alt+9 does nothing.
 - Units and refresh rate are on the **Settings** page.
 
 ## As-Built backup
@@ -189,7 +189,8 @@ Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next
 | Ctrl+L | Show / hide log panel |
 | Ctrl+` | Raw console |
 | Ctrl+, | Settings |
-| Alt+1..9 | Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
+| Ctrl+Shift+G | Open the dashboard window |
+| Alt+1..8 | Go to page 1-8 (Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
 | Ctrl+Tab | Next page |
 | Ctrl+Shift+Tab | Previous page |
 | Ctrl+P | Pause / resume dashboard |

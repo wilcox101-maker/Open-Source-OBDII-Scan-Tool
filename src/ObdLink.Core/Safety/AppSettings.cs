@@ -63,7 +63,13 @@ public sealed class AppSettings
         Dashboard.Gauges ??= DashboardOptions.DefaultGauges.ToList();
         Dashboard.Layouts ??= new();
         Dashboard.Layouts.RemoveAll(l => l is null || string.IsNullOrWhiteSpace(l.Name));
-        foreach (var l in Dashboard.Layouts) { l.Items ??= new(); l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key) || ObdLink.Core.Dashboard.TpmsKeys.Retired.Contains(i.Key)); }
+        foreach (var l in Dashboard.Layouts)
+        {
+            l.Items ??= new();
+            l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key) || ObdLink.Core.Dashboard.TpmsKeys.Retired.Contains(i.Key));
+            foreach (var i in l.Items)
+                i.Face = ObdLink.Core.Dashboard.GaugeFaces.Normalize(i.Face);
+        }
         if (Dashboard.Layouts.Count == 0)
             Dashboard.Layouts.Add(Dashboard.Gauges.SequenceEqual(DashboardOptions.DefaultGauges) ? ObdLink.Core.Dashboard.DashboardLayout.Default() : ObdLink.Core.Dashboard.DashboardLayout.FromLegacy(Dashboard.Gauges));
         if (Dashboard.Layouts.All(l => l.Name != Dashboard.ActiveLayout)) Dashboard.ActiveLayout = Dashboard.Layouts[0].Name;
@@ -72,6 +78,8 @@ public sealed class AppSettings
         if (Dashboard.Background == ObdLink.Core.Dashboard.DashboardBackgrounds.Custom && Dashboard.BackgroundFile is null)
             Dashboard.Background = ObdLink.Core.Dashboard.DashboardBackgrounds.None;
         if (double.IsNaN(Dashboard.ArrangeWidth) || double.IsInfinity(Dashboard.ArrangeWidth) || Dashboard.ArrangeWidth < 0) Dashboard.ArrangeWidth = 0;
+        if (!double.IsFinite(Dashboard.WindowLeft) || !double.IsFinite(Dashboard.WindowTop) || !double.IsFinite(Dashboard.WindowWidth) || !double.IsFinite(Dashboard.WindowHeight))
+            Dashboard.WindowPlacementSaved = false;
         Dashboard.TpmsLowKpa = Math.Clamp(Dashboard.TpmsLowKpa, 50, 600);
         Dashboard.RefreshMs = Math.Clamp(Dashboard.RefreshMs, 100, 5000);
         Adapter.TimeoutMs = Math.Clamp(Adapter.TimeoutMs, 50, 10000);
@@ -151,6 +159,16 @@ public sealed class DashboardOptions
     public string? BackgroundFile { get; set; }
     /// <summary>Dashboard width (px) last used while customizing. 0 = not saved yet (older settings). The view pins rows to this width while the window is at least this wide.</summary>
     public double ArrangeWidth { get; set; }
+    /// <summary>Keep the poll loop running after the dashboard window closes. Default off.</summary>
+    public bool KeepLiveWhileClosed { get; set; }
+    /// <summary>False means the window bounds below are ignored. Zero is a real coordinate, so it cannot mean unset.</summary>
+    public bool WindowPlacementSaved { get; set; }
+    public double WindowLeft { get; set; }
+    public double WindowTop { get; set; }
+    public double WindowWidth { get; set; }
+    public double WindowHeight { get; set; }
+    /// <summary>Open maximized after the restored Normal bounds are applied.</summary>
+    public bool WindowMaximized { get; set; }
     /// <summary>Saved dashboard layouts (v0.2.1). Empty = built from <see cref="Gauges"/> (v0.2.0 settings) or the default.</summary>
     public List<ObdLink.Core.Dashboard.DashboardLayout> Layouts { get; set; } = new();
     public string ActiveLayout { get; set; } = ObdLink.Core.Dashboard.DashboardLayout.DefaultName;

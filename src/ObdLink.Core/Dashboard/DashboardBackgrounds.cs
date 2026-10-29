@@ -4,34 +4,23 @@ namespace ObdLink.Core.Dashboard;
 public static class DashboardBackgrounds
 {
     public const string None = "None";
-    /// <summary>Saved-settings id. The picture is the digital dash (the old wood-grain texture is gone).</summary>
-    public const string Wood = "Wood";
-    /// <summary>Saved-settings id. The picture is the digital cluster close-up.</summary>
-    public const string Steel = "Steel";
-    /// <summary>Saved-settings id. The picture is the highway cabin.</summary>
-    public const string Mirror = "Mirror";
-    /// <summary>Saved-settings id. The picture is the night cabin.</summary>
-    public const string Onyx = "Onyx";
-    public const string Leather = "Leather";
-    /// <summary>Saved-settings id. The picture is the dusk cabin.</summary>
-    public const string Carbon = "Carbon";
-    /// <summary>Saved-settings id. The picture is the center stack.</summary>
-    public const string Brushed = "Brushed";
-    /// <summary>Physical analog instrument cluster (late-model truck). New in v0.5.2.</summary>
-    public const string Analog = "Analog";
+    public const string WoodGrain = "WoodGrain";
+    public const string BrushedAluminum = "BrushedAluminum";
+    public const string GlossBlack = "GlossBlack";
+    public const string DiamondPlate = "DiamondPlate";
+    public const string CarbonFiber = "CarbonFiber";
+    public const string SportsLeather = "SportsLeather";
     public const string Custom = "Custom";
 
     public static readonly IReadOnlyList<DashboardBackgroundChoice> Choices = new DashboardBackgroundChoice[]
     {
         new(None, "None (app theme)"),
-        new(Analog, "Analog gauges"),
-        new(Wood, "Digital dash"),
-        new(Steel, "Digital cluster"),
-        new(Onyx, "Night cabin"),
-        new(Mirror, "Highway view"),
-        new(Carbon, "Dusk cabin"),
-        new(Leather, "Black leather cabin"),
-        new(Brushed, "Center stack"),
+        new(WoodGrain, "Fine wood grain"),
+        new(BrushedAluminum, "Brushed aluminum"),
+        new(GlossBlack, "High-gloss black"),
+        new(DiamondPlate, "Diamond-plate metal"),
+        new(CarbonFiber, "Carbon fiber"),
+        new(SportsLeather, "Sports-car leather"),
         new(Custom, "Custom image"),
     };
 
@@ -42,9 +31,9 @@ public static class DashboardBackgrounds
 public sealed record DashboardBackgroundChoice(string Id, string Name);
 
 /// <summary>
-/// Built-in cabin photos cover the dashboard once. v0.5.1 and earlier drew small
+/// Built-in material photos cover the dashboard once. v0.5.1 and earlier drew small
 /// <c>DrawingBrush</c> tiles (<c>TileMode.Tile</c> plus a tiny absolute viewport), which is why
-/// those backdrops looked repeated and low resolution.
+/// those backdrops looked repeated and low resolution. v0.5.2 cabin ids normalize to None.
 /// </summary>
 public static class DashboardBackdropPolicy
 {
@@ -57,14 +46,12 @@ public static class DashboardBackdropPolicy
 
     public static readonly IReadOnlyList<BackdropAsset> Assets = new BackdropAsset[]
     {
-        new(DashboardBackgrounds.Analog, "analog.jpg"),
-        new(DashboardBackgrounds.Wood, "digital-dash.jpg"),
-        new(DashboardBackgrounds.Steel, "digital-cluster.jpg"),
-        new(DashboardBackgrounds.Mirror, "highway.jpg"),
-        new(DashboardBackgrounds.Onyx, "night.jpg"),
-        new(DashboardBackgrounds.Leather, "leather.jpg"),
-        new(DashboardBackgrounds.Carbon, "dusk.jpg"),
-        new(DashboardBackgrounds.Brushed, "center-stack.jpg"),
+        new(DashboardBackgrounds.WoodGrain, "wood-grain.jpg"),
+        new(DashboardBackgrounds.BrushedAluminum, "brushed-aluminum.jpg"),
+        new(DashboardBackgrounds.GlossBlack, "gloss-black.jpg"),
+        new(DashboardBackgrounds.DiamondPlate, "diamond-plate.jpg"),
+        new(DashboardBackgrounds.CarbonFiber, "carbon-fiber.jpg"),
+        new(DashboardBackgrounds.SportsLeather, "sports-leather.jpg"),
     };
 
     public static string? FileFor(string? id)

@@ -1,0 +1,59 @@
+<Window x:Class="ObdLink.App.DashboardWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ObdLink.App" xmlns:c="clr-namespace:ObdLink.App.Controls"
+        Title="Dashboard - OBDLink Diag" Icon="pack://application:,,,/OBDLinkDiag;component/Assets/icon-3.ico"
+        Width="1100" Height="720" MinWidth="640" MinHeight="480" ShowInTaskbar="True" ResizeMode="CanResize" WindowStartupLocation="Manual">
+  <DockPanel DataContext="{Binding Dashboard}">
+            <DockPanel DockPanel.Dock="Top">
+              <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}"/>
+              <Border Style="{StaticResource ChipStyle}" VerticalAlignment="Center"><TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/></Border>
+              <Button Command="{Binding PauseCommand}" ToolTip="Pause / resume (Ctrl+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
+              <Button Command="{Binding RecordCommand}" ToolTip="Record every poll to Data\logs\dashboard-*.csv (Ctrl+Shift+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7C8;"/><TextBlock Text="{Binding RecordText}"/></StackPanel></Button>
+              <Button Command="{Binding ResetStatsCommand}" ><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
+              <Button Command="{Binding CustomizeCommand}" ToolTip="Add, remove, reorder and restyle dashboard items"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE771;"/><TextBlock Text="{Binding CustomizeText}"/></StackPanel></Button>
+              <CheckBox Content="Keep live" IsChecked="{Binding KeepLiveWhileClosed}" VerticalAlignment="Center" Margin="8,0,0,0" ToolTip="Keep polling while this window is closed"/>
+              <TextBlock Text="Background:" VerticalAlignment="Center" Margin="8,0,3,0"/>
+              <ComboBox Width="210" ItemsSource="{Binding BackgroundChoices}" SelectedValue="{Binding BackgroundId}" SelectedValuePath="Id" DisplayMemberPath="Name" ToolTip="Material photo, None for the app theme, or a custom image. One picture covers the dashboard; it is not tiled. Saved in Data\settings.json. A custom image is copied into Data\backgrounds."/>
+              <Button Command="{Binding PickBackgroundCommand}" ToolTip="Copy a PNG, JPEG, BMP or GIF into Data\backgrounds. The original file is left where it is."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B9;"/><TextBlock Text="Pick image"/></StackPanel></Button>
+              <TextBlock Text="Layout:" VerticalAlignment="Center" Margin="8,0,3,0"/>
+              <ComboBox Width="120" ItemsSource="{Binding LayoutNames}" SelectedItem="{Binding ActiveLayout}" ToolTip="Saved dashboard layouts"/>
+              <TextBlock Text="{Binding RateText}" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource FgDim}" FontSize="11"/>
+              <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0"/>
+            </DockPanel>
+            <Border DockPanel.Dock="Top" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+              <Border.Style><Style TargetType="Border" BasedOn="{StaticResource CardStyle}"><Style.Triggers><DataTrigger Binding="{Binding IsConnected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button Command="{Binding ConnectCommand}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+                  <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock Text="Not connected" FontWeight="SemiBold" FontSize="14"/>
+                  <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="Plug the OBDLink into the truck, ignition ON, pick the COM port on the main window and Connect (F5). Then use this window. Identify vehicle (Ctrl+I) reads the VIN and modules and picks the right profile, so the gauges show only PIDs your truck supports."/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Visibility="{Binding Customizing, Converter={StaticResource BoolVis}}">
+              <StackPanel>
+                <WrapPanel>
+                  <TextBlock Text="Add:" VerticalAlignment="Center" Margin="3"/>
+                  <ComboBox Width="380" ItemsSource="{Binding Catalog}" SelectedItem="{Binding SelectedCatalog}" DisplayMemberPath="Label" ToolTip="Supported Mode 01 PIDs (after connecting), Ford Mode 22 DIDs, TPMS, gear, battery"/>
+                  <Button Command="{Binding AddCommand}" Style="{StaticResource PrimaryStyle}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE710;"/><TextBlock Text="Add"/></StackPanel></Button>
+                  <TextBlock Text="Save layout as:" VerticalAlignment="Center" Margin="16,3,3,3"/>
+                  <TextBox Width="130" VerticalContentAlignment="Center" Text="{Binding NewLayoutName, UpdateSourceTrigger=PropertyChanged}"/>
+                  <Button Command="{Binding SaveLayoutAsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74E;"/><TextBlock Text="Save as"/></StackPanel></Button>
+                  <Button Command="{Binding DeleteLayoutCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Delete layout"/></StackPanel></Button>
+                  <Button Command="{Binding ResetLayoutCommand}" ToolTip="Replace this layout's items with the built-in default"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset to default"/></StackPanel></Button>
+                </WrapPanel>
+                <TextBlock Margin="3,4,0,0" FontSize="11" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="Each card has Move left, Move right, Move up, and Move down. You can also drag a card by the Drag grip (or the gauge) and drop it on another card. Click a card, then Ctrl+Left/Right moves one place, Ctrl+Up/Down one row, Ctrl+Home/End jumps to first or last. Pick Dial / Bar / Tile / Lamp and a size (Small / Medium / Large / Wide). Reset to default restores the built-in layout. Changes are saved to Data\settings.json at once, including the width you arranged at. Gauge-height cards stack to the window only when a saved card is wider than the dashboard. Only the items on the dashboard are polled. Done locks the layout."/>
+                <TextBlock Margin="3,2,0,0" Foreground="{DynamicResource Warn}" Text="{Binding Hint}"/>
+              </StackPanel>
+            </Border>
+            <WrapPanel DockPanel.Dock="Top" Margin="6,2"><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Mode 01 PID 01 bit 7"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding MilOn}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Check engine (MIL)" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Connected to the adapter"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LinkOk}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeOk}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Adapter link" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Below the Settings threshold (default 11.8 V)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowVoltage}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low voltage" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Coolant above the Settings threshold (default 110 °C)"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Overheat}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Overheat" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="A tire is below the Settings TPMS threshold (default 30 psi). BCM DIDs 2813-2816."><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding LowTire}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeWarn}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Low tire" VerticalAlignment="Center"/></StackPanel><StackPanel Orientation="Horizontal" Margin="0,2,16,2" ToolTip="Data\logs\dashboard-*.csv"><Ellipse><Ellipse.Style><Style TargetType="Ellipse" BasedOn="{StaticResource LampStyle}"><Style.Triggers><DataTrigger Binding="{Binding Recording}" Value="True"><Setter Property="Fill" Value="{DynamicResource GaugeCrit}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="Recording CSV" VerticalAlignment="Center"/></StackPanel></WrapPanel>
+            <ScrollViewer x:Name="DashCanvas" VerticalScrollBarVisibility="Auto" SizeChanged="DashCanvas_SizeChanged" ScrollChanged="DashCanvas_ScrollChanged" AllowDrop="True" DragOver="DashHost_DragOver" Drop="DashHost_Drop" RenderOptions.BitmapScalingMode="HighQuality">
+              <ItemsControl x:Name="DashItemsHost" ItemsSource="{Binding Items}" ItemTemplate="{StaticResource DashItemCard}" MaxWidth="{Binding HostMaxWidth}" HorizontalAlignment="Left" AllowDrop="True" Background="Transparent" DragOver="DashHost_DragOver" Drop="DashHost_Drop">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+
+</Window>

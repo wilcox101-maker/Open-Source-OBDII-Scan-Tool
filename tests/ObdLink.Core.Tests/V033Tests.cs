@@ -47,7 +47,7 @@ public class V033Tests
     [Fact]
     public void ViewHasKeyboardButtonsSizePickerAndDrag()
     {
-        var x = Src("MainWindow.xaml"); var cs = Src("MainWindow.xaml.cs"); var vm = Src("DashboardViewModel.cs");
+        var x = Src("Themes/Dashboard.xaml") + Src("DashboardWindow.xaml"); var cs = Src("DashboardWindow.xaml.cs"); var vm = Src("DashboardViewModel.cs");
         foreach (var t in new[] { "MoveLeftCommand", "MoveRightCommand", "DashItemRow_Click", "PreviewKeyDown=\"DashItem_KeyDown\"", "ItemsSource=\"{Binding Sizes}\"", "SelectedItem=\"{Binding Size}\"", "FlowWidth", "Value=\"Medium\"", "Drop=\"DashItem_Drop\"", "x:Name=\"DashItemsHost\"", "ResetLayoutCommand" })
             Assert.Contains(t, x);
         Assert.Contains("Key.Left => -1, Key.Right => 1, Key.Up => -row, Key.Down => row", cs);

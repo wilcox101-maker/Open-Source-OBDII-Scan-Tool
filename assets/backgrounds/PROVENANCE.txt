@@ -1,25 +1,48 @@
 Dashboard background photographs
-Generated for OBDLink Diag v0.5.2.
+Generated for OBDLink Diag v0.6.0 by tools/GenerateBackgrounds/generate.py.
 
-These JPEG files were generated for this app. They are not Ford Motor Company
-marketing photos, screenshots, or files copied from the web. They are original
-generated pictures of a late-model full-size pickup cabin, including a physical
-analog instrument cluster and a digital instrument cluster. They ship with this
-project under the MIT license (see LICENSE).
+These JPEG files were generated for this app. They are original generated
+pictures of material surfaces. They are not photographs of a vehicle cabin,
+not Ford Motor Company marketing photos, and not files copied from the web.
+They ship with this project under the MIT license (see LICENSE).
 
-No Ford oval or Ford wordmark was left in the files. A readable embossed word
-on the steering wheel of digital-dash.jpg was painted out with nearby leather
-before the file was saved.
+These files contain no vehicle badges or wordmarks.
 
-Each file is a 1920x1080 baseline JPEG, so a 1080p dashboard can show it
-without upscaling. The app draws each photo once with cover stretch
-(UniformToFill) and a light dark scrim. The photos are not tiled.
+Each file is a 1920x1080 baseline JPEG. The app draws each photo once with
+cover stretch (UniformToFill) and a light dark scrim. The photos are not tiled.
 
-analog.jpg           Analog gauges (physical needles)
-digital-dash.jpg     Digital dash (daylight, full digital cluster)
-digital-cluster.jpg  Digital cluster (close-up)
-highway.jpg          Highway view
-night.jpg            Night cabin
-leather.jpg          Black leather cabin
-dusk.jpg             Dusk cabin
-center-stack.jpg     Center stack
+wood-grain.jpg
+  Display name: Fine wood grain
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+
+brushed-aluminum.jpg
+  Display name: Brushed aluminum
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+
+gloss-black.jpg
+  Display name: High-gloss black
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+
+diamond-plate.jpg
+  Display name: Diamond-plate metal
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+
+carbon-fiber.jpg
+  Display name: Carbon fiber
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+
+sports-leather.jpg
+  Display name: Sports-car leather
+  How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
+  Author: OBDLink Diag project (Dale Wilcox)
+  License: MIT. Redistribution inside this MIT-licensed project is allowed.

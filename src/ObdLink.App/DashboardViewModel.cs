@@ -38,6 +38,7 @@ public sealed class GaugeVm : ObservableObject
     public string? TextOverride { get; set; }
     private bool _unsupported; public bool Unsupported { get => _unsupported; set { if (Set(ref _unsupported, value)) Refresh(); } }
     public string ValueText => TextOverride ?? (double.IsNaN(_base) ? (Unsupported ? "unsupported" : "--") : Fmt(Value));
+    public bool ShowAnalog { get; set; } = true;
     public bool HasValue => !double.IsNaN(_base);
     public string StatsText => Stats.Count == 0 ? "min -- · max -- · avg --" : $"min {Fmt(Conv(Stats.Min))} · max {Fmt(Conv(Stats.Max))} · avg {Fmt(Conv(Stats.Avg))}";
     public bool IsLow => !double.IsNaN(_base) && BaseWarnLow is { } lo && _base < lo;
@@ -48,7 +49,7 @@ public sealed class GaugeVm : ObservableObject
     public void Update(double baseValue) { _base = baseValue; Stats.Add(baseValue); Refresh(); }
     public void Refresh()
     {
-        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
+        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow), nameof(ShowAnalog) }) OnPropertyChanged(p);
     }
     public void Clear() { _base = double.NaN; Stats.Reset(); Refresh(); }
 }
@@ -71,6 +72,7 @@ public sealed class DashItemVm : ObservableObject
         // the way a parent-ItemsControl CommandParameter binding can.
         MoveLeftCommand = new("Dashboard move item left", null, _ => _owner.MoveLeftCommand.Execute(this));
         MoveRightCommand = new("Dashboard move item right", null, _ => _owner.MoveRightCommand.Execute(this));
+        SyncFace();
     }
     private double _flowWidth;
     /// <summary>Pre-transform card width. Saved size, or the stacked width when the window is narrower than the widest card.</summary>
@@ -78,7 +80,27 @@ public sealed class DashItemVm : ObservableObject
     public string Key => Item.Key;
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
-    public DisplayKind Display { get => Item.Display; set { if (Item.Display == value) return; Item.Display = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("display " + Key + " = " + value); } }
+    public DisplayKind Display { get => Item.Display; set { if (Item.Display == value) return; Item.Display = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); SyncFace(); _owner.Changed("display " + Key + " = " + value); } }
+    public string[] Faces { get; } = { GaugeFaces.Analog, GaugeFaces.Digital };
+    public bool ShowFaceChoice => Entry?.Displays.Contains(DisplayKind.Dial) == true;
+    public string Face
+    {
+        get => GaugeFaces.Normalize(Item.Face);
+        set
+        {
+            var face = GaugeFaces.Normalize(value);
+            if (Item.Face == face) { SyncFace(); return; }
+            Item.Face = face;
+            SyncFace();
+            OnPropertyChanged();
+            _owner.Changed("face " + Key + " = " + face);
+        }
+    }
+    public void SyncFace()
+    {
+        Gauge.ShowAnalog = GaugeFaces.ShowsNeedle(Item.Display, Item.Face);
+        Gauge.Refresh();
+    }
     public bool IsLarge { get => Item.Size is ItemSize.Large or ItemSize.Wide; set => Size = value ? ItemSize.Large : ItemSize.Small; }
     private static readonly ItemSize[] AllSizes = { ItemSize.Small, ItemSize.Medium, ItemSize.Large, ItemSize.Wide }; public ItemSize[] Sizes => AllSizes;
     public ItemSize Size { get => Item.Size; set { if (Item.Size == value) return; Item.Size = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("size " + Key + " = " + value); } }
@@ -96,15 +118,16 @@ public sealed class TpmsVm : ObservableObject
 }
 
 /// <summary>
-/// Read-only live dashboard driven by a saved layout (Data\settings.json, Dashboard.Layouts). Polls ONLY the displayed items,
-/// only while the Dashboard page is visible, connected and not paused, and only when no other command holds the bus lock.
-/// Sends services 01 and 22 only.
+/// Read-only live dashboard driven by a saved layout (Data\settings.json, Dashboard.Layouts). Polls ONLY the displayed items
+/// while the dashboard window is open (or Keep live is on), the adapter is connected, and the user pause flag is off,
+/// and only when no other command holds the bus lock. Sends services 01 and 22 only.
 /// </summary>
 public sealed class DashboardViewModel : ObservableObject
 {
     private readonly IEventLog _log; private readonly Func<AppSettings> _settings; private readonly Func<ElmDiagChannel?> _ch; private readonly Action _save;
     private readonly Func<Task<double?>> _readAtrv; private readonly SemaphoreSlim _bus; private readonly string _logsDir; private readonly string _pidDir;
     private CancellationTokenSource? _cts; private DashboardEngine? _engine; private DashboardCsvRecorder? _rec; private volatile bool _reconfigure;
+    private bool _connected; private bool _loopFailed; private bool _stopping;
     private EnhancedPidTable _enhanced = new(); private readonly GearEstimator _gearDefault = new();
     private readonly Dictionary<string, GaugeVm> _gauges = new();
 
@@ -363,8 +386,23 @@ public sealed class DashboardViewModel : ObservableObject
 
     private bool _paused; public bool Paused { get => _paused; set { if (Set(ref _paused, value)) { OnPropertyChanged(nameof(StateText)); _log.UserAction("Dashboard " + (value ? "paused" : "resumed")); } } }
     private bool _active; public bool Active { get => _active; private set { if (Set(ref _active, value)) OnPropertyChanged(nameof(StateText)); } }
-    private string _info = "Connect (a DEMO port works), then open this page."; public string Info { get => _info; private set => Set(ref _info, value); }
-    public string StateText => !Active ? "Stopped" : Paused ? "Paused" : "Live";
+    public bool WindowOpen { get; private set; }
+    public bool Engaged { get; private set; }
+    public bool KeepLiveWhileClosed
+    {
+        get => _settings().Dashboard.KeepLiveWhileClosed;
+        set
+        {
+            var d = _settings().Dashboard;
+            if (d.KeepLiveWhileClosed == value) return;
+            d.KeepLiveWhileClosed = value;
+            OnPropertyChanged();
+            _save();
+            Update(WindowOpen, _connected);
+        }
+    }
+    private string _info = "Connect (a DEMO port works), then open the dashboard window."; public string Info { get => _info; private set => Set(ref _info, value); }
+    public string StateText => DashboardSession.StateText(_connected, WindowOpen, KeepLiveWhileClosed, Paused, Engaged, _loopFailed);
     public bool Recording => _rec != null;
     public string RecordText => _rec is null ? "Record CSV" : "Stop recording";
     private string _gear = "--"; public string Gear { get => _gear; private set { if (Set(ref _gear, value) && _gauges.TryGetValue("gear", out var g)) { g.TextOverride = value; g.Refresh(); } } }
@@ -377,12 +415,59 @@ public sealed class DashboardViewModel : ObservableObject
     private bool _link; public bool LinkOk { get => _link; private set => Set(ref _link, value); }
     private string _rate = ""; public string RateText { get => _rate; private set => Set(ref _rate, value); }
 
-    /// <summary>Called by the main VM whenever the page, connection or settings change.</summary>
-    public void Update(bool pageVisible, bool connected)
+    /// <summary>Called when the dashboard window opens or closes, and whenever the connection changes.</summary>
+    public void SetWindowOpen(bool open)
     {
+        WindowOpen = open;
+        if (open) Engaged = true;
+        Update(open, _connected);
+    }
+
+    /// <summary>Process exit. Cancels polling even when Keep live is on, and closes an open CSV recorder.</summary>
+    public DashboardWindowPlacement.PlacementRequest SavedPlacement
+    {
+        get
+        {
+            var d = _settings().Dashboard;
+            return new(d.WindowPlacementSaved, d.WindowLeft, d.WindowTop, d.WindowWidth, d.WindowHeight, d.WindowMaximized);
+        }
+    }
+
+    public void CapturePlacement(double left, double top, double width, double height, bool maximized)
+    {
+        var d = _settings().Dashboard;
+        d.WindowLeft = left;
+        d.WindowTop = top;
+        d.WindowWidth = width;
+        d.WindowHeight = height;
+        d.WindowMaximized = maximized;
+        d.WindowPlacementSaved = true;
+        _save();
+    }
+
+    public void Stop()
+    {
+        _stopping = true;
+        if (_cts != null) { _cts.Cancel(); _cts = null; }
+        if (_rec != null) { _rec.Dispose(); _rec = null; OnPropertyChanged(nameof(Recording)); OnPropertyChanged(nameof(RecordText)); }
+    }
+
+    public void Update(bool windowOpen, bool connected)
+    {
+        if (_stopping) return;
+        WindowOpen = windowOpen;
+        _connected = connected;
         LinkOk = connected;
-        if (pageVisible && connected && _cts is null) { _cts = new(); _run = RunAfterAsync(_run, _cts.Token); }
-        else if ((!pageVisible || !connected) && _cts != null) { _cts.Cancel(); _cts = null; }
+        var run = DashboardSession.ShouldRun(connected, windowOpen, KeepLiveWhileClosed);
+        if (run && _cts is null)
+        {
+            Engaged = true;
+            _loopFailed = false;
+            _cts = new();
+            _run = RunAfterAsync(_run, _cts.Token);
+        }
+        else if (!run && _cts != null) { _cts.Cancel(); _cts = null; }
+        OnPropertyChanged(nameof(StateText));
     }
 
     private void Configure(AppSettings s)
@@ -440,9 +525,19 @@ public sealed class DashboardViewModel : ObservableObject
                 if (++cycles % 20 == 0) RateText = $"×{_engine.Scheduler.Factor:0.0} rate factor · fast PIDs every {_engine.Scheduler.BaseMs * _engine.Scheduler.Factor:0} ms";
             }
         }
-        catch (OperationCanceledException) { /* normal stop (page hidden or disconnected) */ }
-        catch (Exception ex) { Info = "Dashboard stopped: " + ex.Message; _log.Message(LogEventLevel.Warning, "Dashboard", "Polling stopped", ex); }
-        finally { Active = false; }
+        catch (OperationCanceledException) { /* normal stop (window closed or disconnected) */ }
+        catch (Exception ex)
+        {
+            _loopFailed = true;
+            Info = "Dashboard stopped: " + ex.Message;
+            _log.Message(LogEventLevel.Warning, "Dashboard", "Polling stopped", ex);
+        }
+        finally
+        {
+            Active = false;
+            if (_cts is not null && _cts.Token == ct) _cts = null;
+            OnPropertyChanged(nameof(StateText));
+        }
     }
 
     private void Apply(Dictionary<string, double> v, GearEstimator est)
