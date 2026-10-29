@@ -13,7 +13,7 @@ public class V040Tests
     private static string Root([System.Runtime.CompilerServices.CallerFilePath] string me = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(me)!, "..", ".."));
 
-    private const int NavTabs = 9;
+    private const int NavTabs = 8;
 
     [Fact]
     public void Nav_keeps_labels_when_the_rail_fits()
@@ -56,8 +56,11 @@ public class V040Tests
         Assert.Contains("c:NavTabControl", window);
         Assert.DoesNotContain("-test", window);
         Assert.Contains("BackgroundId", window);
-        Assert.Contains("FlowWidth", window);
-        Assert.DoesNotContain("TIRE PRESSURES (UNVERIFIED)", window);
+        var dash = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "Themes", "Dashboard.xaml"))
+            + File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardWindow.xaml"));
+        Assert.Contains("FlowWidth", dash);
+        Assert.Contains("BackgroundId", dash);
+        Assert.DoesNotContain("TIRE PRESSURES (UNVERIFIED)", window + dash);
     }
 
     [Theory]

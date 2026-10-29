@@ -189,7 +189,8 @@ Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next
 | Ctrl+L | Show / hide log panel |
 | Ctrl+` | Raw console |
 | Ctrl+, | Settings |
-| Alt+1..9 | Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
+| Ctrl+Shift+G | Open the dashboard window |
+| Alt+1..8 | Go to page 1-8 (Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
 | Ctrl+Tab | Next page |
 | Ctrl+Shift+Tab | Previous page |
 | Ctrl+P | Pause / resume dashboard |

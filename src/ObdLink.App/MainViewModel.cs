@@ -150,10 +150,12 @@ public sealed class MainViewModel : ObservableObject
     private double _batchPct; public double BatchPercent { get => _batchPct; private set => Set(ref _batchPct, value); }
     private string _batchText = ""; public string BatchText { get => _batchText; private set => Set(ref _batchText, value); }
     private CancellationTokenSource? _batchCts;
-    private string _tab = "Dashboard"; public string SelectedTab { get => _tab; set { if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) { EventLog.UserAction("Tab changed", ("tab", value)); SyncDashboard(); } } }
+    private string _tab = "Modules"; public string SelectedTab { get => _tab; set { if (value == "Dashboard") value = "Modules"; if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) { EventLog.UserAction("Tab changed", ("tab", value)); SyncDashboard(); } } }
     private readonly SemaphoreSlim _bus = new(1, 1);
     public DashboardViewModel Dashboard { get; }
-    private void SyncDashboard() => Dashboard?.Update(SelectedTab == "Dashboard", IsConnected && _ch != null);
+    private void SyncDashboard() => Dashboard?.Update(Dashboard.WindowOpen, IsConnected && _ch != null);
+    public RelayCommand OpenDashboardCommand { get; }
+    public event Action? DashboardOpenRequested;
     private string _bottomTab = "Events"; public string SelectedLogTab { get => _bottomTab; set { if (Set(ref _bottomTab, value) && !string.IsNullOrEmpty(value)) EventLog.UserAction("Log tab changed", ("tab", value)); } }
 
     private ConnectionStatus _conn = ConnectionStatus.Disconnected;
@@ -420,6 +422,7 @@ public sealed class MainViewModel : ObservableObject
         try { ThemeManager.Apply(_settings.Theme); }
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
+        OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
         RefreshPortsCommand = C("Refresh ports", () =>

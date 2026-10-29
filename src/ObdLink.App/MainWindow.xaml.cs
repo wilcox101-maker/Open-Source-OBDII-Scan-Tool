@@ -17,34 +17,41 @@ public partial class MainWindow : Window
         catch (Exception ex) { GuideViewer.Document = new System.Windows.Documents.FlowDocument(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(vm.GuideText))); vm.EventLog.Message(Serilog.Events.LogEventLevel.Warning, "Guide", "Guide markdown render failed; showing plain text", ex); }
         _vm = vm;
         PreviewKeyDown += OnShortcutKey;
-        vm.Dashboard.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(DashboardViewModel.BackgroundId) or nameof(DashboardViewModel.BackgroundFile) or nameof(DashboardViewModel.BackgroundFullPath))
-                ApplyDashBackground();
-        };
+        vm.DashboardOpenRequested += OpenDashboard;
         Loaded += async (_, _) =>
         {
-            ApplyDashBackground();
-            ApplyDashFlow();
             if (vm.UpdateCheckEnabled) { try { await vm.CheckForUpdatesAsync(false); } catch (Exception ex) { Serilog.Log.Warning("Startup update check failed: {Err}", ex.Message); } }
         };
     }
-    private void DashCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => ApplyDashFlow();
-    private void DashCanvas_ScrollChanged(object sender, ScrollChangedEventArgs e)
-    {
-        if (e.ViewportWidthChange != 0) ApplyDashFlow();
-    }
-    private void ApplyDashFlow()
-    {
-        var w = DashCanvas.ViewportWidth;
-        if (double.IsNaN(w) || w < 1) w = DashCanvas.ActualWidth;
-        _vm.Dashboard.ApplyViewport(w);
-    }
-    private void ApplyDashBackground()
-    {
-        DashCanvas.Background = DashboardBackdrop.For(_vm.Dashboard.BackgroundId, _vm.Dashboard.BackgroundFullPath);
-    }
     private readonly MainViewModel _vm;
+    private DashboardWindow? _dashboard;
+    private WindowState _dashboardRestore = WindowState.Normal;
+
+    private void OpenDashboard()
+    {
+        if (_dashboard != null)
+        {
+            if (_dashboard.WindowState == WindowState.Minimized)
+                _dashboard.WindowState = _dashboardRestore;
+            _dashboard.Activate();
+            return;
+        }
+        _dashboard = new DashboardWindow { DataContext = _vm };
+        _dashboard.StateChanged += (_, _) =>
+        {
+            if (_dashboard is { WindowState: WindowState.Normal or WindowState.Maximized } w)
+                _dashboardRestore = w.WindowState;
+        };
+        _dashboard.Closed += (_, _) => { _dashboard = null; _vm.Dashboard.SetWindowOpen(false); };
+        _dashboard.Show();
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        _dashboard?.Close();
+        _vm.Dashboard.Stop();
+        base.OnClosing(e);
+    }
     // ---- v0.3.2: rescan COM ports when a USB serial device (e.g. OBDLink EX) is plugged in or removed ----
     private System.Windows.Threading.DispatcherTimer? _rescan;
     protected override void OnSourceInitialized(EventArgs e)
@@ -98,7 +105,10 @@ public partial class MainWindow : Window
         var d = _vm.Dashboard;
         switch (id)
         {
-            case var p when p.StartsWith("page:"): Go(ObdLink.Core.Ui.Shortcuts.Pages[p[5] - '1']); break;
+            case var p when p.StartsWith("page:"):
+                if (ObdLink.Core.Ui.Shortcuts.PageByNumber(p[5] - '0') is { } page) Go(page);
+                break;
+            case "dashboard": Run(_vm.OpenDashboardCommand); break;
             case "connect": Run(_vm.ConnectCommand); break;
             case "disconnect": Run(_vm.DisconnectCommand); break;
             case "identify": Run(_vm.IdentifyVehicleCommand); break;
@@ -140,7 +150,7 @@ public partial class MainWindow : Window
     private void ShowAbout() => DialogService.Info(_vm.AboutText, "About OBDLink Diag");
     private void Shortcuts_Click(object s, RoutedEventArgs e) => ShowShortcuts();
     private void Go(string page) => _vm.SelectedTab = page;
-    private void SetZoom(double z) { _zoom = Math.Clamp(Math.Round(z, 1), 0.7, 2.0); Zoom.ScaleX = Zoom.ScaleY = _zoom; ApplyDashFlow(); _vm.EventLog.UserAction("Zoom", ("zoom", _zoom)); }
+    private void SetZoom(double z) { _zoom = Math.Clamp(Math.Round(z, 1), 0.7, 2.0); Zoom.ScaleX = Zoom.ScaleY = _zoom; _vm.EventLog.UserAction("Zoom", ("zoom", _zoom)); }
     private WindowState _prevState; private WindowStyle _prevStyle; private bool _full;
     private void ToggleFullScreen()
     {
@@ -174,182 +184,6 @@ public partial class MainWindow : Window
         DialogService.OpenExternal("https://github.com/" + ObdLink.Core.Diagnostics.UpdateChecker.Repo);
     }
     private void About_Click(object s, RoutedEventArgs e) { _vm.EventLog.UserAction("About shown"); ShowAbout(); }
-    // ---- dashboard customize: drag & drop reorder ----
-    // Root cause (widgets never moved on Windows): OleDropTarget.GetCurrentTarget only accepts the
-    // element under the pointer, and only when THAT element has AllowDrop. It does not walk up to a
-    // parent. AllowDrop was on the card border, but the gauge covered it, so a drop on a widget set
-    // the target to null and MoveItem never ran. DropOverlay covers the card and is hit-testable only
-    // while a drag is in progress. The payload is the item key (a string OLE understands) plus _dragKey;
-    // the card view-model is not a drag format.
-    private Point _dragStart; private DashItemVm? _dragItem; private string? _dragKey; private string? _dropSrc; private string? _dropDst;
-    private void DashItem_MouseDown(object sender, MouseButtonEventArgs e)
-    { _dragStart = e.GetPosition(this); _dragItem = (sender as FrameworkElement)?.DataContext as DashItemVm; }
-    private void DashItem_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (e.LeftButton != MouseButtonState.Pressed || _dragItem is null || DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
-        if (e.OriginalSource is DependencyObject d && IsDashEditor(d)) return;
-        var p = e.GetPosition(this);
-        if (Math.Abs(p.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(p.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-        var item = _dragItem; _dragItem = null;
-        _dragKey = item.Key;
-        _dropSrc = _dropDst = null;
-        SetDashDropTargets(true);
-        try
-        {
-            var data = new DataObject(DataFormats.UnicodeText, item.Key);
-            DragDrop.DoDragDrop((DependencyObject)sender, data, DragDropEffects.Move);
-        }
-        finally
-        {
-            // Apply the reorder after DoDragDrop returns. Moving the items collection inside the
-            // drop handler fights the panel that is still tracking the drag.
-            var src = _dropSrc; var dst = _dropDst;
-            _dropSrc = _dropDst = null;
-            _dragKey = null;
-            SetDashDropTargets(false);
-            if (src is not null && dst is not null && DataContext is MainViewModel owner) owner.Dashboard.MoveItemByKey(src, dst);
-        }
-    }
-    private string? DragSourceKey(IDataObject data)
-    {
-        if (!string.IsNullOrEmpty(_dragKey)) return _dragKey;
-        // Same-window drags keep the key in _dragKey. A foreign Unicode drop must look like a card key (letters, digits, underscore).
-        try
-        {
-            if (!data.GetDataPresent(DataFormats.UnicodeText) || data.GetData(DataFormats.UnicodeText) is not string s) return null;
-            if (s.Length is > 0 and < 80 && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')) return s;
-        }
-        catch (Exception ex) { _vm.EventLog.Message(Serilog.Events.LogEventLevel.Debug, "Dashboard", "Drag data was not a card key", ex); }
-        return null;
-    }
-    private void DashItem_Drop(object sender, DragEventArgs e)
-    {
-        if (DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
-        if ((sender as FrameworkElement)?.DataContext is not DashItemVm dst) return;
-        var src = DragSourceKey(e.Data);
-        if (src is null || src == dst.Key) return;
-        _dropSrc = src; _dropDst = dst.Key;
-        e.Handled = true;
-    }
-    private void DashItem_DragOver(object sender, DragEventArgs e)
-    {
-        var ok = DataContext is MainViewModel vm && vm.Dashboard.Customizing && DragSourceKey(e.Data) is not null;
-        e.Effects = ok ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
-    private void DashHost_DragOver(object sender, DragEventArgs e)
-    {
-        var ok = DataContext is MainViewModel vm && vm.Dashboard.Customizing && DragSourceKey(e.Data) is not null;
-        e.Effects = ok ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
-    private void DashHost_Drop(object sender, DragEventArgs e)
-    {
-        if (e.Handled || DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
-        var src = DragSourceKey(e.Data);
-        if (src is null) return;
-        var slots = SlotCenters();
-        var p = e.GetPosition(DashItemsHost);
-        int dest = ObdLink.Core.Dashboard.DashReorder.NearestIndex(slots, p.X, p.Y);
-        if (dest < 0 || dest >= vm.Dashboard.Items.Count) return;
-        _dropSrc = src; _dropDst = vm.Dashboard.Items[dest].Key;
-        e.Handled = true;
-    }
-    /// <summary>Turns the full-card drop overlay on for every realized card. Off again when the drag ends.</summary>
-    private void SetDashDropTargets(bool on)
-    {
-        for (int i = 0; i < DashItemsHost.Items.Count; i++)
-        {
-            if (DashItemsHost.ItemContainerGenerator.ContainerFromIndex(i) is DependencyObject c && FindNamed(c, "DropOverlay") is UIElement overlay)
-                overlay.IsHitTestVisible = on;
-        }
-    }
-    /// <summary>v0.3.3: cards per row in the WrapPanel, so Up/Down moves one row.</summary>
-    private int DashRowSize(FrameworkElement card)
-    {
-        var w = card.ActualWidth + card.Margin.Left + card.Margin.Right;
-        return w <= 1 || DashItemsHost.ActualWidth <= 1 ? 1 : Math.Max(1, (int)(DashItemsHost.ActualWidth / w));
-    }
-    private void DashMove(FrameworkElement src, int delta)
-    {
-        if (DataContext is not MainViewModel vm || !vm.Dashboard.Customizing || src.DataContext is not DashItemVm it) return;
-        if (!vm.Dashboard.MoveBy(it, delta)) return;
-        // keep keyboard focus on the moved card so Ctrl+Arrow can be repeated
-        Dispatcher.BeginInvoke(() =>
-        {
-            if (DashItemsHost.ItemContainerGenerator.ContainerFromItem(it) is FrameworkElement c && FindChild<ButtonBase>(c) is { } b) b.Focus();
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
-    }
-    private static FrameworkElement? FindCard(DependencyObject d)
-    {
-        for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x)) if (x is Border { Name: "Card" } c) return c;
-        return null;
-    }
-    private void DashItemRow_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement b) return;
-        int dir = b.Tag as string == "Up" ? -1 : 1;
-        int delta = VerticalDelta(b, dir);
-        if (delta != 0) DashMove(b, delta);
-    }
-    private void DashItem_KeyDown(object sender, KeyEventArgs e)
-    {
-        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || sender is not FrameworkElement card) return;
-        if (e.OriginalSource is DependencyObject src && (src is ComboBox || FindParent<ComboBox>(src) is not null || src is TextBoxBase)) return;
-        var n = (DataContext as MainViewModel)?.Dashboard.Items.Count ?? 0;
-        int? d = e.Key switch
-        {
-            Key.Up => VerticalDelta(card, -1),
-            Key.Down => VerticalDelta(card, +1),
-            _ => DashKeyDelta(e.Key, DashRowSize(card), n),
-        };
-        if (d is null || d == 0) return;
-        DashMove(card, d.Value); e.Handled = true;
-    }
-    private int VerticalDelta(FrameworkElement src, int direction)
-    {
-        if (DataContext is not MainViewModel vm || src.DataContext is not DashItemVm it) return direction;
-        return ObdLink.Core.Dashboard.DashReorder.VerticalDelta(SlotCenters(), vm.Dashboard.Items.IndexOf(it), direction, DashRowSize(FindCard(src) ?? src));
-    }
-    private List<ObdLink.Core.Dashboard.DashReorder.Slot> SlotCenters()
-    {
-        var list = new List<ObdLink.Core.Dashboard.DashReorder.Slot>();
-        if (DataContext is not MainViewModel vm) return list;
-        foreach (var item in vm.Dashboard.Items)
-        {
-            if (DashItemsHost.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement c && c.ActualWidth > 1 && c.ActualHeight > 1)
-            {
-                var p = c.TranslatePoint(new Point(c.ActualWidth / 2, c.ActualHeight / 2), DashItemsHost);
-                list.Add(new(p.X, p.Y));
-            }
-            else list.Add(new(0, 0));
-        }
-        return list;
-    }
-    private static bool IsDashEditor(DependencyObject d) => FindParent<ButtonBase>(d) is not null || FindParent<ComboBox>(d) is not null || FindParent<TextBoxBase>(d) is not null;
-    private static FrameworkElement? FindNamed(DependencyObject d, string name)
-    {
-        if (d is FrameworkElement fe && (fe.Name == name || fe.Tag as string == name)) return fe;
-        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
-            if (FindNamed(System.Windows.Media.VisualTreeHelper.GetChild(d, i), name) is { } found) return found;
-        return null;
-    }
-    /// <summary>Ctrl+Arrow mapping (public for tests): Left/Right = 1 place, Up/Down = one row, Home/End = to the ends.</summary>
-    public static int? DashKeyDelta(Key k, int row, int count) => k switch
-    {
-        Key.Left => -1, Key.Right => 1, Key.Up => -row, Key.Down => row, Key.Home => -count, Key.End => count, _ => null
-    };
-    private static T? FindChild<T>(DependencyObject d) where T : DependencyObject
-    {
-        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
-        { var c = System.Windows.Media.VisualTreeHelper.GetChild(d, i); if (c is T t) return t; if (FindChild<T>(c) is { } r) return r; }
-        return null;
-    }
-    private static T? FindParent<T>(DependencyObject d) where T : DependencyObject
-    {
-        for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x) ?? LogicalTreeHelper.GetParent(x)) if (x is T t) return t;
-        return null;
-    }
 }
 
 /// <summary>Attached property: keeps a ListBox/ListView scrolled to the newest item while enabled.</summary>

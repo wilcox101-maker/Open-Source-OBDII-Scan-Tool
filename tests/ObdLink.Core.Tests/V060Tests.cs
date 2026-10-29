@@ -1,5 +1,6 @@
 using ObdLink.Core.Dashboard;
 using ObdLink.Core.Safety;
+using ObdLink.Core.Ui;
 using Xunit;
 
 namespace ObdLink.Core.Tests;
@@ -171,6 +172,32 @@ public class V060Tests
         var max = DashboardWindowPlacement.Resolve(new(true, 40, 40, 1000, 700, true), screen, new[] { screen });
         Assert.True(max.Maximize);
         Assert.Equal(40, max.Left);
+    }
+
+    [Fact]
+    public void Pages_start_at_modules_and_alt_9_has_no_page()
+    {
+        Assert.Equal(new[] { "Modules", "DTCs", "As-Built", "Vehicle", "Console", "Logs", "Guide", "Settings" }, Shortcuts.Pages);
+        Assert.Equal("Modules", Shortcuts.PageByNumber(1));
+        Assert.Equal("Settings", Shortcuts.PageByNumber(8));
+        Assert.Null(Shortcuts.PageByNumber(9));
+        Assert.Null(Shortcuts.PageByNumber(0));
+        Assert.Equal("page:9", Shortcuts.Resolve("Alt+9", false));
+        Assert.Contains(Shortcuts.All, s => s.Id == "dashboard" && s.Gesture == "Ctrl+Shift+G");
+        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
+        Assert.Contains("_tab = \"Modules\"", vm);
+        Assert.Contains("if (value == \"Dashboard\") value = \"Modules\";", vm);
+        Assert.Contains("OpenDashboardCommand", vm);
+        var xaml = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainWindow.xaml"));
+        Assert.DoesNotContain("Header=\"Dashboard\"", xaml);
+        Assert.Contains("Header=\"_Dashboard\"", xaml);
+        Assert.Contains("OpenDashboardCommand", xaml);
+        Assert.Contains("KeepLiveWhileClosed", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardWindow.xaml")));
+        var dash = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardViewModel.cs"));
+        Assert.Contains("DashboardSession.ShouldRun", dash);
+        Assert.Contains("DashboardSession.StateText", dash);
+        Assert.Contains("_run = RunAfterAsync(_run, _cts.Token)", dash);
+        Assert.DoesNotContain("SelectedTab == \"Dashboard\"", vm);
     }
 
     private static (int Width, int Height) JpegSize(string path)

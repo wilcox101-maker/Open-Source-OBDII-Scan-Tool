@@ -27,7 +27,8 @@ public static class Shortcuts
         new("logPanel", "Ctrl+L", "Show / hide log panel", "View"),
         new("console", "Ctrl+`", "Raw console", "Pages"),
         new("settings", "Ctrl+,", "Settings", "Pages"),
-        new("page", "Alt+1..9", "Go to page 1-9 (Dashboard, Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings)", "Pages"),
+        new("dashboard", "Ctrl+Shift+G", "Open the dashboard window", "View"),
+        new("page", "Alt+1..8", "Go to page 1-8 (Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings)", "Pages"),
         new("nextPage", "Ctrl+Tab", "Next page", "Pages"),
         new("prevPage", "Ctrl+Shift+Tab", "Previous page", "Pages"),
         new("pause", "Ctrl+P", "Pause / resume dashboard", "Dashboard"),
@@ -42,7 +43,13 @@ public static class Shortcuts
         new("exit", "Alt+F4", "Exit", "File"),
     };
 
-    public static readonly string[] Pages = { "Dashboard", "Modules", "DTCs", "As-Built", "Vehicle", "Console", "Logs", "Guide", "Settings" };
+    public static readonly string[] Pages = { "Modules", "DTCs", "As-Built", "Vehicle", "Console", "Logs", "Guide", "Settings" };
+
+    public static string? PageByNumber(int oneBased)
+    {
+        var i = oneBased - 1;
+        return i >= 0 && i < Pages.Length ? Pages[i] : null;
+    }
 
     public static Shortcut Get(string id) => All.First(s => s.Id == id);
     public static string Gesture(string id) => Get(id).Gesture;
