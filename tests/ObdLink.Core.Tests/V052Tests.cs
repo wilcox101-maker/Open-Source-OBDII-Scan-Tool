@@ -27,9 +27,6 @@ public class V052Tests
         Assert.Contains("v0.5.2", readme);
         var about = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
         Assert.Contains("Assembly.GetName().Version", about);
-        var guide = File.ReadAllText(Path.Combine(Root(), "docs", "GUIDE.md"));
-        Assert.Contains("Analog gauges", guide);
-        Assert.Contains("Digital dash", guide);
     }
 
 }

@@ -226,6 +226,24 @@ public class V060Tests
         Assert.Contains("GetDpiForMonitor", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MonitorAreas.cs")));
     }
 
+    [Fact]
+    public void Guide_describes_the_popout_and_the_materials()
+    {
+        var guide = File.ReadAllText(Path.Combine(Root(), "docs", "GUIDE.md"));
+        Assert.Contains("dashboard window", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Keep live", guide);
+        Assert.Contains("Fine wood grain", guide);
+        Assert.Contains("Brushed aluminum", guide);
+        Assert.Contains("High-gloss black", guide);
+        Assert.Contains("Diamond-plate metal", guide);
+        Assert.Contains("Carbon fiber", guide);
+        Assert.Contains("Sports-car leather", guide);
+        Assert.Contains("Ctrl+Shift+G", guide);
+        Assert.DoesNotContain("Analog gauges", guide);
+        Assert.DoesNotContain("Digital dash", guide);
+        Assert.Contains("UniformToFill", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardBackdrop.cs")));
+    }
+
     private static (int Width, int Height) JpegSize(string path)
     {
         using var fs = File.OpenRead(path);
