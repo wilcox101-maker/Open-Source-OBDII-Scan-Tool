@@ -1,3 +1,36 @@
+## v0.6.0
+
+**Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, and v0.5.2 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
+
+**Download `ObdLinkApp-win-x64-v0.6.0.zip`** (normal Intel/AMD PCs: almost everyone). `ObdLinkApp-ARM64-only-v0.6.0.zip`: For Snapdragon/ARM Windows PCs only; most PCs need the x64 download. The ARM64 zip was built and was not run on ARM64 hardware.
+
+**Dashboard pop-out.** The dashboard is no longer a page on the left rail. The main window opens on Modules. View → Dashboard, the header Dashboard button, or Ctrl+Shift+G opens one resizable window titled Dashboard - OBDLink Diag. Doing that again brings the same window to the front. Closing the main window closes the dashboard window and the process exits. Window size and position are saved in `Data\settings.json`.
+
+**Keep live.** Closing the dashboard window stops polling unless **Keep live** is on (the checkbox on the dashboard window, and View → Keep dashboard live while closed). Keep live is remembered in `Data\settings.json` and, when it is on, polling continues while the window is closed and after a restart once you connect. Reopening resumes polling that stopped because the window closed. Pause (Ctrl+P) is separate: it stays on until you resume, including across close and reopen. With Keep live off, a fresh launch that never opens the dashboard stays Stopped.
+
+**Gauge face.** Each needle-capable card (the ones that offer Dial) can be Analog or Digital on its own. Analog draws the needle and arc. Digital draws the title, the number, and the unit in the same card. Gear, tire pressure, the MIL lamp, and text-only tiles do not have that control. The choice is saved on each item in `Data\settings.json`.
+
+**Material backgrounds.** The v0.5.2 cabin photographs are gone. The Background box offers **Fine wood grain**, **Brushed aluminum**, **High-gloss black**, **Diamond-plate metal**, **Carbon fiber**, and **Sports-car leather**, plus **None** and **Custom**. Each built-in photo covers the window once with cover stretch (`UniformToFill`). It is not tiled. A saved cabin id from v0.5.2 (Analog, Wood, Steel, Mirror, Onyx, Leather, Carbon, Brushed) loads as None. Pick image still copies a PNG, JPEG, BMP, or GIF into `Data\backgrounds` only.
+
+The photographs were generated for this app and ship under the MIT license. They are pictures of material surfaces, not a vehicle cabin, not Ford marketing photos, and not files copied from the web. See `assets/backgrounds/PROVENANCE.txt`.
+
+Nothing is written outside `Data\`. There is no installer.
+
+### Windows verify
+
+Run these on Windows 10 version 1607 or later, or on Windows 11, using `ObdLinkApp-win-x64-v0.6.0.zip`. The ARM64 zip was built in the same release and was not run on ARM64 hardware. Run the same checks on ARM64 Windows before calling that zip Windows-tested.
+
+1. Launch the app. The left rail has no Dashboard item. The selected page is Modules. Alt+1 selects Modules. Alt+9 does nothing.
+2. View → Dashboard, the header button, and Ctrl+Shift+G each open one window. Invoke any of them again: the same window activates, including when it was minimized. No second window appears.
+3. Connect DEMO. With the window open, status is Live and values move. Pause: status Paused and values hold. Resume: Live.
+4. Close the window. Status is Paused. Adapter commands on Modules still run. Reopen: status returns to Live. The log shows one new polling start for that reopen, and it does not show two polling loops overlapping.
+5. Pause, close, reopen. The window stays Paused until Resume.
+6. Turn Keep live on, close the window. The main-window status stays Live. Reopen a few seconds later: DEMO gauge values have changed since the close. Restart the app, connect again, leave the window closed. Status is Live. Turn Keep live off from the View menu. Polling stops.
+7. Customize: set RPM to Analog and speed to Digital, both Dial. Both are visible together. Done, close, restart, reopen. The faces and the order match. Narrow the pop-out until gauge-height cards stack, widen it, and confirm the arranged width returns. Drag and the Move buttons still reorder.
+8. Pick each material. The photograph covers the canvas once and is not repeated. Switch Light and Dark: cards stay readable. Pick None: the theme color returns. Pick image, restart: the file is under `Data\backgrounds` only and still covers the canvas.
+9. Start from a copy of a v0.5.2 `settings.json` whose background id is `Analog`, then one whose id is `Wood`. After load the background is None and the app opens. Layout items are still there.
+10. Close the main window while the dashboard window is open. The process exits, and the next launch restores the dashboard window's size and position. Move the saved position off every monitor and launch again: the window comes back on screen at a usable size.
+
 ## v0.5.2
 
 **Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0, v0.5.0, and v0.5.1 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
