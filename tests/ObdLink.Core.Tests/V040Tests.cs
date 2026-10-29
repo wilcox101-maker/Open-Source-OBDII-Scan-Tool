@@ -163,12 +163,12 @@ public class V040Tests
         old.Dashboard.ArrangeWidth = 640;
         old.Dashboard.BackgroundFile = "..\\settings.json";
         old.Normalize();
-        Assert.Equal(DashboardBackgrounds.Wood, old.Dashboard.Background);
+        Assert.Equal(DashboardBackgrounds.None, old.Dashboard.Background);
         Assert.Null(old.Dashboard.BackgroundFile);
         Assert.Equal(640, old.Dashboard.ArrangeWidth);
         old.Save(path);
         var back = AppSettings.Load(path);
-        Assert.Equal(DashboardBackgrounds.Wood, back.Dashboard.Background);
+        Assert.Equal(DashboardBackgrounds.None, back.Dashboard.Background);
         Assert.Equal(640, back.Dashboard.ArrangeWidth);
 
         var data = Path.Combine(Path.GetTempPath(), "v040-img-" + Guid.NewGuid().ToString("N"));
@@ -193,8 +193,8 @@ public class V040Tests
         back.Dashboard.BackgroundFile = name;
         back.Save(path);
         Assert.Equal("custom.png", AppSettings.Load(path).Dashboard.BackgroundFile);
-        Assert.Contains(DashboardBackgrounds.Choices, c => c.Id == DashboardBackgrounds.Leather && c.Name.Contains("leather"));
-        Assert.Contains(DashboardBackgrounds.Choices, c => c.Id == DashboardBackgrounds.Onyx);
+        Assert.Contains(DashboardBackgrounds.Choices, c => c.Id == DashboardBackgrounds.SportsLeather && c.Name.Contains("leather"));
+        Assert.Contains(DashboardBackgrounds.Choices, c => c.Id == DashboardBackgrounds.GlossBlack);
     }
 
     [Fact]
