@@ -116,6 +116,63 @@ public class V060Tests
         Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Tpms, GaugeFaces.Analog));
     }
 
+    [Theory]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, true, false, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(true, false, false, false)]
+    public void ShouldRun_follows_connection_window_and_keep_live(bool connected, bool windowOpen, bool keepLive, bool expect) =>
+        Assert.Equal(expect, DashboardSession.ShouldRun(connected, windowOpen, keepLive));
+
+    [Fact]
+    public void User_pause_does_not_change_ShouldRun_and_blocks_PollAllowed()
+    {
+        Assert.True(DashboardSession.ShouldRun(true, true, false));
+        Assert.False(DashboardSession.PollAllowed(true, true, false, userPaused: true));
+        Assert.Equal("Paused", DashboardSession.StateText(true, true, false, userPaused: true, engaged: true, loopFailed: false));
+        Assert.Equal("Paused", DashboardSession.StateText(true, false, false, userPaused: false, engaged: true, loopFailed: false));
+        Assert.Equal("Stopped", DashboardSession.StateText(true, false, false, userPaused: false, engaged: false, loopFailed: false));
+        Assert.Equal("Stopped", DashboardSession.StateText(false, true, true, userPaused: true, engaged: true, loopFailed: false));
+        Assert.Equal("Live", DashboardSession.StateText(true, false, true, userPaused: false, engaged: false, loopFailed: false));
+        Assert.Equal("Stopped", DashboardSession.StateText(true, true, false, userPaused: false, engaged: true, loopFailed: true));
+    }
+
+    [Fact]
+    public void Placement_centers_unsaved_and_rejects_offscreen_and_bad_sizes()
+    {
+        var screen = new DashboardWindowPlacement.MonitorArea(0, 0, 1920, 1080);
+        var fresh = DashboardWindowPlacement.Resolve(new(false, 0, 0, 0, 0, false), screen, new[] { screen });
+        Assert.Equal(1100, fresh.Width);
+        Assert.Equal(720, fresh.Height);
+        Assert.Equal((1920 - 1100) / 2d, fresh.Left);
+        Assert.Equal((1080 - 720) / 2d, fresh.Top);
+        Assert.False(fresh.Maximize);
+
+        var parked = DashboardWindowPlacement.Resolve(new(true, 100, 80, 900, 600, false), screen, new[] { screen });
+        Assert.Equal(100, parked.Left);
+        Assert.Equal(80, parked.Top);
+        Assert.Equal(900, parked.Width);
+        Assert.Equal(600, parked.Height);
+
+        var gone = DashboardWindowPlacement.Resolve(new(true, 5000, 5000, 900, 600, true), screen, new[] { screen });
+        Assert.Equal((1920 - 900) / 2d, gone.Left);
+        Assert.Equal((1080 - 600) / 2d, gone.Top);
+        Assert.Equal(900, gone.Width);
+        Assert.Equal(600, gone.Height);
+        Assert.False(gone.Maximize);
+
+        var tiny = DashboardWindowPlacement.Resolve(new(true, 10, 10, 100, 100, true), screen, new[] { screen });
+        Assert.Equal(1100, tiny.Width);
+        Assert.Equal(720, tiny.Height);
+        Assert.Equal(fresh.Left, tiny.Left);
+        Assert.Equal(fresh.Top, tiny.Top);
+        Assert.False(tiny.Maximize);
+
+        var max = DashboardWindowPlacement.Resolve(new(true, 40, 40, 1000, 700, true), screen, new[] { screen });
+        Assert.True(max.Maximize);
+        Assert.Equal(40, max.Left);
+    }
+
     private static (int Width, int Height) JpegSize(string path)
     {
         using var fs = File.OpenRead(path);
