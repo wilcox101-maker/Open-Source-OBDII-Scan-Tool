@@ -63,7 +63,13 @@ public sealed class AppSettings
         Dashboard.Gauges ??= DashboardOptions.DefaultGauges.ToList();
         Dashboard.Layouts ??= new();
         Dashboard.Layouts.RemoveAll(l => l is null || string.IsNullOrWhiteSpace(l.Name));
-        foreach (var l in Dashboard.Layouts) { l.Items ??= new(); l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key) || ObdLink.Core.Dashboard.TpmsKeys.Retired.Contains(i.Key)); }
+        foreach (var l in Dashboard.Layouts)
+        {
+            l.Items ??= new();
+            l.Items.RemoveAll(i => i is null || string.IsNullOrWhiteSpace(i.Key) || ObdLink.Core.Dashboard.TpmsKeys.Retired.Contains(i.Key));
+            foreach (var i in l.Items)
+                i.Face = ObdLink.Core.Dashboard.GaugeFaces.Normalize(i.Face);
+        }
         if (Dashboard.Layouts.Count == 0)
             Dashboard.Layouts.Add(Dashboard.Gauges.SequenceEqual(DashboardOptions.DefaultGauges) ? ObdLink.Core.Dashboard.DashboardLayout.Default() : ObdLink.Core.Dashboard.DashboardLayout.FromLegacy(Dashboard.Gauges));
         if (Dashboard.Layouts.All(l => l.Name != Dashboard.ActiveLayout)) Dashboard.ActiveLayout = Dashboard.Layouts[0].Name;

@@ -94,6 +94,28 @@ public class V060Tests
         Assert.DoesNotContain("TileMode.Tile", backdrop);
     }
 
+    [Fact]
+    public void Face_defaults_to_analog_and_unknown_values_do_not_drop_the_settings_file()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "v060-face-" + Guid.NewGuid().ToString("N"), "settings.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, """{"Dashboard":{"Layouts":[{"Name":"Default","Items":[{"Key":"rpm","Display":"Dial","Size":"Large"},{"Key":"speed","Display":"Dial","Size":"Large","Face":"Digital"},{"Key":"fuel","Display":"Bar","Face":"nope"}]}]}}""");
+        var loaded = AppSettings.Load(path);
+        var items = loaded.Dashboard.Current().Items;
+        Assert.Equal(GaugeFaces.Analog, items[0].Face);
+        Assert.Equal(GaugeFaces.Digital, items[1].Face);
+        Assert.Equal(GaugeFaces.Analog, items[2].Face);
+        Assert.Equal("rpm", items[0].Key);
+        var clone = items[1].Clone();
+        Assert.Equal(GaugeFaces.Digital, clone.Face);
+        Assert.True(GaugeFaces.ShowsNeedle(DisplayKind.Dial, GaugeFaces.Analog));
+        Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Dial, GaugeFaces.Digital));
+        Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Bar, GaugeFaces.Analog));
+        Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Tile, GaugeFaces.Digital));
+        Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Lamp, null));
+        Assert.False(GaugeFaces.ShowsNeedle(DisplayKind.Tpms, GaugeFaces.Analog));
+    }
+
     private static (int Width, int Height) JpegSize(string path)
     {
         using var fs = File.OpenRead(path);

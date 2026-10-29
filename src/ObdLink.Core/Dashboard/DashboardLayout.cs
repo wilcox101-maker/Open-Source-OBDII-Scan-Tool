@@ -13,7 +13,8 @@ public sealed class DashItem
     public string Key { get; set; } = "";
     public DisplayKind Display { get; set; } = DisplayKind.Bar;
     public ItemSize Size { get; set; } = ItemSize.Small;
-    public DashItem Clone() => new() { Key = Key, Display = Display, Size = Size };
+    public string Face { get; set; } = GaugeFaces.Analog;
+    public DashItem Clone() => new() { Key = Key, Display = Display, Size = Size, Face = Face };
 }
 
 public sealed class DashboardLayout
