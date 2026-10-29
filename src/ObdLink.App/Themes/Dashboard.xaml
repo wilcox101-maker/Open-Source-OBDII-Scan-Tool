@@ -8,7 +8,7 @@
     <DataTemplate x:Key="DialBody" DataType="{x:Type local:GaugeVm}">
       <DockPanel>
         <TextBlock DockPanel.Dock="Bottom" HorizontalAlignment="Center" Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource FgDim}"/>
-        <c:CircularGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" Unit="{Binding Unit}" ValueText="{Binding ValueText}"/>
+        <c:CircularGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" Unit="{Binding Unit}" ValueText="{Binding ValueText}" ShowAnalog="{Binding ShowAnalog}"/>
       </DockPanel>
     </DataTemplate>
     <DataTemplate x:Key="BarBody" DataType="{x:Type local:GaugeVm}">
@@ -93,6 +93,7 @@
               <Button Content="Move up" ToolTip="Move this card up one row" AutomationProperties.Name="Move up" Tag="Up" Click="DashItemRow_Click"/>
               <Button Content="Move down" ToolTip="Move this card down one row" AutomationProperties.Name="Move down" Tag="Down" Click="DashItemRow_Click"/>
               <ComboBox MinWidth="70" ItemsSource="{Binding Displays}" SelectedItem="{Binding Display}" IsEnabled="{Binding CanChangeDisplay}" ToolTip="Display type"/>
+              <ComboBox MinWidth="80" ItemsSource="{Binding Faces}" SelectedItem="{Binding Face}" Visibility="{Binding ShowFaceChoice, Converter={StaticResource BoolVis}}" ToolTip="Analog draws the needle and arc when Display is Dial. Digital draws digits only. Bar, tile, and lamp stay as they are."/>
               <ComboBox MinWidth="70" ItemsSource="{Binding Sizes}" SelectedItem="{Binding Size}" ToolTip="Size: Small, Medium, Large, Wide (two columns)" AutomationProperties.Name="Size"/>
               <Button Content="Remove" ToolTip="Remove from this layout" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
             </WrapPanel>
@@ -131,7 +132,7 @@
       <Border Style="{StaticResource CardStyle}" Width="280" Height="300" ToolTip="{Binding Note}">
         <DockPanel>
           <TextBlock DockPanel.Dock="Bottom" HorizontalAlignment="Center" Text="{Binding StatsText}" FontSize="10.5" Foreground="{DynamicResource FgDim}"/>
-          <c:CircularGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" Unit="{Binding Unit}" ValueText="{Binding ValueText}"/>
+          <c:CircularGauge Title="{Binding Title}" Value="{Binding Value}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" WarnHigh="{Binding WarnHigh}" Unit="{Binding Unit}" ValueText="{Binding ValueText}" ShowAnalog="{Binding ShowAnalog}"/>
         </DockPanel>
       </Border>
     </DataTemplate>

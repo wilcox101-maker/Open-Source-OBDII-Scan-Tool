@@ -53,6 +53,10 @@ public abstract class GaugeBase : FrameworkElement
 /// <summary>270° circular gauge with ticks, a warning arc, a value arc, a needle and a big numeric readout (RPM, speed).</summary>
 public sealed class CircularGauge : GaugeBase
 {
+    public static readonly DependencyProperty ShowAnalogProperty = DependencyProperty.Register(
+        nameof(ShowAnalog), typeof(bool), typeof(CircularGauge), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+    public bool ShowAnalog { get => (bool)GetValue(ShowAnalogProperty); set => SetValue(ShowAnalogProperty, value); }
+
     private const double Start = 135, Sweep = 270;
     protected override Size MeasureOverride(Size a) => new(double.IsInfinity(a.Width) ? 220 : a.Width, double.IsInfinity(a.Height) ? 220 : a.Height);
     private static Point P(Point c, double r, double deg) { var a = deg * Math.PI / 180; return new(c.X + r * Math.Cos(a), c.Y + r * Math.Sin(a)); }
@@ -67,27 +71,38 @@ public sealed class CircularGauge : GaugeBase
     {
         var size = Math.Min(ActualWidth, ActualHeight); if (size < 40) return;
         var c = new Point(ActualWidth / 2, ActualHeight / 2 + size * 0.04); var r = size * 0.40; var th = size * 0.065;
-        dc.DrawGeometry(null, new Pen(TrackBrush, th) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Arc(c, r, Start, Sweep));
-        if (!double.IsNaN(WarnHigh)) dc.DrawGeometry(null, new Pen(WarnBrush, th * 0.35), Arc(c, r + th * 0.75, Start + Sweep * Fraction(WarnHigh), Sweep * (1 - Fraction(WarnHigh))));
-        var f = Fraction(Value);
-        dc.DrawGeometry(null, new Pen(IsWarn ? WarnBrush : FillBrush, th) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Arc(c, r, Start, Sweep * f));
-        var tick = new Pen(TickBrush, 1.2);
-        for (int i = 0; i <= 10; i++)
+        if (ShowAnalog)
         {
-            var a = Start + Sweep * i / 10.0;
-            dc.DrawLine(tick, P(c, r - th * 0.9, a), P(c, r - th * (i % 5 == 0 ? 1.9 : 1.4), a));
-            if (i % 2 == 0) { var t = Text(Num(Minimum + (Maximum - Minimum) * i / 10), size * 0.05, DimBrush); var p = P(c, r - th * 2.7, a); dc.DrawText(t, new Point(p.X - t.Width / 2, p.Y - t.Height / 2)); }
+            dc.DrawGeometry(null, new Pen(TrackBrush, th) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Arc(c, r, Start, Sweep));
+            if (!double.IsNaN(WarnHigh)) dc.DrawGeometry(null, new Pen(WarnBrush, th * 0.35), Arc(c, r + th * 0.75, Start + Sweep * Fraction(WarnHigh), Sweep * (1 - Fraction(WarnHigh))));
+            var f = Fraction(Value);
+            dc.DrawGeometry(null, new Pen(IsWarn ? WarnBrush : FillBrush, th) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Arc(c, r, Start, Sweep * f));
+            var tick = new Pen(TickBrush, 1.2);
+            for (int i = 0; i <= 10; i++)
+            {
+                var a = Start + Sweep * i / 10.0;
+                dc.DrawLine(tick, P(c, r - th * 0.9, a), P(c, r - th * (i % 5 == 0 ? 1.9 : 1.4), a));
+                if (i % 2 == 0) { var t = Text(Num(Minimum + (Maximum - Minimum) * i / 10), size * 0.05, DimBrush); var p = P(c, r - th * 2.7, a); dc.DrawText(t, new Point(p.X - t.Width / 2, p.Y - t.Height / 2)); }
+            }
+            if (!double.IsNaN(Value))
+            {
+                var a = Start + Sweep * f;
+                dc.DrawLine(new Pen(NeedleBrush, size * 0.018) { EndLineCap = PenLineCap.Triangle, StartLineCap = PenLineCap.Round }, P(c, -r * 0.12, a), P(c, r - th * 1.2, a));
+            }
+            dc.DrawEllipse(NeedleBrush, null, c, size * 0.03, size * 0.03);
+            var v = Text(ValueText, size * 0.15, IsWarn ? WarnBrush : Foreground, FontWeights.SemiBold);
+            dc.DrawText(v, new Point(c.X - v.Width / 2, c.Y + r * 0.22));
+            var u = Text(Unit, size * 0.06, DimBrush); dc.DrawText(u, new Point(c.X - u.Width / 2, c.Y + r * 0.22 + v.Height));
+            var ti = Text(Title.ToUpperInvariant(), size * 0.055, DimBrush, FontWeights.SemiBold); dc.DrawText(ti, new Point(c.X - ti.Width / 2, c.Y - r * 0.45));
         }
-        if (!double.IsNaN(Value))
+        else
         {
-            var a = Start + Sweep * f;
-            dc.DrawLine(new Pen(NeedleBrush, size * 0.018) { EndLineCap = PenLineCap.Triangle, StartLineCap = PenLineCap.Round }, P(c, -r * 0.12, a), P(c, r - th * 1.2, a));
+            var v = Text(ValueText, size * 0.22, IsWarn ? WarnBrush : Foreground, FontWeights.SemiBold);
+            dc.DrawText(v, new Point(c.X - v.Width / 2, c.Y - v.Height / 2));
+            var u = Text(Unit, size * 0.06, DimBrush); dc.DrawText(u, new Point(c.X - u.Width / 2, c.Y + v.Height / 2));
+            var ti = Text(Title.ToUpperInvariant(), size * 0.055, DimBrush, FontWeights.SemiBold);
+            dc.DrawText(ti, new Point(c.X - ti.Width / 2, c.Y - v.Height / 2 - ti.Height - 4));
         }
-        dc.DrawEllipse(NeedleBrush, null, c, size * 0.03, size * 0.03);
-        var v = Text(ValueText, size * 0.15, IsWarn ? WarnBrush : Foreground, FontWeights.SemiBold);
-        dc.DrawText(v, new Point(c.X - v.Width / 2, c.Y + r * 0.22));
-        var u = Text(Unit, size * 0.06, DimBrush); dc.DrawText(u, new Point(c.X - u.Width / 2, c.Y + r * 0.22 + v.Height));
-        var ti = Text(Title.ToUpperInvariant(), size * 0.055, DimBrush, FontWeights.SemiBold); dc.DrawText(ti, new Point(c.X - ti.Width / 2, c.Y - r * 0.45));
     }
 }
 
