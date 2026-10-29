@@ -200,6 +200,32 @@ public class V060Tests
         Assert.DoesNotContain("SelectedTab == \"Dashboard\"", vm);
     }
 
+    [Fact]
+    public void Digital_dials_hide_the_needle_and_text_only_cards_have_no_face_combo()
+    {
+        var gauges = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "Controls", "Gauges.cs"));
+        Assert.Contains("ShowAnalogProperty", gauges);
+        Assert.Contains("if (ShowAnalog)", gauges);
+        var xaml = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "Themes", "Dashboard.xaml"));
+        Assert.Contains("ShowAnalog=\"{Binding ShowAnalog}\"", xaml);
+        Assert.Contains("SelectedItem=\"{Binding Face}\"", xaml);
+        Assert.Contains("ShowFaceChoice", xaml);
+        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardViewModel.cs"));
+        Assert.Contains("GaugeFaces.ShowsNeedle", vm);
+        Assert.Contains("SyncFace()", vm);
+    }
+
+    [Fact]
+    public void Dashboard_window_saves_dips_through_the_placement_resolver()
+    {
+        var win = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardWindow.xaml.cs"));
+        Assert.Contains("DashboardWindowPlacement.Resolve", win);
+        Assert.Contains("CapturePlacement", win);
+        Assert.Contains("RestoreBounds", win);
+        Assert.DoesNotContain("Window.Owner", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "DashboardWindow.xaml")));
+        Assert.Contains("GetDpiForMonitor", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MonitorAreas.cs")));
+    }
+
     private static (int Width, int Height) JpegSize(string path)
     {
         using var fs = File.OpenRead(path);

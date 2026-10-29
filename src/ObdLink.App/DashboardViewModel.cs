@@ -38,6 +38,7 @@ public sealed class GaugeVm : ObservableObject
     public string? TextOverride { get; set; }
     private bool _unsupported; public bool Unsupported { get => _unsupported; set { if (Set(ref _unsupported, value)) Refresh(); } }
     public string ValueText => TextOverride ?? (double.IsNaN(_base) ? (Unsupported ? "unsupported" : "--") : Fmt(Value));
+    public bool ShowAnalog { get; set; } = true;
     public bool HasValue => !double.IsNaN(_base);
     public string StatsText => Stats.Count == 0 ? "min -- · max -- · avg --" : $"min {Fmt(Conv(Stats.Min))} · max {Fmt(Conv(Stats.Max))} · avg {Fmt(Conv(Stats.Avg))}";
     public bool IsLow => !double.IsNaN(_base) && BaseWarnLow is { } lo && _base < lo;
@@ -48,7 +49,7 @@ public sealed class GaugeVm : ObservableObject
     public void Update(double baseValue) { _base = baseValue; Stats.Add(baseValue); Refresh(); }
     public void Refresh()
     {
-        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow) }) OnPropertyChanged(p);
+        foreach (var p in new[] { nameof(Value), nameof(ValueText), nameof(HasValue), nameof(IsLow), nameof(StatsText), nameof(TileFooter), nameof(Subtitle), nameof(HasSubtitle), nameof(Note), nameof(IsWarn), nameof(Unit), nameof(Minimum), nameof(Maximum), nameof(WarnHigh), nameof(WarnLow), nameof(ShowAnalog) }) OnPropertyChanged(p);
     }
     public void Clear() { _base = double.NaN; Stats.Reset(); Refresh(); }
 }
@@ -71,6 +72,7 @@ public sealed class DashItemVm : ObservableObject
         // the way a parent-ItemsControl CommandParameter binding can.
         MoveLeftCommand = new("Dashboard move item left", null, _ => _owner.MoveLeftCommand.Execute(this));
         MoveRightCommand = new("Dashboard move item right", null, _ => _owner.MoveRightCommand.Execute(this));
+        SyncFace();
     }
     private double _flowWidth;
     /// <summary>Pre-transform card width. Saved size, or the stacked width when the window is narrower than the widest card.</summary>
@@ -78,7 +80,27 @@ public sealed class DashItemVm : ObservableObject
     public string Key => Item.Key;
     public string Title => Gauge.Title;
     public DisplayKind[] Displays => Entry?.Displays ?? new[] { Item.Display };
-    public DisplayKind Display { get => Item.Display; set { if (Item.Display == value) return; Item.Display = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("display " + Key + " = " + value); } }
+    public DisplayKind Display { get => Item.Display; set { if (Item.Display == value) return; Item.Display = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); SyncFace(); _owner.Changed("display " + Key + " = " + value); } }
+    public string[] Faces { get; } = { GaugeFaces.Analog, GaugeFaces.Digital };
+    public bool ShowFaceChoice => Entry?.Displays.Contains(DisplayKind.Dial) == true;
+    public string Face
+    {
+        get => GaugeFaces.Normalize(Item.Face);
+        set
+        {
+            var face = GaugeFaces.Normalize(value);
+            if (Item.Face == face) { SyncFace(); return; }
+            Item.Face = face;
+            SyncFace();
+            OnPropertyChanged();
+            _owner.Changed("face " + Key + " = " + face);
+        }
+    }
+    public void SyncFace()
+    {
+        Gauge.ShowAnalog = GaugeFaces.ShowsNeedle(Item.Display, Item.Face);
+        Gauge.Refresh();
+    }
     public bool IsLarge { get => Item.Size is ItemSize.Large or ItemSize.Wide; set => Size = value ? ItemSize.Large : ItemSize.Small; }
     private static readonly ItemSize[] AllSizes = { ItemSize.Small, ItemSize.Medium, ItemSize.Large, ItemSize.Wide }; public ItemSize[] Sizes => AllSizes;
     public ItemSize Size { get => Item.Size; set { if (Item.Size == value) return; Item.Size = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsLarge)); _owner.Changed("size " + Key + " = " + value); } }
@@ -402,6 +424,27 @@ public sealed class DashboardViewModel : ObservableObject
     }
 
     /// <summary>Process exit. Cancels polling even when Keep live is on, and closes an open CSV recorder.</summary>
+    public DashboardWindowPlacement.PlacementRequest SavedPlacement
+    {
+        get
+        {
+            var d = _settings().Dashboard;
+            return new(d.WindowPlacementSaved, d.WindowLeft, d.WindowTop, d.WindowWidth, d.WindowHeight, d.WindowMaximized);
+        }
+    }
+
+    public void CapturePlacement(double left, double top, double width, double height, bool maximized)
+    {
+        var d = _settings().Dashboard;
+        d.WindowLeft = left;
+        d.WindowTop = top;
+        d.WindowWidth = width;
+        d.WindowHeight = height;
+        d.WindowMaximized = maximized;
+        d.WindowPlacementSaved = true;
+        _save();
+    }
+
     public void Stop()
     {
         _stopping = true;

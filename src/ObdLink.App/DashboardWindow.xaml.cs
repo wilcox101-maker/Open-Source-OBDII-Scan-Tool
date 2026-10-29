@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using ObdLink.Core.Dashboard;
 
 namespace ObdLink.App;
 
@@ -28,8 +29,40 @@ public partial class DashboardWindow : Window
         Dash.SetWindowOpen(true);
     }
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var monitors = MonitorAreas.WorkingAreasInDips(this);
+        var target = monitors[0];
+        if (Application.Current?.MainWindow is { } main && !ReferenceEquals(main, this))
+        {
+            var cx = main.Left + main.Width / 2;
+            var cy = main.Top + main.Height / 2;
+            foreach (var m in monitors)
+            {
+                if (cx >= m.Left && cx < m.Left + m.Width && cy >= m.Top && cy < m.Top + m.Height)
+                {
+                    target = m;
+                    break;
+                }
+            }
+        }
+        var place = DashboardWindowPlacement.Resolve(Dash.SavedPlacement, target, monitors);
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = place.Left;
+        Top = place.Top;
+        Width = place.Width;
+        Height = place.Height;
+        if (place.Maximize) WindowState = WindowState.Maximized;
+    }
+
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        if (!e.Cancel)
+        {
+            var bounds = WindowState == WindowState.Maximized ? RestoreBounds : new Rect(Left, Top, Width, Height);
+            Dash.CapturePlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState == WindowState.Maximized);
+        }
         base.OnClosing(e);
     }
 
