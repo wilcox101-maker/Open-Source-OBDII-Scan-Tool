@@ -19,6 +19,8 @@ public sealed class AppPaths
     public string LogsDir => Path.Combine(DataDir, "logs");
     public string CapturesDir => Path.Combine(DataDir, "captures");
     public string BackupsDir => Path.Combine(DataDir, "backups");
+    /// <summary>v0.7.0: user-supplied seed/key plug-ins (*.dll). Loaded only when enabled and approved by SHA-256.</summary>
+    public string SeedKeyPluginsDir => Path.Combine(DataDir, "plugins", "seedkey");
     public string ExportsDir => Path.Combine(DataDir, "exports");
     public string AsBuiltDir => Path.Combine(DataDir, "asbuilt");
     public string VehiclesDir => Path.Combine(DataDir, "vehicles");

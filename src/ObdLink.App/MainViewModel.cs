@@ -13,6 +13,7 @@ using ObdLink.Core.Firmware;
 using ObdLink.Core.Modules;
 using ObdLink.Core.Obd;
 using ObdLink.Core.Safety;
+using ObdLink.Core.Security;
 using ObdLink.Core.Transport;
 using ObdLink.Core.Uds;
 using ObdLink.Core.Vehicles;
@@ -435,6 +436,7 @@ public sealed class MainViewModel : ObservableObject
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
+        InitSeedKey(Err);
         CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
         RefreshPortsCommand = C("Refresh ports", () =>
         {
@@ -795,7 +797,8 @@ public sealed class MainViewModel : ObservableObject
             MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
             _ch = new ElmDiagChannel(_session);
             _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
-            _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Paths.BackupsDir);
+            _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m) { SeedKey = _seedKey }, Safety(), Paths.BackupsDir);
+            ApplySeedKey();
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
             EventLog.Message(LogEventLevel.Information, "Connect", $"{Connection.StatusText}; adapter {AdapterName}; battery {Voltage}");
@@ -884,6 +887,93 @@ public sealed class MainViewModel : ObservableObject
             if (DialogService.ShowFileDialog(dlg) == true) FirmwareUpdaterPath = dlg.FileName;
         });
     }
+
+    // ---------------- v0.7.0 user-supplied SecurityAccess (seed/key) plug-ins ----------------
+    private CompositeSeedKeyProvider _seedKey = new(Array.Empty<ISeedKeyProvider>());
+    public AsyncCommand AddSeedKeyPluginCommand { get; private set; } = null!;
+    public RelayCommand OpenSeedKeyFolderCommand { get; private set; } = null!;
+    public RelayCommand ReloadSeedKeyPluginsCommand { get; private set; } = null!;
+    private string _seedKeyStatus = "";
+    public string SeedKeyStatus { get => _seedKeyStatus; private set => Set(ref _seedKeyStatus, value); }
+
+    private void InitSeedKey(Action<string, Exception> Err)
+    {
+        AddSeedKeyPluginCommand = new AsyncCommand("Add seed/key plug-in", EventLog, AddSeedKeyPluginAsync, Err);
+        OpenSeedKeyFolderCommand = new RelayCommand("Open seed/key plug-in folder", EventLog, _ =>
+        {
+            var d = ObdLink.Core.Storage.AppPaths.Ensure(Paths.SeedKeyPluginsDir);
+            try { DialogService.OpenExternal("explorer.exe", $"\"{d}\""); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Explorer", "Could not open the plug-in folder: " + ex.Message); }
+        });
+        ReloadSeedKeyPluginsCommand = new RelayCommand("Reload seed/key plug-ins", EventLog, _ => ReloadSeedKeyPlugins());
+        ReloadSeedKeyPlugins();
+    }
+
+    /// <summary>Loads approved plug-ins (only when enabled) and applies the As-Built security level to the As-Built service.</summary>
+    private void ReloadSeedKeyPlugins()
+    {
+        var (p, files) = SeedKeyPlugins.Load(Paths.SeedKeyPluginsDir, _settings.SeedKey, m => EventLog.Message(LogEventLevel.Information, "Seed/key", m));
+        _seedKey = p;
+        ApplySeedKey();
+        SeedKeyStatus = !_settings.SeedKey.Enabled ? "Off. No plug-in is loaded."
+            : files.Count == 0 ? $"On. No plug-ins in {Paths.SeedKeyPluginsDir}."
+            : $"On. {p.Providers.Count} provider(s) loaded.\n" + string.Join("\n", files.Select(f => f.Summary));
+    }
+
+    private void ApplySeedKey()
+    {
+        if (_asBuilt != null) _asBuilt.SecurityLevel = _settings.SeedKey.Enabled && _seedKey.Providers.Count > 0 ? _settings.SeedKey.AsBuiltLevel : null;
+    }
+
+    public bool SeedKeyEnabled
+    {
+        get => _settings.SeedKey.Enabled;
+        set
+        {
+            if (value == _settings.SeedKey.Enabled) return;
+            if (value && !Ask("Security access plug-ins",
+                    "Turn on seed/key plug-ins?\n\nOnly plug-in files you approve (by SHA-256) are loaded. A plug-in runs with this app's full rights, so only add ones you built yourself or fully trust. This project ships no algorithms or keys.\n\nUnlocking a module lets writes reach settings it normally protects. Back up first.", MessageBoxImage.Warning))
+            { OnPropertyChanged(); return; }
+            _settings.SeedKey.Enabled = value; SaveSettings();
+            EventLog.UserAction("Seed/key plug-ins toggled", ("on", value));
+            OnPropertyChanged(); ReloadSeedKeyPlugins();
+        }
+    }
+
+    /// <summary>Hex level (odd, 01..7F) requested before As-Built writes; empty = no unlock.</summary>
+    public string SeedKeyAsBuiltLevel
+    {
+        get => _settings.SeedKey.AsBuiltLevel is byte b ? b.ToString("X2") : "";
+        set
+        {
+            var t = (value ?? "").Trim().Replace("0x", "", StringComparison.OrdinalIgnoreCase);
+            byte? lvl = null;
+            if (t.Length > 0)
+            {
+                if (AsBuiltWritePlan.TryParseByte(t, out var b) && b % 2 == 1 && b <= 0x7F) lvl = b;
+                else { EventLog.Message(LogEventLevel.Warning, "Seed/key", $"'{value}' is not an odd level 01..7F; kept {SeedKeyAsBuiltLevel}"); OnPropertyChanged(); return; }
+            }
+            _settings.SeedKey.AsBuiltLevel = lvl; SaveSettings(); ApplySeedKey();
+            EventLog.UserAction("As-Built security level set", ("level", lvl?.ToString("X2") ?? "none"));
+            OnPropertyChanged();
+        }
+    }
+
+    private async Task AddSeedKeyPluginAsync()
+    {
+        if (!_settings.SeedKey.Enabled) throw new InvalidOperationException("Turn on \"Use seed/key plug-ins\" first.");
+        var src = OpenFile("Seed/key plug-in", "Plug-in (*.dll)|*.dll", Paths.SeedKeyPluginsDir);
+        var sha = SeedKeyPlugins.Sha256Of(src);
+        if (!await _confirm.ConfirmAsync(new ConfirmationStep("Approve plug-in",
+                $"{Path.GetFileName(src)}\nSHA-256 {sha}\n\nThis code will run inside the app with your user's rights and will be asked for SecurityAccess keys. Approve it only if you built it or trust its author. Type TRUST to approve.", "TRUST")))
+            throw new UserCancelledException("Seed/key plug-in not approved");
+        var (dest, destSha) = SeedKeyPlugins.Install(src, Paths.SeedKeyPluginsDir);
+        if (!destSha.Equals(sha, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("The file changed while it was being copied. Not approved.");
+        if (!_settings.SeedKey.TrustedSha256.Contains(sha)) _settings.SeedKey.TrustedSha256.Add(sha);
+        SaveSettings();
+        EventLog.Message(LogEventLevel.Warning, "Seed/key", $"Plug-in approved: {dest} (SHA-256 {sha})");
+        ReloadSeedKeyPlugins();
+    }
+
     // ---------------- v0.3.1 official firmware updater (downloaded on request, never bundled) ----------------
     public string UpdaterDir => Path.Combine(FirmwareRoot, "updater");
     public string FirmwareUpdaterPath { get => _settings.FirmwareUpdaterPath ?? ""; set => S(() => _settings.FirmwareUpdaterPath = string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('"'), "firmware updater path override", value, nameof(FirmwareUpdaterPath)); }

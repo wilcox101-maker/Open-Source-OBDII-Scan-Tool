@@ -5,7 +5,7 @@ This file compares what the app does today (v0.6.1) with FORScan's feature group
 decisions only Dale can make. It follows the policy in `PLAN.md`: clean-room, public sources only, no copied FORScan
 data, no proprietary OEM security algorithms.
 
-## Where we are (v0.6.1)
+## Where we are (v0.7.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -15,6 +15,7 @@ data, no proprietary OEM security algorithms.
 | Live data | Hundreds of PIDs per module, charts, logging | OBD-II mode 01 + a small verified Ford DID set on the dashboard, CSV recorder | Per-module PID browser, Ford DID catalog, charting, multi-module logging |
 | Tests | Self-tests, Mode 6, output control | Mode 6 / self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), Mode 6 (06), output state control (2F) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
+| Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | None | Out of scope for now (see decisions) |
 | Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify | Battery-maintainer detection; session keep-alive during long jobs |
@@ -57,9 +58,10 @@ Most of these run UDS routines (31) and many need SecurityAccess (27). See decis
 
 ## Decisions for Dale
 
-- **D1. Security access (0x27).** Many service procedures, PATS key programming and some configuration writes need a seed→key
-  algorithm. `PLAN.md` says the project ships none. Options: keep the policy (those features stay out), or accept
-  user-supplied key providers loaded from a separate plug-in the project does not distribute. Full FORScan parity is not possible under the current policy.
+- **D1. Security access (0x27). DECIDED 2026-11-15: yes, through user-supplied plug-ins.** v0.7.0 ships the loader
+  (off by default, approve by SHA-256, typed TRUST), As-Built unlock at a set level, and a template. The project still
+  ships no algorithms or keys; whoever installs a plug-in is responsible for where it came from. This unblocks phase 4 and
+  configuration writes on secured modules for owners who have a provider.
 - **D2. Module programming (firmware flashing / PMI).** High brick risk, needs Ford calibration files and usually 0x27. Recommend: out of scope.
 - **D3. J2534 support.** Opens other adapters (and is how FORScan reaches some functions). Moderate work; not needed for the MX+.
 - **D4. Vehicles beyond the 2017 F-150.** Every added vehicle needs a module table and test captures. Which ones next?

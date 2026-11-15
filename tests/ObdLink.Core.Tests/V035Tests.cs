@@ -110,7 +110,10 @@ public class V035Tests
         var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
         Assert.DoesNotContain("OpenExternal(FirmwarePage); } catch { }", vm);
         Assert.Contains("Could not open the firmware page", vm);
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(vm, @"OpenExternal\(""explorer\.exe"".*?catch \(Exception ex\) \{ EventLog\.Message\(LogEventLevel\.Warning").Count);
+        // Every guarded Explorer open logs its failure (v0.7.0 added the seed/key plug-in folder; count no longer pinned).
+        var guarded = System.Text.RegularExpressions.Regex.Matches(vm, @"try \{ DialogService\.OpenExternal\(""explorer\.exe""").Count;
+        Assert.True(guarded >= 3);
+        Assert.Equal(guarded, System.Text.RegularExpressions.Regex.Matches(vm, @"OpenExternal\(""explorer\.exe"".*?catch \(Exception ex\) \{ EventLog\.Message\(LogEventLevel\.Warning").Count);
     }
 }
 

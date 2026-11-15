@@ -85,9 +85,17 @@ public sealed class AsBuiltService
         var where = $"{b.Module:X3}-{b.Block:X2}";
         await uds.DiagnosticSessionControlAsync(UdsSession.Extended, ct);
         if (SecurityLevel is byte lvl && !await uds.SecurityAccessAsync(lvl, ct))
-            throw new SafetyException("Security access required but no seed-key provider produced a key");
+            throw new SafetyException($"{where}: security access level 0x{lvl:X2} is set, but no approved seed/key plug-in produced a key for module 0x{b.Module:X3}. Nothing was written.");
         string note = "";
         try { await uds.WriteDataByIdentifierAsync(b.Did, b.Data, ct); }
+        catch (UdsNegativeResponseException ex) when (ex.Nrc == 0x33)
+        {
+            throw new SafetyException($"{where}: the module requires security access (NRC 0x33) for this write. "
+                + (SecurityLevel is null
+                    ? "Settings → Security access: enable an approved seed/key plug-in and set the As-Built security level, then try again."
+                    : $"Unlock at level 0x{SecurityLevel:X2} succeeded but was not enough; this module may need another level.")
+                + " Nothing was written.");
+        }
         catch (Exception ex) when (IsUncertainWriteOutcome(ex))
         {
             // v0.6.1 audit: these do NOT mean the write failed. The ELM interface returns on the first reply, so a module that answers

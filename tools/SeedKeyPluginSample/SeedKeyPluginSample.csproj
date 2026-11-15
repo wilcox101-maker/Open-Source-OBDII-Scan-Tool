@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Template for a user-supplied seed/key plug-in. Build it, then Settings → Security access → Add plug-in… and pick the .dll. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ObdLink.SeedKey.Sample</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Private=false: the app supplies ObdLink.Core at run time; do not copy it next to the plug-in. -->
+    <ProjectReference Include="..\..\src\ObdLink.Core\ObdLink.Core.csproj" Private="false" />
+  </ItemGroup>
+</Project>
