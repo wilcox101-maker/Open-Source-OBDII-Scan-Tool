@@ -16,6 +16,8 @@ public sealed class MockTransport : ITransport
     public List<string> Sent { get; } = new();
     public bool Echo { get; set; }
     public int OpenCount { get; private set; }
+    /// <summary>Test hook: when this returns true for a command, the command is delivered (it reached the vehicle) and then the link drops.</summary>
+    public Func<string, bool>? DropAfterSend { get; set; }
 
     public MockTransport(Func<string, string?> responder) => _responder = responder;
 
@@ -36,6 +38,7 @@ public sealed class MockTransport : ITransport
             _pending.Remove(0, idx + 1);
             Sent.Add(cmd);
             var reply = _responder(cmd);
+            if (DropAfterSend?.Invoke(cmd) == true) { DropAfterSend = null; IsOpen = false; _pending.Clear(); throw new IOException("mock link dropped"); }
             if (reply is null) continue;
             var sb = new StringBuilder();
             if (Echo) sb.Append(cmd).Append('\r');

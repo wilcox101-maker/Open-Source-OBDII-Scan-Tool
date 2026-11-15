@@ -8,15 +8,28 @@ public class V052Tests
     private static string Root([System.Runtime.CompilerServices.CallerFilePath] string me = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(me)!, "..", ".."));
 
+    /// <summary>Version-agnostic since v0.6.1: App and Core agree, and the release notes and README lead with that version.</summary>
     [Fact]
-    public void Version_is_0_6_0()
+    public void Versions_agree_and_notes_lead_with_current()
     {
-        Assert.Contains("<Version>0.6.0</Version>", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "ObdLink.App.csproj")));
-        Assert.Contains("<Version>0.6.0</Version>", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.Core", "ObdLink.Core.csproj")));
+        static string Ver(string csproj) => System.Text.RegularExpressions.Regex.Match(File.ReadAllText(csproj), "<Version>([^<]+)</Version>").Groups[1].Value;
+        var app = Ver(Path.Combine(Root(), "src", "ObdLink.App", "ObdLink.App.csproj"));
+        Assert.Matches(@"^\d+\.\d+\.\d+$", app);
+        Assert.Equal(app, Ver(Path.Combine(Root(), "src", "ObdLink.Core", "ObdLink.Core.csproj")));
         var notes = File.ReadAllText(Path.Combine(Root(), "docs", "RELEASE-NOTES.md"));
-        Assert.StartsWith("## v0.6.0", notes.TrimStart());
-        Assert.Contains("## v0.5.2", notes);
-        var v060 = notes[..notes.IndexOf("## v0.5.2", StringComparison.Ordinal)];
+        Assert.StartsWith($"## v{app}", notes.TrimStart());
+        Assert.DoesNotContain($"v{app}-test", notes);
+        Assert.Contains($"v{app}", File.ReadAllText(Path.Combine(Root(), "README.md")));
+        Assert.Contains("Assembly.GetName().Version", File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs")));
+    }
+
+    [Fact]
+    public void V060_notes_are_kept()
+    {
+        var notes = File.ReadAllText(Path.Combine(Root(), "docs", "RELEASE-NOTES.md"));
+        int a = notes.IndexOf("## v0.6.0", StringComparison.Ordinal), b = notes.IndexOf("## v0.5.2", StringComparison.Ordinal);
+        Assert.True(a >= 0 && b > a);
+        var v060 = notes[a..b];
         Assert.Contains("ObdLinkApp-win-x64-v0.6.0.zip", v060);
         Assert.Contains("ObdLinkApp-ARM64-only-v0.6.0.zip", v060);
         Assert.Contains("Keep live", v060);
@@ -25,11 +38,5 @@ public class V052Tests
         Assert.Contains("generated", v060, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("MIT", v060);
         Assert.Contains("ARM64 zip was built and was not run on ARM64 hardware", v060);
-        Assert.DoesNotContain("v0.6.0-test", notes);
-        var readme = File.ReadAllText(Path.Combine(Root(), "README.md"));
-        Assert.Contains("v0.6.0", readme);
-        var about = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
-        Assert.Contains("Assembly.GetName().Version", about);
     }
-
 }

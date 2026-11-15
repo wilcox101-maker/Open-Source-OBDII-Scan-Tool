@@ -336,12 +336,14 @@
               </DataGrid.Columns>
             </DataGrid>
             <TextBlock DockPanel.Dock="Bottom" Margin="3" TextWrapping="Wrap" Foreground="{DynamicResource Warn}"
-                       Text="Edit the Data column (hex, no checksum); checksums are recomputed. Block→DID mapping (DE00+n-1) is an UNVERIFIED community convention."/>
+                       Text="Edit Data (hex, no checksum), then type the matching value in Check (as in FORScan). Only lines of the selected module and block are written, and the length must match the module. Block→DID mapping (DE00+n-1) is an UNVERIFIED community convention."/>
             <DataGrid ItemsSource="{Binding AsBuiltRows}" AutoGenerateColumns="False" CanUserAddRows="False" FontFamily="{StaticResource Mono}">
               <DataGrid.Columns>
                 <DataGridTextColumn Header="Address" Binding="{Binding Address}" IsReadOnly="True"/>
                 <DataGridTextColumn Header="Data (hex)" Binding="{Binding Data, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-                <DataGridTextColumn Header="Checksum" Binding="{Binding Checksum}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Check" Binding="{Binding EnteredChecksum, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTextColumn Header="Needed" Binding="{Binding Checksum}" IsReadOnly="True"/>
+                <DataGridCheckBoxColumn Header="OK" Binding="{Binding ChecksumOk, Mode=OneWay}" IsReadOnly="True"/>
               </DataGrid.Columns>
             </DataGrid>
           </DockPanel>

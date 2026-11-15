@@ -11,6 +11,10 @@ public sealed record ElmResponse(string Command, IReadOnlyList<string> Lines, El
     public bool Ok => Error == ElmError.None;
 }
 
+/// <summary>The link dropped during a vehicle request. The request was NOT resent; it may or may not have reached the vehicle.</summary>
+public sealed class LinkDroppedException(string cmd, Exception inner)
+    : IOException($"The adapter link dropped during '{cmd}'. The request was not resent; it may or may not have reached the vehicle. Check the result before retrying.", inner);
+
 public sealed class ElmTimeoutException(string cmd, TimeSpan t) : TimeoutException($"No '>' prompt for '{cmd}' within {t.TotalMilliseconds} ms");
 
 /// <summary>
@@ -25,6 +29,9 @@ public sealed class ElmLink : IAsyncDisposable
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(3);
     public int MaxReconnectAttempts { get; set; } = 2;
     public event Action<string, string>? Traffic; // (direction ">>"/"<<", text)
+    /// <summary>v0.6.1 audit: raised (inside the command gate) when the transport is reopened after it had been open. The adapter may have reset.</summary>
+    public event Action? Reopened;
+    private bool _everOpened;
 
     public ElmLink(ITransport transport, ILogger? log = null)
     {
@@ -43,7 +50,7 @@ public sealed class ElmLink : IAsyncDisposable
             {
                 try
                 {
-                    if (!_transport.IsOpen) await _transport.OpenAsync(ct).ConfigureAwait(false);
+                    await EnsureOpenAsync(ct).ConfigureAwait(false);
                     return await SendCoreAsync(command, timeout ?? DefaultTimeout, ct).ConfigureAwait(false);
                 }
                 catch (IOException ex) when (attempt < MaxReconnectAttempts)
@@ -51,10 +58,37 @@ public sealed class ElmLink : IAsyncDisposable
                     _log.Warning(ex, "Link I/O error on {Cmd}; reconnecting (attempt {N})", command, attempt + 1);
                     await _transport.CloseAsync().ConfigureAwait(false);
                     await Task.Delay(500, ct).ConfigureAwait(false);
+                    if (!IsResendSafe(command))
+                    {
+                        // v0.6.1 audit: a vehicle request may already have reached the bus, and a reset adapter would send a resend
+                        // to the default header (7DF, every module). Reopen so the session can re-apply its state, but never resend.
+                        try { await EnsureOpenAsync(ct).ConfigureAwait(false); }
+                        catch (Exception reopenEx) when (reopenEx is not OperationCanceledException) { _log.Warning(reopenEx, "Reopen after link drop failed"); }
+                        throw new LinkDroppedException(command, ex);
+                    }
                 }
             }
         }
         finally { _gate.Release(); }
+    }
+
+    private async Task EnsureOpenAsync(CancellationToken ct)
+    {
+        if (_transport.IsOpen) { _everOpened = true; return; }
+        await _transport.OpenAsync(ct).ConfigureAwait(false);
+        if (_everOpened) Reopened?.Invoke();
+        _everOpened = true;
+    }
+
+    /// <summary>
+    /// Only adapter-local AT/ST commands are resent after a reconnect. Anything else is a vehicle request (OBD/UDS hex),
+    /// and so are the pass-through/wakeup commands that put a frame on the bus.
+    /// </summary>
+    public static bool IsResendSafe(string command)
+    {
+        var c = command.Replace(" ", "").ToUpperInvariant();
+        if (!(c.StartsWith("AT", StringComparison.Ordinal) || c.StartsWith("ST", StringComparison.Ordinal))) return false;
+        return !(c.StartsWith("STPX", StringComparison.Ordinal) || c.StartsWith("ATWM", StringComparison.Ordinal));
     }
 
     private async Task<ElmResponse> SendCoreAsync(string command, TimeSpan timeout, CancellationToken ct)
@@ -69,14 +103,19 @@ public sealed class ElmLink : IAsyncDisposable
         var sb = new StringBuilder();
         try
         {
-            while (!sb.ToString().Contains('>'))
-                sb.Append(await _transport.ReadAsync(cts.Token).ConfigureAwait(false));
+            while (true)
+            {
+                var chunk = await _transport.ReadAsync(cts.Token).ConfigureAwait(false);
+                sb.Append(chunk);
+                if (chunk.Contains('>')) break;
+            }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // Recovery: a stray CR aborts most in-progress ELM operations; we then resync on next command.
             _log.Warning("Timeout waiting for prompt on {Cmd}; partial={Partial}", command, sb.ToString());
             try { await _transport.WriteAsync("\r", CancellationToken.None).ConfigureAwait(false); } catch { /* best-effort abort of a timed-out command; the link may already be gone */ }
+            await DrainToPromptAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
             Traffic?.Invoke("!!", $"TIMEOUT {command}");
             throw new ElmTimeoutException(command, timeout);
         }
@@ -84,6 +123,19 @@ public sealed class ElmLink : IAsyncDisposable
         Traffic?.Invoke("<<", raw.TrimEnd('>', '\r', '\n'));
         _log.Debug("<< {Raw}", raw.Replace("\r", "\\r"));
         return Parse(command, raw);
+    }
+
+    /// <summary>
+    /// v0.6.1 audit: after an abort the adapter still prints its '&gt;' prompt. If that late prompt reached the next command,
+    /// the next command would return early with this command's leftovers. Wait briefly for it and throw it away.
+    /// </summary>
+    private async Task DrainToPromptAsync(TimeSpan max)
+    {
+        using var cts = new CancellationTokenSource(max);
+        try { while (!(await _transport.ReadAsync(cts.Token).ConfigureAwait(false)).Contains('>')) { } }
+        catch (OperationCanceledException) { /* no prompt in time; the next command still discards input first */ }
+        catch (IOException) { /* link gone; the next command reconnects */ }
+        catch (InvalidOperationException) { /* port closed */ }
     }
 
     public static ElmResponse Parse(string command, string raw)

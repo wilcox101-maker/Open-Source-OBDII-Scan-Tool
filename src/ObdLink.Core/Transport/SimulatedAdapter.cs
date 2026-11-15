@@ -5,6 +5,8 @@ namespace ObdLink.Core.Transport;
 /// All ECU data here is SYNTHETIC test data, not captured from a real vehicle.
 /// </summary>
 public enum SimProfile { MxPlus, Ex, GenericElm }
+/// <summary>Simulated answers to WriteDataByIdentifier.</summary>
+public enum SimWriteReply { Positive, PendingThenPositive, PendingOnly, NoReply, RejectNotStored }
 
 public sealed class SimulatedAdapter
 {
@@ -26,6 +28,12 @@ public sealed class SimulatedAdapter
     /// <summary>Per-module UDS DTCs (3-byte DTC, status). When a module has no entry, a synthetic DTC is returned.</summary>
     public Dictionary<uint, List<(uint Dtc, byte Status)>> UdsDtcs { get; } = new();
     public bool CorruptWrites { get; set; }
+    /// <summary>How the simulated module answers 0x2E. The data is stored in every mode except <see cref="SimWriteReply.RejectNotStored"/>.</summary>
+    public SimWriteReply WriteReply { get; set; } = SimWriteReply.Positive;
+    /// <summary>Raw reply to an ISO-TP first frame (CAF0), e.g. "72E310000" for WAIT. Null = clear-to-send "&lt;rx&gt;300000".</summary>
+    public string? FlowControlReply { get; set; }
+    /// <summary>Every vehicle request (hex) with the header it went out on, for tests.</summary>
+    public List<(uint Header, string Request)> Sent { get; } = new();
 
     public SimulatedAdapter() { Clock = () => _sw.Elapsed.TotalSeconds; SeedDemoAsBuilt(this); }
 
@@ -74,7 +82,7 @@ public sealed class SimulatedAdapter
     public string? Respond(string cmd)
     {
         var c = cmd.Replace(" ", "").ToUpperInvariant();
-        if (c == "ATZ") return "ELM327 v1.4b";
+        if (c == "ATZ") { _header = 0x7DF; _caf = true; Protocol = null; return "ELM327 v1.4b"; } // a reset forgets header, formatting and protocol
         if (c is "ATE0" or "ATL0" or "ATS0" or "ATH1" or "ATCRA" or "STPO" or "STPC") return "OK";
         if (c == "ATI") return "ELM327 v1.4b";
         if (Profile == SimProfile.GenericElm && (c.StartsWith("ST"))) return "?";
@@ -91,11 +99,12 @@ public sealed class SimulatedAdapter
         if (c.StartsWith("AT") || c.StartsWith("ST")) return "?";
         byte[] req;
         try { req = Convert.FromHexString(c); } catch { return "?"; } // ELM answers "?" to a malformed command
+        Sent.Add((_header, c));
         if (!_caf)
         {   // raw frame mode: host performs ISO-TP
             var type = req[0] >> 4;
             var msg = _rxAsm.Feed(req);
-            if (type == 1) return (_header + 8).ToString("X3") + "300000";
+            if (type == 1) return FlowControlReply ?? (_header + 8).ToString("X3") + "300000";
             if (msg is null) return "NO DATA";
             return Uds(_header, msg, padded: true);
         }
@@ -138,6 +147,14 @@ public sealed class SimulatedAdapter
             0x2E => Write(tx, (ushort)(r[1] << 8 | r[2]), r[3..]),
             _ => new byte[] { 0x7F, r[0], 0x11 },
         };
+        if (r[0] == 0x2E && resp[0] == 0x6E)
+            return WriteReply switch
+            {
+                SimWriteReply.PendingThenPositive => Multi(rx, new byte[] { 0x7F, 0x2E, 0x78 }, padded) + "\r" + Multi(rx, resp, padded),
+                SimWriteReply.PendingOnly => Multi(rx, new byte[] { 0x7F, 0x2E, 0x78 }, padded),
+                SimWriteReply.NoReply => "NO DATA",
+                _ => Multi(rx, resp, padded),
+            };
         return Multi(rx, resp, padded);
     }
 
@@ -164,6 +181,7 @@ public sealed class SimulatedAdapter
 
     private byte[] Write(uint tx, ushort did, byte[] data)
     {
+        if (WriteReply == SimWriteReply.RejectNotStored) return new byte[] { 0x7F, 0x2E, 0x22 };
         if (!Dids.TryGetValue(tx, out var d)) Dids[tx] = d = new();
         if (CorruptWrites) { data = (byte[])data.Clone(); data[0] ^= 0xFF; }
         d[did] = data;

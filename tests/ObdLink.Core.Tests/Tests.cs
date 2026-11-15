@@ -232,10 +232,11 @@ public class ServiceTests
     {
         var (sim, svc, _) = await AsBuiltSetup(true);
         var nb = new AsBuiltBlock { Module = 0x726, Block = 1, Data = new byte[] { 9, 9, 9, 9, 9, 9, 9 } };
-        var backup = await svc.WriteBlockAsync("TESTVIN0000000001", nb);
-        Assert.True(File.Exists(backup));
+        var res = await svc.WriteBlockAsync("TESTVIN0000000001", nb);
+        Assert.True(res.Written);
+        Assert.True(File.Exists(res.BackupPath));
         Assert.Equal(nb.Data, sim.Dids[0x726][0xDE00]);
-        await svc.RestoreAsync(backup);
+        await svc.RestoreAsync(res.BackupPath!, "TESTVIN0000000001");
         Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7 }, sim.Dids[0x726][0xDE00]);
     }
 

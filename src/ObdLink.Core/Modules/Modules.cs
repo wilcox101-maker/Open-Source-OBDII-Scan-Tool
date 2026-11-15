@@ -110,7 +110,7 @@ public sealed class ModuleScanner
     }
 }
 
-/// <summary>Vehicle choices shown in the UI. The project is Ford-only (Chrysler/Ram support was dropped in v0.1.1).</summary>
+/// <summary>Vehicle choices shown in the UI. The project is Ford-only.</summary>
 public static class VehicleProfiles
 {
     public const string F150_2017 = "2017 Ford F-150";

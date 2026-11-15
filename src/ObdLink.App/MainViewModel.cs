@@ -57,12 +57,23 @@ public sealed class AsBuiltRow : ObservableObject
     public required AsBuiltAddress Addr { get; init; }
     public string Address => Addr.ToString();
     private string _data = ""; public string Data { get => _data; set { Set(ref _data, value); OnChecksum(); } }
+    /// <summary>Checksum the data needs (computed).</summary>
     private string _cs = ""; public string Checksum { get => _cs; private set => Set(ref _cs, value); }
+    /// <summary>
+    /// v0.6.1 audit: checksum as typed by the user (as in FORScan). Filled from the module or file when the row is loaded and NOT
+    /// updated when Data is edited, so a typo in Data shows as a mismatch and blocks the write until the checksum is typed too.
+    /// </summary>
+    private string _entered = ""; public string EnteredChecksum { get => _entered; set { Set(ref _entered, value); OnPropertyChanged(nameof(ChecksumOk)); } }
+    public bool ChecksumOk => AsBuiltWritePlan.TryParseByte(_entered, out var e) && e.ToString("X2") == _cs;
     private void OnChecksum()
     {
         try { Checksum = AsBuiltLine.ComputeChecksum(Addr, Convert.FromHexString(_data.Replace(" ", ""))).ToString("X2"); }
         catch { Checksum = "ERR"; } // partially typed hex: shown as ERR in the grid
+        OnPropertyChanged(nameof(ChecksumOk));
     }
+    /// <summary>A row loaded from the module or a file: the typed checksum starts equal to the line's own checksum.</summary>
+    public static AsBuiltRow From(AsBuiltLine l) { var r = new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) }; r.EnteredChecksum = l.Checksum.ToString("X2"); return r; }
+    public AsBuiltEditLine ToEdit() => new(Addr, Data, EnteredChecksum);
 }
 
 public sealed record DtcRow(string Source, string Code, string Status, string Description);
@@ -494,11 +505,16 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SelectedModule is not { } m) return;
             RequireAsBuilt(m);
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) on {ModuleReplies.BusName(m.Bus)}. A write does not try another bus.") });
-            var data = AsBuiltRows.SelectMany(r => Convert.FromHexString(r.Data.Replace(" ", ""))).ToArray();
-            await OnBus(m, () => AsBuilt.WriteBlockAsync(_vin, new AsBuiltBlock { Module = (ushort)m.Def.TxId, Block = Block, Data = data }), allowFallback: false);
+            // v0.6.1 audit: only this module's lines for this block are written (the grid may hold other blocks or modules),
+            // lines must be complete and every typed checksum must match. Length is checked against the module in AsBuiltService.
+            var newBlock = AsBuiltWritePlan.BuildBlock((ushort)m.Def.TxId, Block, AsBuiltRows.Select(r => r.ToEdit()));
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) block {Block:X2} on {ModuleReplies.BusName(m.Bus)}, {newBlock.Data.Length} bytes. A write does not try another bus.") });
+            AsBuiltWriteResult res = null!;
+            await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);
             MarkAsBuilt(m, AsBuiltSupport.Supported);
-            Info("Write", $"Written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.");
+            RefreshBackups();
+            if (!res.Written) { Info("Write", res.Note); return; }
+            Info("Write", $"{res.BytesChanged} byte(s) written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup of the previous contents: {res.BackupPath}");
         }, ModBlk, AsBuiltCan);
         RestoreAsBuiltCommand = C("Restore As-Built from backup", async () =>
         {
@@ -507,8 +523,12 @@ public sealed class MainViewModel : ObservableObject
             var row = Modules.FirstOrDefault(r => r.Def.TxId == bk.Module)
                 ?? throw new InvalidOperationException($"Backup is for module 0x{bk.Module:X3}, which is not in this vehicle's module list. Nothing was written.");
             RequireAsBuilt(row);
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"Restore 0x{row.Def.TxId:X3} ({row.Label}) on {ModuleReplies.BusName(row.Bus)}. A restore does not try another bus.") });
-            await OnBus(row, () => AsBuilt.RestoreAsync(f), allowFallback: false);
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"Restore 0x{row.Def.TxId:X3} ({row.Label}) on {ModuleReplies.BusName(row.Bus)} from the backup of VIN …{(bk.Vin.Length >= 6 ? bk.Vin[^6..] : bk.Vin)}. A restore does not try another bus.") });
+            AsBuiltWriteResult res = null!;
+            await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);
+            RefreshBackups();
+            if (!res.Written) { Info("Restore", res.Note); return; }
+            Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}");
         }, can: AsBuiltCan);
         ImportFactoryAbCommand = C("Import factory .ab", () =>
         {
@@ -531,7 +551,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var abt = ForscanAbtFile.Load(OpenFile("FORScan .abt", "FORScan As-Built backup|*.abt|All files|*.*", Paths.AsBuiltDir));
             AsBuiltRows.Clear();
-            foreach (var l in abt.Lines) AsBuiltRows.Add(new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) });
+            foreach (var l in abt.Lines) AsBuiltRows.Add(AsBuiltRow.From(l));
             var bad = abt.Lines.Count(l => !l.ChecksumValid);
             FactoryDiff.Clear();
             var info = $".abt: {string.Join(",", abt.Modules.Select(m => m.ToString("X3")))}, {abt.Lines.Count} lines, {bad} bad checksums";
@@ -774,7 +794,7 @@ public sealed class MainViewModel : ObservableObject
             var info = await _session.InitializeAsync();
             MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
             _ch = new ElmDiagChannel(_session);
-            _console = new RawConsoleService(link) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
+            _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
             _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m), Safety(), Paths.BackupsDir);
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
@@ -1184,7 +1204,7 @@ public sealed class MainViewModel : ObservableObject
     private void ShowBlocks(IEnumerable<AsBuiltBlock> blocks)
     {
         AsBuiltRows.Clear();
-        foreach (var b in blocks) foreach (var l in b.Lines()) AsBuiltRows.Add(new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) });
+        foreach (var b in blocks) foreach (var l in b.Lines()) AsBuiltRows.Add(AsBuiltRow.From(l));
     }
 
     private async Task ReadAllBlocksAsync()
@@ -1278,7 +1298,7 @@ public sealed class MainViewModel : ObservableObject
         await OnBus(m, async () => b = await AsBuilt.ReadBlockAsync((ushort)m.Def.TxId, Block));
         MarkAsBuilt(m, AsBuiltSupport.Supported);
         AsBuiltRows.Clear();
-        foreach (var l in b.Lines()) AsBuiltRows.Add(new AsBuiltRow { Addr = l.Address, Data = Convert.ToHexString(l.Data) });
+        foreach (var l in b.Lines()) AsBuiltRows.Add(AsBuiltRow.From(l));
         EventLog.Message(LogEventLevel.Information, "Read As-Built block", $"{SelectedModule?.Label} block {AsBuiltBlockNo} (DID 0x{did:X4}): {b.Data.Length} bytes, {AsBuiltRows.Count} lines");
     }
 }

@@ -71,7 +71,24 @@ public sealed class RawConsoleService
     public bool ReadOnlyMode { get; set; }
     /// <summary>ELM CAN auto-formatting (ATCAF). True after ATZ. While writes are locked, ATCAF0 is refused.</summary>
     public bool CanAutoFormat { get; private set; } = true;
-    public RawConsoleService(ElmLink link) => _link = link;
+    /// <summary>
+    /// v0.6.1 audit: called after any AT/ST command that can change adapter state (header, filter, protocol, echo, formatting, reset).
+    /// The app wires this to <see cref="Elm.AdapterSession.Invalidate"/> so its next request re-targets instead of trusting a stale ATSH.
+    /// </summary>
+    public Action? AdapterStateChanged { get; set; }
+    public RawConsoleService(ElmLink link, Action? adapterStateChanged = null) { _link = link; AdapterStateChanged = adapterStateChanged; }
+
+    /// <summary>Read-only adapter queries that never change header, filter, protocol or formatting.</summary>
+    private static readonly HashSet<string> PureQueries = new(StringComparer.Ordinal)
+    { "ATRV", "ATI", "AT@1", "AT@2", "ATDP", "ATDPN", "ATRD", "ATCS", "STI", "STDI", "STSN", "STDICES", "STMFR", "STVR" };
+
+    /// <summary>True for an AT/ST command that may change adapter state the session relies on.</summary>
+    public static bool ChangesAdapterState(string cmd)
+    {
+        var c = cmd.Replace(" ", "").ToUpperInvariant();
+        if (!(c.StartsWith("AT", StringComparison.Ordinal) || c.StartsWith("ST", StringComparison.Ordinal))) return false;
+        return !PureQueries.Contains(c);
+    }
 
     public async Task<string> ExecuteAsync(string input, CancellationToken ct = default)
     {
@@ -81,7 +98,9 @@ public sealed class RawConsoleService
         if (compact is "HELP" or "?" or "/?" or "/HELP") return ObdLink.Core.ConsoleCmds.ConsoleHelp.Text();
         var decision = ObdLink.Core.ConsoleCmds.ConsoleGuard.Evaluate(cmd, ReadOnlyMode, AllowWrites, CanAutoFormat);
         if (!decision.Allowed) return decision.Reason!;
-        var r = await _link.SendAsync(cmd, ct: ct);
+        ElmResponse r;
+        try { r = await _link.SendAsync(cmd, ct: ct); }
+        finally { if (ChangesAdapterState(cmd)) AdapterStateChanged?.Invoke(); } // even a timed-out ATZ may have reset the adapter
         CanAutoFormat = ObdLink.Core.ConsoleCmds.ConsoleGuard.NextAutoFormat(CanAutoFormat, cmd);
         return string.Join(Environment.NewLine, r.Lines) + (r.Ok ? "" : $"  [{r.Error}]");
     }

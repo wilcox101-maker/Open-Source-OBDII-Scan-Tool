@@ -15,7 +15,7 @@ public enum AdapterCapabilities
     MsCan = 2,         // STP 51-54, MS-CAN transceiver (FRPM: "typically pins 3 and 11")
     SwCan = 4,         // STP 61-64, pin 1 (GMLAN) - not used for Ford here
     J1850Pwm = 8,      // Ford SCP
-    J1850Vpw = 16,     // GM/Chrysler class 2/PCI (not used by this Ford-only app)
+    J1850Vpw = 16,     // SAE J1850 VPW (not used by this Ford-only app)
     StnCommands = 32,  // ST* command set
     HighUartBaud = 64, // physical UART/USB link where the host baud rate matters
 }
