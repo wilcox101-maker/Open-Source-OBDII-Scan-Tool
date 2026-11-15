@@ -1,9 +1,16 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): reach the full feature set of FORScan for Windows, then go past it where an open tool can.
-This file compares what the app does today (v0.6.1) with FORScan's feature groups, orders the work, and lists the
+This file compares what the app does today (v0.10.0) with FORScan's feature groups, orders the work, and lists the
 decisions only Dale can make. It follows the policy in `PLAN.md`: clean-room, public sources only, no copied FORScan
 data, no proprietary OEM security algorithms.
+
+**Reference tools are not data sources.** FORScan, OBDwiz (OCTech) and the OBD Solutions STN firmware updater are
+installed on Dale's PC as behavior and scope references for parity work only. Their definition databases are packed and
+proprietary, and nothing is extracted from them into this repo. The same applies to commercial scan-tool manuals and
+other copyrighted service documents. A fact known only from one of these is not license-clean; it has to be confirmed
+from a redistributable source or a capture from a real vehicle before it goes into `src/ObdLink.Core/Data/` or
+`community-db/`.
 
 ## Where we are (v0.10.0)
 
@@ -13,7 +20,7 @@ data, no proprietary OEM security algorithms.
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
 | Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); dashboard | Charts; wider Ford DID catalog |
-| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), Mode 6 (06), output state control (2F) |
+| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), output state control (2F) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
@@ -64,9 +71,13 @@ Most of these run UDS routines (31) and many need SecurityAccess (27). See decis
   configuration writes on secured modules for owners who have a provider.
 - **D2. Module programming (firmware flashing / PMI).** High brick risk, needs Ford calibration files and usually 0x27. Recommend: out of scope.
 - **D3. J2534 support.** Opens other adapters (and is how FORScan reaches some functions). Moderate work; not needed for the MX+.
+  Candidate scope (not started): a J2534 v04.04 transport next to the STN/ELM one, so the app can drive genuine VCM II /
+  VCMM units, Mongoose-class devices or a DIY pass-through device. MS-CAN would use J2534-2 pin selection instead of STN commands;
+  `BusRouter` is the seam. Read and As-Built scope only; module flashing stays out (D2). Windows OEM J2534 DLLs are
+  usually 32-bit, so a 64-bit app may need an out-of-process bridge. Background: `docs/vcm-research.md`.
 - **D4. Vehicles beyond the 2017 F-150.** Every added vehicle needs a module table and test captures. Which ones next?
 
 ## Engineering prerequisites (do before phase 3)
-- Move the remaining command logic out of `MainViewModel` (1,300+ lines) into Core services, as v0.6.1 did for As-Built write/restore, so it is testable.
+- Move the remaining command logic out of `MainViewModel` (about 1,460 lines) into Core services, as v0.6.1 did for As-Built write/restore, so it is testable. Started: bus routing is now `ObdLink.Core.Modules.BusRouter` (PR #13), and the live-data catalog and aggregator are in Core (v0.10.0).
 - Replace host-side ISO-TP transmit with STN `STPX` if a bench capture shows the adapter handles flow control itself.
 - Hardware-in-the-loop check list: a bench harness (spare BCM or an ECU simulator) for every write-type feature before it touches the truck.
