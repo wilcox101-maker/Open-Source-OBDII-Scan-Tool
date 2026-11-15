@@ -5,14 +5,14 @@ This file compares what the app does today (v0.6.1) with FORScan's feature group
 decisions only Dale can make. It follows the policy in `PLAN.md`: clean-room, public sources only, no copied FORScan
 data, no proprietary OEM security algorithms.
 
-## Where we are (v0.9.0)
+## Where we are (v0.10.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
 | Connect / adapters | ELM327, OBDLink, J2534 | OBDLink MX+ / EX (STN); plain ELM327 on HS-CAN only | J2534 pass-thru |
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
-| Live data | Hundreds of PIDs per module, charts, logging | OBD-II mode 01 + a small verified Ford DID set on the dashboard, CSV recorder | Per-module PID browser, Ford DID catalog, charting, multi-module logging |
+| Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); dashboard | Charts; wider Ford DID catalog |
 | Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), Mode 6 (06), output state control (2F) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
@@ -33,8 +33,8 @@ release notes. Nothing that writes is called done until it has been verified on 
 5. HS3 bus and 2021+ gateway module table (as a separate, opt-in vehicle). **Open:** needs a 2021+ truck capture to confirm pins and addresses (`community-db/f150-2021plus-asbuilt/module-addresses.json` is a start, unverified).
 
 ### Phase 2: Live data and logging
-1. PID/DID browser per module with a community-maintained, sourced DID catalog (the `ford-enhanced-pids.json` format, extended with module, scaling, confidence).
-2. Multi-signal charts, record/replay, CSV export, triggers.
+1. **Done in v0.10.0:** live-data browser — pick any supported OBD-II PID or Ford enhanced DID, watch it live with running min/max/avg and sample count. Reuses the dashboard's poll engine (services 01/22 only). The enhanced-DID catalog is the editable `ford-enhanced-pids.json`.
+2. CSV export **done in v0.10.0** (per-cycle, base units). Still open: multi-signal **charts**, replay, triggers.
 3. Faster polling: STN batch requests where supported; per-signal rates in `PollScheduler`.
 
 ### Phase 3: Configuration editor (decoded As-Built)

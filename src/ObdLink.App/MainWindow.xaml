@@ -302,6 +302,56 @@
           </DockPanel>
 </Border>
         </TabItem>
+        <TabItem Header="Live Data" Tag="&#xEC4A;" DataContext="{Binding LiveData}">
+          <Border Style="{StaticResource CardStyle}">
+            <DockPanel>
+              <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                <Button Command="{Binding DiscoverCommand}" Margin="0,0,4,0" ToolTip="Read which Mode 01 PIDs this vehicle supports and list them with the Ford enhanced DIDs"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71C;"/><TextBlock Text="List signals"/></StackPanel></Button>
+                <Button Command="{Binding StartCommand}" Margin="0,0,4,0" IsEnabled="{Binding CanEditSelection}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Start"/></StackPanel></Button>
+                <Button Command="{Binding StopCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71A;"/><TextBlock Text="Stop"/></StackPanel></Button>
+                <Button Command="{Binding RecordCommand}" Margin="0,0,4,0" Content="{Binding RecordText}" ToolTip="Write every poll cycle to a CSV in the logs folder (base units)"/>
+                <Button Command="{Binding ResetCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
+              </WrapPanel>
+              <TextBlock DockPanel.Dock="Bottom" Text="{Binding Info}" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Margin="0,6,0,0"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <DockPanel Grid.Column="0" Margin="0,0,8,0">
+                  <DockPanel DockPanel.Dock="Top">
+                    <TextBlock Text="SIGNALS" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                      <Button Command="{Binding SelectAllCommand}" Content="All" Padding="6,1" Margin="0,0,3,0" IsEnabled="{Binding CanEditSelection}"/>
+                      <Button Command="{Binding SelectNoneCommand}" Content="None" Padding="6,1" IsEnabled="{Binding CanEditSelection}"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <ListBox ItemsSource="{Binding Available}" IsEnabled="{Binding CanEditSelection}" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <CheckBox IsChecked="{Binding Selected}" Margin="0,1">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Kind}" Width="48" Foreground="{DynamicResource FgDim}" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Display}" TextWrapping="Wrap"/>
+                          </StackPanel>
+                        </CheckBox>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </DockPanel>
+                <DataGrid Grid.Column="1" ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" FontFamily="{StaticResource Mono}" HeadersVisibility="Column">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Signal" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding Current}" Width="80"/>
+                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="60"/>
+                    <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="70"/>
+                    <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="70"/>
+                    <DataGridTextColumn Header="Avg" Binding="{Binding Avg}" Width="70"/>
+                    <DataGridTextColumn Header="Samples" Binding="{Binding Samples}" Width="70"/>
+                    <DataGridTextColumn Header="Src" Binding="{Binding Kind}" Width="56"/>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </Grid>
+            </DockPanel>
+          </Border>
+        </TabItem>
         <TabItem Header="As-Built" Tag="&#xE9F9;">
           <Border Style="{StaticResource CardStyle}">
           <DockPanel>

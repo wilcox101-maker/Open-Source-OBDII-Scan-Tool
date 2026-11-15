@@ -1,3 +1,22 @@
+## v0.10.0
+
+**Phase 2: live-data browser. Read-only.** Includes v0.9.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.10.0.zip`** (normal Intel/AMD PCs).
+
+New **Live Data** tab:
+- **List signals** reads which OBD-II Mode 01 PIDs the vehicle supports and lists them alongside the Ford enhanced (Mode 22) DIDs from the editable table. Unverified DIDs are labelled.
+- Tick any set of signals and **Start**: each is polled live with current value, running **min / max / average** and a sample count. The poll engine is the same one the dashboard uses, so only services 01 and 22 are ever sent.
+- **Record CSV** writes every poll cycle (base units) to the logs folder; **Reset min/max** clears the stats.
+- Polling shares the adapter with other commands (it yields whenever a command needs the bus) and stops on disconnect.
+
+Internal: the live-data catalog and the per-signal aggregator are in Core (`LiveSignal`, `LiveReadings`) with unit tests; the view model only drives them.
+
+### Windows + truck verify
+1. DEMO: Live Data → List signals shows OBD-II PIDs (rpm, coolant...) plus the Ford DIDs. Tick a few, Start: values update, min/max/avg fill in. Record CSV writes a file in the logs folder; Stop saves it.
+2. Truck: List signals, tick rpm / speed / coolant / MAF and a couple of enhanced DIDs, Start, and compare the live values and min/max against FORScan's gauges while driving.
+3. Adapter traffic during live data shows only 01 and 22 requests.
+
 ## v0.9.0
 
 **Phase 1 continued: Mode 6 and module identification. Read-only.** Includes v0.8.0, v0.7.0 and v0.6.1. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
