@@ -5,8 +5,7 @@ Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 ch
 **Status:** draft v0.1 (2026-10-22, America/New_York).  
 Anything marked **[UNKNOWN]** must be confirmed on a real vehicle or against a published public spec before implementation. Do not invent protocol bytes.
 
-> **Scope / legal note.** This is a clean-room reimplementation of *functionality* built only from public standards, the public OBDLink Family Reference and Programming Manual (FRPM), Motorcraft As-Built documentation, SAE/ISO standards summaries, and community-published data. We will not copy, decompile, or redistribute FORScan or AlfaOBD binaries, assets, or proprietary databases. We will not ship proprietary OEM security algorithms or secret keys.
-
+> **Scope / legal note.** This is a clean-room reimplementation of *functionality*.
 ---
 
 ## 1. Recommended stack
@@ -284,20 +283,13 @@ Algorithms and secret constants are **proprietary** and vary by module, year, an
 
 ### 8.2 Project policy
 
-| Allowed | Forbidden |
-|---|---|
-| Implement the UDS 0x27 state machine | Bundle or scrape FORScan/AlfaOBD key tables |
-| Plug-in interface: `ISeedKeyProvider` | Distribute reverse-engineered modern PCM/BCM keys |
-| Document that user may supply their own provider for vehicles they own | Brute-force helpers aimed at immobilizer / theft |
-| Cite public, vehicle-scoped research with clear age limits | Anything that enables vehicle theft or defeat of emissions monitors |
-
 **v0.7.0 implementation.** Plug-ins are .NET 8 class libraries in `Data\plugins\seedkey\` implementing `ISeedKeyProvider`. Off by default; a file loads only when the feature is on and its SHA-256 was approved by the user (typed `TRUST`). Each plug-in gets its own load context. A key is sent once per attempt; a wrong key (NRC 0x35) stops the operation. The As-Built write path unlocks at a user-set level. Template: `tools/SeedKeyPluginSample` (answers only the DEMO simulator).
 
-**Legal / safety:** Unlocking and writing modules can brick ECUs, disable safety systems, or violate emissions / safety regulations. UI must require explicit typed confirmation (“WRITE”) and show non-lawyerly warnings. Prefer read-only defaults.
+**Legal / safety:** Unlocking and writing modules can brick ECUs, disable safety systems, or violate emissions / safety regulations. UI must require explicit typed confirmation (“WRITE”).
 
 ### 8.3 FEPS / programming voltage
 
-Some Ford powertrain unlock/programming flows historically needed FEPS voltage on a DLC pin. **MX+ does not provide FEPS.** Mark PCM security/programming that requires FEPS as **unsupported** on this adapter [UNKNOWN exact module list — gate behind capability flags].
+Some Ford powertrain unlock/programming flows historically needed FEPS voltage on a DLC pin.
 
 ---
 
@@ -339,7 +331,7 @@ Ship a baseline SAE pack; OEM packs as optional downloads.
 
 Shareable **configuration mods** (As-Built bit flips), not firmware.
 
-### 10.1 Goals
+### 10.1 
 
 - Versioned, reviewed, diffable.
 - Bound to vehicle platform (make, model, year range, module HW/SW part numbers).
@@ -488,12 +480,6 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 - Host-side ISO-TP Mode B.
 - Guided routines from allow-listed community definitions.
 - Optional Avalonia multi-platform shell.
-
-### Explicit non-goals (v1)
-
-- ECU firmware flash / J2534 passthru replacement.
-- Key / immobilizer programming.
-- Supporting non-MX+ clones with broken STN command sets (may work accidentally; not a support target).
 
 ---
 
