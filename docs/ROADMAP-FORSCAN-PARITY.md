@@ -63,20 +63,6 @@ Most of these run UDS routines (31) and many need SecurityAccess (27). See decis
 - Simulator-first development: every feature runs against `SimulatedAdapter` and replayed real captures, so contributors don't need a truck.
 - No license server and no time-limited keys.
 
-## Decisions for Dale
-
-- **D1. Security access (0x27). DECIDED 2026-11-15: yes, through user-supplied plug-ins.** v0.7.0 ships the loader
-  (off by default, approve by SHA-256, typed TRUST), As-Built unlock at a set level, and a template. The project still
-  ships no algorithms or keys; whoever installs a plug-in is responsible for where it came from. This unblocks phase 4 and
-  configuration writes on secured modules for owners who have a provider.
-- **D2. Module programming (firmware flashing / PMI).** High brick risk, needs Ford calibration files and usually 0x27. Recommend: out of scope.
-- **D3. J2534 support.** Opens other adapters (and is how FORScan reaches some functions). Moderate work; not needed for the MX+.
-  Candidate scope (not started): a J2534 v04.04 transport next to the STN/ELM one, so the app can drive genuine VCM II /
-  VCMM units, Mongoose-class devices or a DIY pass-through device. MS-CAN would use J2534-2 pin selection instead of STN commands;
-  `BusRouter` is the seam. Read and As-Built scope only; module flashing stays out (D2). Windows OEM J2534 DLLs are
-  usually 32-bit, so a 64-bit app may need an out-of-process bridge. Background: `docs/vcm-research.md`.
-- **D4. Vehicles beyond the 2017 F-150.** Every added vehicle needs a module table and test captures. Which ones next?
-
 ## Engineering prerequisites (do before phase 3)
 - Move the remaining command logic out of `MainViewModel` (about 1,460 lines) into Core services, as v0.6.1 did for As-Built write/restore, so it is testable. Started: bus routing is now `ObdLink.Core.Modules.BusRouter` (PR #13), and the live-data catalog and aggregator are in Core (v0.10.0).
 - Replace host-side ISO-TP transmit with STN `STPX` if a bench capture shows the adapter handles flow control itself.
