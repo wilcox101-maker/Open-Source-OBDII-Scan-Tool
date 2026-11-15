@@ -4,17 +4,17 @@ A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. The app is
 
 > ⚠ Writing module configuration can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
 
-## Status (v0.9.0 on master, 2026-11-15)
-- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs. Details: `docs/RELEASE-NOTES.md`.
+## Status (v0.10.0 on master, 2026-11-15)
+- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22). Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
 - **Not yet verified on the truck** since v0.6.0: every version from v0.6.1 on is built and unit-tested on Windows and Linux by CI only. Run each version's "Windows + truck verify" list before tagging a release.
 - **Latest tagged release:** v0.6.0.
-- **Next:** Phase 2 (per-module live data browser, charts, logging). Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
+- **Next:** Phase 2 charts (live signals over time) and replay. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
 
 ## Layout
 ```
 ObdLink.sln
-src/ObdLink.Core          transport, ELM/STN, ISO-TP, UDS, OBD-II (incl. Mode 6), modules, As-Built, DTCs, safety, seed/key plug-in loader, logging
-src/ObdLink.App           WPF UI (net8.0-windows): connect, vehicle + module IDs, modules, DTCs, As-Built grid, dashboard, console, settings, log
+src/ObdLink.Core          transport, ELM/STN, ISO-TP, UDS, OBD-II (incl. Mode 6), modules + bus routing, As-Built, DTCs, live data, safety, seed/key plug-in loader, logging
+src/ObdLink.App           WPF UI (net8.0-windows): connect, vehicle + module IDs, modules, DTCs, As-Built grid, live data, dashboard, console, settings, log
 tests/ObdLink.Core.Tests  xUnit tests against SimulatedAdapter (no hardware needed)
 tools/AbTool              command-line .ab/.abt helper
 tools/SeedKeyPluginSample template for a user-supplied seed/key plug-in (answers the DEMO simulator only)
