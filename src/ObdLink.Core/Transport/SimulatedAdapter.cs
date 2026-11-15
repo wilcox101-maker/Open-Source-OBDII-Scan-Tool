@@ -136,12 +136,12 @@ public sealed class SimulatedAdapter
         byte[] resp = r[0] switch
         {
             0x3E => new byte[] { 0x7E, 0x00 },
-            0x10 => new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 },
+            0x10 => SessionControl(tx, r),
             0x11 => new byte[] { 0x51, r[1] },
             0x14 => new byte[] { 0x54 },
             0x19 => UdsDtcs.TryGetValue(tx, out var dl) ? new byte[] { 0x59, 0x02, 0xFF }.Concat(dl.SelectMany(d => new[] { (byte)(d.Dtc >> 16), (byte)(d.Dtc >> 8), (byte)d.Dtc, d.Status })).ToArray()
                                                      : new byte[] { 0x59, 0x02, 0xFF, 0x91, 0x23, 0x45, 0x2F },
-            0x27 => r[1] % 2 == 1 ? new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 } : new byte[] { 0x67, r[1] },
+            0x27 => SecurityAccess(tx, r),
             0x1A => new byte[] { 0x7F, 0x1A, 0x11 },
             0x22 => Read(tx, (ushort)(r[1] << 8 | r[2])),
             0x2E => Write(tx, (ushort)(r[1] << 8 | r[2]), r[3..]),
@@ -179,8 +179,23 @@ public sealed class SimulatedAdapter
     private byte[] Oss() { var raw = (ushort)Math.Round(OssRpm(DriveCycle.At(Clock()).SpeedKmh) * 4); return new byte[] { 0x62, 0x1E, 0x13, (byte)(raw >> 8), (byte)raw }; }
     private byte[] Tft() { var raw = (short)Math.Round(DriveCycle.At(Clock()).TftC * 16); return new byte[] { 0x62, 0x1E, 0x1C, (byte)(raw >> 8), (byte)raw }; }
 
+    /// <summary>SYNTHETIC SecurityAccess: seed 11 22 33; the accepted key is the seed reversed (33 22 11). A wrong key gives NRC 0x35.</summary>
+    private byte[] SecurityAccess(uint tx, byte[] r)
+    {
+        if (r.Length < 2) return new byte[] { 0x7F, 0x27, 0x13 };
+        if (r[1] % 2 == 1) return new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
+        if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { _unlocked.Add(tx); return new byte[] { 0x67, r[1] }; }
+        return new byte[] { 0x7F, 0x27, 0x35 };
+    }
+    private readonly HashSet<uint> _unlocked = new();
+    /// <summary>A session change re-locks the module, as on real ECUs.</summary>
+    private byte[] SessionControl(uint tx, byte[] r) { _unlocked.Remove(tx); return new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 }; }
+    /// <summary>Modules whose 0x2E answers NRC 0x33 (securityAccessDenied) until unlocked with 0x27.</summary>
+    public HashSet<uint> SecuredModules { get; } = new();
+
     private byte[] Write(uint tx, ushort did, byte[] data)
     {
+        if (SecuredModules.Contains(tx) && !_unlocked.Contains(tx)) return new byte[] { 0x7F, 0x2E, 0x33 };
         if (WriteReply == SimWriteReply.RejectNotStored) return new byte[] { 0x7F, 0x2E, 0x22 };
         if (!Dids.TryGetValue(tx, out var d)) Dids[tx] = d = new();
         if (CorruptWrites) { data = (byte[])data.Clone(); data[0] ^= 0xFF; }

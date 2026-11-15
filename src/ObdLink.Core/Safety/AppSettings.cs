@@ -40,6 +40,8 @@ public sealed class AppSettings
     public bool SimulatorEnabled { get; set; } = true;
     /// <summary>v0.5.0: CAN bus a real module answered on, keyed by transmitter id ("720" = HS-CAN2). Demo sessions do not write this.</summary>
     public Dictionary<string, string> ModuleBuses { get; set; } = new();
+    /// <summary>v0.7.0: user-supplied SecurityAccess plug-ins (off by default; only approved hashes load).</summary>
+    public ObdLink.Core.Security.SeedKeyOptions SeedKey { get; set; } = new();
 
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
     public static AppSettings Load(string path)
@@ -60,6 +62,7 @@ public sealed class AppSettings
     public AppSettings Normalize()
     {
         Discovery ??= new(); Units ??= new(); Adapter ??= new(); Dashboard ??= new();
+        SeedKey = (SeedKey ?? new()).Normalize();
         Dashboard.Gauges ??= DashboardOptions.DefaultGauges.ToList();
         Dashboard.Layouts ??= new();
         Dashboard.Layouts.RemoveAll(l => l is null || string.IsNullOrWhiteSpace(l.Name));

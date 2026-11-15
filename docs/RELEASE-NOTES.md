@@ -1,3 +1,25 @@
+## v0.7.0
+
+**Includes every v0.6.1 fix below.** Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only. Portable, no installer. Read-only is the default at every start.
+
+**Download `ObdLinkApp-win-x64-v0.7.0.zip`** (normal Intel/AMD PCs).
+
+**Security access (seed/key) plug-ins.** Some modules only accept writes after UDS SecurityAccess (0x27). The app still ships **no** algorithms or keys. You can now add your own:
+- Settings → **Security access (seed/key)** → **Use seed/key plug-ins** (off by default; turning it on asks first).
+- **Add plug-in…** picks a .NET 8 `.dll` that implements `ISeedKeyProvider`, shows its SHA-256, and asks you to type `TRUST`. It is copied to `Data\plugins\seedkey\`. A file whose hash you did not approve is listed but never loaded; rebuilding a plug-in changes its hash, so approve it again.
+- **As-Built level** (odd hex, e.g. `01` or `03`): unlock before As-Built writes. Empty = never unlock.
+- A wrong key is sent once and stops the write (NRC 0x35); nothing is written. A module that says "security access required" (NRC 0x33) now tells you what to set.
+- Template: `tools/SeedKeyPluginSample` (it only answers the DEMO simulator, never a real module).
+
+A plug-in runs inside the app with your user's rights. Only approve code you built or trust.
+
+### Windows verify
+1. Settings: the Security access card shows "Off. No plug-in is loaded." Turn it on: a warning asks first. Turn it off and on again.
+2. Build `tools/SeedKeyPluginSample` (`dotnet build -c Release`), Add plug-in…, type TRUST. Status lists `DemoSeedKeyProvider`. Restart: still loaded.
+3. Append a byte to the copied dll in `Data\plugins\seedkey\`, press Reload: listed as not approved, nothing loaded.
+4. As-Built level: type `02`: refused (log warning), value unchanged. Type `01`: kept after restart.
+5. DEMO: with level 01 and the sample loaded, write BCM block 01: succeeds; Adapter traffic shows `2701` then `2702332211` before `2E`.
+
 ## v0.6.1
 
 **Write-safety release from the 2026-11-15 code audit.** Built and unit-tested on Linux and by GitHub Actions on Windows (`windows-latest`); not yet run by hand on Windows or on the truck. The exe is still **unsigned**. Ford products only. Portable, no installer. Read-only is the default at every start.

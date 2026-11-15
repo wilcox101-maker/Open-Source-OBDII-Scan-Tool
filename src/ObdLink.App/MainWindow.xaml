@@ -415,6 +415,20 @@
                     </DockPanel>
                   </StackPanel>
                 </Border>
+                <Border Style="{StaticResource CardStyle}" Width="520">
+                  <StackPanel>
+                    <TextBlock Text="SECURITY ACCESS (SEED/KEY)" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource FgDim}" Text="Some modules only accept writes after SecurityAccess (0x27). This app ships no algorithms or keys. A plug-in (.NET 8 .dll implementing ISeedKeyProvider) that you add and approve by SHA-256 can supply them. Plug-ins run with the app's full rights."/>
+                    <CheckBox Content="Use seed/key plug-ins" IsChecked="{Binding SeedKeyEnabled}" FontWeight="SemiBold" Margin="0,4"/>
+                    <DockPanel><TextBlock Text="As-Built level" Width="110" VerticalAlignment="Center"/><TextBox Width="60" HorizontalAlignment="Left" Text="{Binding SeedKeyAsBuiltLevel, UpdateSourceTrigger=LostFocus}" ToolTip="Odd hex level (e.g. 01 or 03) requested before As-Built writes. Empty = never unlock."/></DockPanel>
+                    <WrapPanel Margin="0,4">
+                      <Button Command="{Binding AddSeedKeyPluginCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE710;"/><TextBlock Text="Add plug-in…"/></StackPanel></Button>
+                      <Button Command="{Binding ReloadSeedKeyPluginsCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Reload"/></StackPanel></Button>
+                      <Button Command="{Binding OpenSeedKeyFolderCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open folder"/></StackPanel></Button>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding SeedKeyStatus}" TextWrapping="Wrap" FontFamily="{StaticResource Mono}" FontSize="11"/>
+                  </StackPanel>
+                </Border>
                 <Border Style="{StaticResource CardStyle}" Width="340">
                   <StackPanel>
                     <TextBlock Text="APPEARANCE" Style="{StaticResource SectionTitle}"/>

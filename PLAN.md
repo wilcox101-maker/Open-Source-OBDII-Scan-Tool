@@ -291,6 +291,8 @@ Algorithms and secret constants are **proprietary** and vary by module, year, an
 | Document that user may supply their own provider for vehicles they own | Brute-force helpers aimed at immobilizer / theft |
 | Cite public, vehicle-scoped research with clear age limits | Anything that enables vehicle theft or defeat of emissions monitors |
 
+**v0.7.0 implementation.** Plug-ins are .NET 8 class libraries in `Data\plugins\seedkey\` implementing `ISeedKeyProvider`. Off by default; a file loads only when the feature is on and its SHA-256 was approved by the user (typed `TRUST`). Each plug-in gets its own load context. A key is sent once per attempt; a wrong key (NRC 0x35) stops the operation. The As-Built write path unlocks at a user-set level. Template: `tools/SeedKeyPluginSample` (answers only the DEMO simulator).
+
 **Legal / safety:** Unlocking and writing modules can brick ECUs, disable safety systems, or violate emissions / safety regulations. UI must require explicit typed confirmation (“WRITE”) and show non-lawyerly warnings. Prefer read-only defaults.
 
 ### 8.3 FEPS / programming voltage
