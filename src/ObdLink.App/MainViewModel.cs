@@ -193,6 +193,7 @@ public sealed class MainViewModel : ObservableObject
     private string _tab = "Modules"; public string SelectedTab { get => _tab; set { if (value == "Dashboard") value = "Modules"; if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) { EventLog.UserAction("Tab changed", ("tab", value)); SyncDashboard(); } } }
     private readonly SemaphoreSlim _bus = new(1, 1);
     public DashboardViewModel Dashboard { get; }
+    public LiveDataViewModel LiveData { get; }
     private void SyncDashboard() => Dashboard?.Update(Dashboard.WindowOpen, IsConnected && _ch != null);
     public RelayCommand OpenDashboardCommand { get; }
     public event Action? DashboardOpenRequested;
@@ -493,6 +494,7 @@ public sealed class MainViewModel : ObservableObject
         try { ThemeManager.Apply(_settings.Theme); }
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
+        LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         InitSeedKey(Err);
@@ -845,6 +847,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task DisconnectAsync()
     {
+        LiveData.Stop();
         if (_session != null) await _session.Link.DisposeAsync();
         _session = null; _ch = null; _console = null; _asBuilt = null; _router = null;
         Connection = ConnectionStatus.Disconnected; Baud = ""; MsCanAvailable = false;
