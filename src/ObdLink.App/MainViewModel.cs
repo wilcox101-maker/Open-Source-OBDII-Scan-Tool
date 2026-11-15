@@ -77,7 +77,17 @@ public sealed class AsBuiltRow : ObservableObject
     public AsBuiltEditLine ToEdit() => new(Addr, Data, EnteredChecksum);
 }
 
-public sealed record DtcRow(string Source, string Code, string Status, string Description);
+public sealed record DtcRow(string Source, string Code, string Status, string Description)
+{
+    /// <summary>v0.8.0: plain-English status (confirmed / pending / history, failing now, lamp).</summary>
+    public string State { get; init; } = "";
+    /// <summary>Module transmit id for UDS DTCs (null for OBD-II rows). Hidden from the grid; used by Details.</summary>
+    [System.ComponentModel.Browsable(false)] public uint? ModuleTx { get; init; }
+    [System.ComponentModel.Browsable(false)] public uint? RawDtc { get; init; }
+    [System.ComponentModel.Browsable(false)] public byte RawStatus { get; init; }
+    public static DtcRow FromUds(string label, uint tx, ObdLink.Core.Uds.DtcRecord d, string description) =>
+        new(label, d.Display, $"0x{d.Status:X2}", description) { State = ObdLink.Core.Dtc.DtcStatusBits.Summary(d.Status), ModuleTx = tx, RawDtc = d.Code, RawStatus = d.Status };
+}
 
 public sealed class MainViewModel : ObservableObject
 {
@@ -105,6 +115,20 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ModuleRow> Modules { get; } = new();
     public ObservableCollection<DtcRow> Dtcs { get; } = new();
     public ObservableCollection<AsBuiltRow> AsBuiltRows { get; } = new();
+    public AsyncCommand ReadPendingDtcsCommand { get; private set; } = null!;
+    public AsyncCommand ReadPermanentDtcsCommand { get; private set; } = null!;
+    public AsyncCommand ReadFreezeFrameCommand { get; private set; } = null!;
+    public AsyncCommand DtcDetailsCommand { get; private set; } = null!;
+    private DtcRow? _selectedDtc; public DtcRow? SelectedDtc { get => _selectedDtc; set => Set(ref _selectedDtc, value); }
+
+    private async Task ReadObdListAsync(byte service, string label)
+    {
+        if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol();
+        Dtcs.Clear();
+        foreach (var (ecu, code) in await ObdLink.Core.Dtc.ObdDtcExtras.ReadListAsync(Ch, service))
+            Dtcs.Add(new($"{ecu:X3}", code, label, _dtcDb.Describe(code)) { State = label });
+        EventLog.Message(LogEventLevel.Information, $"Read {label} DTCs", $"{Dtcs.Count} DTCs");
+    }
     /// <summary>Factory reference baseline (Ford motorcraftservice.com .ab). Read-only reference. It is never written to a module automatically.</summary>
     private FordAbFile? _factory;
     private string _factoryInfo = "No factory .ab loaded"; public string FactoryInfo { get => _factoryInfo; set => Set(ref _factoryInfo, value); }
@@ -475,15 +499,37 @@ public sealed class MainViewModel : ObservableObject
             var hits = await new DiscoverySweep(_session, Ch).RunAsync(_settings.Discovery, new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Discovery", m)));
             EventLog.Message(LogEventLevel.Information, "Discovery", $"Done: {hits.Select(h => h.RequestId).Distinct().Count()} responding IDs\n{DiscoverySweep.Summarize(hits)}");
         }, () => new (string, object?)[] { ("from", DiscoveryStart), ("to", DiscoveryEnd) });
-        ReadObdDtcsCommand = C("Read OBD-II DTCs", async () => { Dtcs.Clear(); foreach (var (ecu, code) in await new ObdService(Ch).ReadStoredDtcsAsync()) Dtcs.Add(new($"{ecu:X3}", code, "stored", _dtcDb.Describe(code))); EventLog.Message(LogEventLevel.Information, "Read OBD-II DTCs", $"{Dtcs.Count} DTCs"); });
+        ReadObdDtcsCommand = C("Read OBD-II DTCs", async () => { Dtcs.Clear(); foreach (var (ecu, code) in await new ObdService(Ch).ReadStoredDtcsAsync()) Dtcs.Add(new($"{ecu:X3}", code, "stored", _dtcDb.Describe(code)) { State = "stored (03)" }); EventLog.Message(LogEventLevel.Information, "Read OBD-II DTCs", $"{Dtcs.Count} DTCs"); });
         ReadModuleDtcsCommand = C("Read module DTCs", async () =>
         {
             if (await EnsureModuleAsync(false) is not { } m) return;
             Dtcs.Clear();
-            await OnBus(m, async () => { foreach (var d in await new UdsClient(Ch, (ushort)m.Def.TxId).ReadDtcsByStatusAsync()) Dtcs.Add(new(m.Label, d.Display, $"0x{d.Status:X2}", _dtcDb.Describe(d.Display))); });
+            await OnBus(m, async () => { foreach (var d in await new UdsClient(Ch, (ushort)m.Def.TxId).ReadDtcsByStatusAsync()) Dtcs.Add(DtcRow.FromUds(m.Label, m.Def.TxId, d, _dtcDb.Describe(d.Display))); });
             EventLog.Message(LogEventLevel.Information, "Read module DTCs", $"{m.Label}: {Dtcs.Count} DTCs");
         }, Mod);
         ReadAllModuleDtcsCommand = C("Read DTCs from all modules", ReadAllModuleDtcsAsync);
+        // v0.8.0 Phase 1 (read-only): pending / permanent OBD-II DTCs, freeze frame, and UDS DTC details.
+        ReadPendingDtcsCommand = C("Read pending OBD-II DTCs", () => ReadObdListAsync(0x07, "pending (07)"));
+        ReadPermanentDtcsCommand = C("Read permanent OBD-II DTCs", () => ReadObdListAsync(0x0A, "permanent (0A)"));
+        ReadFreezeFrameCommand = C("Read OBD-II freeze frame", async () =>
+        {
+            if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol();
+            var ff = await ObdLink.Core.Dtc.ObdDtcExtras.ReadFreezeFrameAsync(Ch);
+            var text = ff.Count == 0 ? "No ECU returned a freeze frame (mode 02). Nothing is stored, or the ECU does not support it."
+                : string.Join(Environment.NewLine, ff.Select(v => $"ECU 0x{v.Ecu:X3}  PID {v.Pid:X2}  {v.Name}: {v.Value}"));
+            EventLog.Message(LogEventLevel.Information, "Freeze frame", text);
+            Info("Freeze frame (mode 02, frame 0)", text);
+        });
+        DtcDetailsCommand = C("DTC details", async () =>
+        {
+            if (SelectedDtc is not { ModuleTx: uint tx, RawDtc: uint raw } row) throw new InvalidOperationException("Select a module DTC (read with 19 02) first. OBD-II rows have no UDS details; use Freeze frame.");
+            var m = Modules.FirstOrDefault(r => r.Def.TxId == tx) ?? throw new InvalidOperationException($"Module 0x{tx:X3} is not in the module list.");
+            ObdLink.Core.Dtc.DtcDetail d = null!;
+            await OnBus(m, async () => d = await new ObdLink.Core.Dtc.UdsDtcReader(new UdsClient(Ch, (ushort)tx)).DetailAsync(raw, row.RawStatus));
+            var text = $"{row.Source}{Environment.NewLine}{_dtcDb.Describe(row.Code)}{Environment.NewLine}{Environment.NewLine}" + ObdLink.Core.Dtc.UdsDtcReader.Format(row.Code, d);
+            EventLog.Message(LogEventLevel.Information, "DTC details", text);
+            Info($"DTC {row.Code} details", text);
+        });
         ReadAllBlocksCommand = C("Read all As-Built blocks", ReadAllBlocksAsync, Mod, AsBuiltCan);
         ReadAllModulesAsBuiltCommand = C("Back up As-Built of all modules", ReadAllModulesAsBuiltAsync);
         CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Canceling after the current module…"; });
@@ -1371,7 +1417,7 @@ public sealed class MainViewModel : ObservableObject
         {
             List<DtcRecord> list = new();
             await OnBus(m, async () => list = await new UdsClient(Ch, (ushort)m.Def.TxId).ReadDtcsByStatusAsync(ct: ct));
-            foreach (var d in list) Dtcs.Add(new(m.Label, d.Display, $"0x{d.Status:X2}", _dtcDb.Describe(d.Display)));
+            foreach (var d in list) Dtcs.Add(DtcRow.FromUds(m.Label, m.Def.TxId, d, _dtcDb.Describe(d.Display)));
             return new BatchItemResult(m.Def, true, $"{list.Count} DTC(s)");
         });
         if (res.Count == 0) return;

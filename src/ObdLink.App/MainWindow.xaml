@@ -277,8 +277,12 @@
           <DockPanel>
             <WrapPanel DockPanel.Dock="Top">
               <Button Command="{Binding ReadObdDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read OBD-II DTCs (03)"/></StackPanel></Button>
+              <Button Command="{Binding ReadPendingDtcsCommand}" ToolTip="OBD-II mode 07: DTCs detected this or last drive cycle, not yet confirmed (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Pending (07)"/></StackPanel></Button>
+              <Button Command="{Binding ReadPermanentDtcsCommand}" ToolTip="OBD-II mode 0A: permanent DTCs that clear only after the monitor passes (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Permanent (0A)"/></StackPanel></Button>
+              <Button Command="{Binding ReadFreezeFrameCommand}" ToolTip="OBD-II mode 02 frame 0: the DTC that stored it and the decoded sensor values (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE722;"/><TextBlock Text="Freeze frame (02)"/></StackPanel></Button>
               <Button Command="{Binding ReadModuleDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read module DTCs (19 02)"/></StackPanel></Button>
               <Button Command="{Binding ReadAllModuleDtcsCommand}" ToolTip="Reads 19 02 from every module that answered the scan (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read all modules"/></StackPanel></Button>
+              <Button Command="{Binding DtcDetailsCommand}" ToolTip="Status bits, freeze-frame (19 04) and extended data (19 06) for the selected module DTC (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE946;"/><TextBlock Text="Details…"/></StackPanel></Button>
               <Button Command="{Binding ClearModuleDtcsCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Clears stored DTCs. Asks for confirmation; blocked in read-only mode"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Clear module DTCs (14)…"/></StackPanel></Button>
               <Button Command="{Binding ReadVinCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8EC;"/><TextBlock Text="Read VIN (09 02)"/></StackPanel></Button>
             </WrapPanel>
@@ -293,7 +297,7 @@
             </DockPanel>
             <TextBlock DockPanel.Dock="Top" Margin="4,0,4,2" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="{Binding BatchText}"/>
 
-            <DataGrid ItemsSource="{Binding Dtcs}" AutoGenerateColumns="True" IsReadOnly="True"/>
+            <DataGrid ItemsSource="{Binding Dtcs}" SelectedItem="{Binding SelectedDtc}" AutoGenerateColumns="True" IsReadOnly="True"/>
           </DockPanel>
 </Border>
         </TabItem>

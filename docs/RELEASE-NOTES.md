@@ -1,3 +1,21 @@
+## v0.8.0
+
+**Phase 1 of the FORScan roadmap: DTC detail. Every new function is read-only.** Includes v0.7.0 and v0.6.1. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.8.0.zip`** (normal Intel/AMD PCs).
+
+DTCs page:
+- **State** column for module DTCs: confirmed / pending / history, failing now, lamp (from the ISO 14229 status byte).
+- **Details…** for a selected module DTC: all 8 status bits named, freeze-frame (snapshot) records (19 03 → 19 04) and extended data (19 06). Layouts are module-specific, so values are shown raw; a record with one identifier shows its DID.
+- **Pending (07)** and **Permanent (0A)** OBD-II DTCs.
+- **Freeze frame (02)**: the DTC that stored frame 0 and every supported Mode 01 value the app can decode.
+
+### Windows + truck verify
+1. DEMO: Read module DTCs on the BCM: State shows "confirmed, failing now". Details…: bit 3 confirmedDTC ticked, one snapshot record with DID 0xDD00, extended record 01.
+2. DEMO: Pending shows P0171, Permanent shows P0301, Freeze frame shows P0301 with 1000 rpm and 50 °C.
+3. Truck (read-only): Read all modules, open Details on two DTCs, and compare the status with FORScan. Freeze frame against FORScan's freeze frame for the same code.
+4. Adapter traffic during all of the above shows only 01/02/03/07/0A/19/22/3E/10 requests, never 04 or 14.
+
 ## v0.7.0
 
 **Includes every v0.6.1 fix below.** Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only. Portable, no installer. Read-only is the default at every start.
