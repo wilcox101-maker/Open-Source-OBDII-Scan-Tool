@@ -1,3 +1,18 @@
+## v0.9.0
+
+**Phase 1 continued: Mode 6 and module identification. Read-only.** Includes v0.8.0, v0.7.0 and v0.6.1. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.9.0.zip`** (normal Intel/AMD PCs).
+
+- **Mode 6 tests (06)** on the DTCs page: every supported monitor (OBDMID) from every ECU, grouped by monitor, with value, limits and PASS/FAIL. Pass/fail compares the raw numbers, so it is right even when a unit is not in the table; known units use the SAE J1979 scaling (unknown ones are shown raw with their UASID). Ford's own tests (TID 0x80+) are labeled "Manufacturer test".
+- **Module identification** grid on the Vehicle page: bus, address, module, software (F188), core assembly (F111), assembly (F113), calibration (F124), serial (F18C) and As-Built, from Identify vehicle. **Export CSV…** saves to `Data\exports`; serial numbers are blanked unless you choose to keep them.
+
+### Windows + truck verify
+1. DEMO: Mode 6 shows 4 tests, 1 FAIL, including "Catalyst bank 1 (MID 21)" with 0.25 :1.
+2. DEMO: Identify vehicle, then the Vehicle page grid lists the modules; Export CSV with No: serials read REDACTED.
+3. Truck: Mode 6 next to FORScan's Mode 6 page. Every MID/TID and PASS/FAIL should match; note any value whose scaling differs (that UASID needs a fix).
+4. Truck: Identify vehicle, compare the grid's F188 values with FORScan's module info.
+
 ## v0.8.0
 
 **Phase 1 of the FORScan roadmap: DTC detail. Every new function is read-only.** Includes v0.7.0 and v0.6.1. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

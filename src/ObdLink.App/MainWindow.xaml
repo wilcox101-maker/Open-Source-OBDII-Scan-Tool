@@ -282,6 +282,7 @@
               <Button Command="{Binding ReadFreezeFrameCommand}" ToolTip="OBD-II mode 02 frame 0: the DTC that stored it and the decoded sensor values (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE722;"/><TextBlock Text="Freeze frame (02)"/></StackPanel></Button>
               <Button Command="{Binding ReadModuleDtcsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read module DTCs (19 02)"/></StackPanel></Button>
               <Button Command="{Binding ReadAllModuleDtcsCommand}" ToolTip="Reads 19 02 from every module that answered the scan (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read all modules"/></StackPanel></Button>
+              <Button Command="{Binding ReadMode6Command}" ToolTip="OBD-II service 06: on-board monitor test results with limits and pass/fail (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9D9;"/><TextBlock Text="Mode 6 tests (06)"/></StackPanel></Button>
               <Button Command="{Binding DtcDetailsCommand}" ToolTip="Status bits, freeze-frame (19 04) and extended data (19 06) for the selected module DTC (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE946;"/><TextBlock Text="Details…"/></StackPanel></Button>
               <Button Command="{Binding ClearModuleDtcsCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Clears stored DTCs. Asks for confirmation; blocked in read-only mode"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Clear module DTCs (14)…"/></StackPanel></Button>
               <Button Command="{Binding ReadVinCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8EC;"/><TextBlock Text="Read VIN (09 02)"/></StackPanel></Button>
@@ -362,6 +363,13 @@
               <Button Command="{Binding OpenMotorcraftCommand}" ToolTip="Opens motorcraftservice.com/AsBuilt in your browser and copies the VIN to the clipboard. Ford requires sign-in and a captcha, so the app cannot download it for you."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Get factory As-Built (Motorcraft)…"/></StackPanel></Button>
               <Button Command="{Binding ImportVehicleAbCommand}" ToolTip="Import the downloaded .ab; it is copied to Data\asbuilt and linked to this vehicle profile"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import downloaded .ab…"/></StackPanel></Button>
             </WrapPanel>
+            <DockPanel DockPanel.Dock="Bottom" Height="260" Margin="0,6,0,0">
+              <DockPanel DockPanel.Dock="Top">
+                <Button DockPanel.Dock="Right" Command="{Binding ExportModuleIdsCommand}" ToolTip="Saves the module list to Data\exports as CSV; serial numbers are blanked unless you keep them"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74E;"/><TextBlock Text="Export CSV…"/></StackPanel></Button>
+                <TextBlock Text="MODULE IDENTIFICATION" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+              </DockPanel>
+              <DataGrid ItemsSource="{Binding ModuleIds}" AutoGenerateColumns="True" IsReadOnly="True" FontFamily="{StaticResource Mono}"/>
+            </DockPanel>
             <TextBox Text="{Binding VehicleInfo, Mode=OneWay}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="{StaticResource Mono}"/>
           </DockPanel>
 </Border>
