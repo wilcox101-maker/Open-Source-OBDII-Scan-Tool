@@ -355,7 +355,38 @@ public sealed class MainViewModel : ObservableObject
     // ---- Identify vehicle / saved vehicle profiles (v0.1.5) ----
     private readonly Dictionary<string, VehicleProfile> _profiles = new();
     private VehicleProfile? _current;
-    private string _vehInfo = "No vehicle identified yet. Connect, then click Identify vehicle (read-only)."; public string VehicleInfo { get => _vehInfo; set => Set(ref _vehInfo, value); }
+    private string _vehInfo = "No vehicle identified yet. Connect, then click Identify vehicle (read-only)."; public string VehicleInfo { get => _vehInfo; set { Set(ref _vehInfo, value); RefreshModuleIds(); } }
+
+    // ---------------- v0.9.0 Phase 1: module identification grid + Mode 6 ----------------
+    public ObservableCollection<ModuleIdRow> ModuleIds { get; } = new();
+    private void RefreshModuleIds()
+    {
+        ModuleIds.Clear();
+        if (_current is null) return;
+        foreach (var r in ObdLink.Core.Vehicles.ModuleIds.FromProfile(_current)) ModuleIds.Add(r);
+    }
+    public RelayCommand ExportModuleIdsCommand { get; private set; } = null!;
+    public AsyncCommand ReadMode6Command { get; private set; } = null!;
+
+    private void InitPhase1(Action<string, Exception> Err, Func<string, Func<Task>, AsyncCommand> c)
+    {
+        ExportModuleIdsCommand = new RelayCommand("Export module IDs", EventLog, _ =>
+        {
+            if (ModuleIds.Count == 0) { Info("Export module IDs", "Identify the vehicle first (Vehicle page)."); return; }
+            var f = SaveFile("Module IDs", "CSV|*.csv", $"modules-{(_current is null ? "vehicle" : SafePaths.Token(_current.VinRedacted))}.csv", Paths.ExportsDir);
+            var redact = !Ask("Export module IDs", "Keep module serial numbers (F18C) in the file? Choose No to blank them (recommended if you will share it).");
+            File.WriteAllText(f, ObdLink.Core.Vehicles.ModuleIds.Csv(ModuleIds, redact));
+            EventLog.Message(LogEventLevel.Information, "Export module IDs", $"Saved {f} ({ModuleIds.Count} modules, serials {(redact ? "blanked" : "kept")})");
+        });
+        ReadMode6Command = c("Read Mode 6 test results", async () =>
+        {
+            if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol();
+            var res = await Mode6.ReadAllAsync(Ch, new Progress<string>(m => EventLog.Message(LogEventLevel.Debug, "Mode 6", m)));
+            var text = Mode6.Report(res);
+            EventLog.Message(res.Any(r => !r.Pass) ? LogEventLevel.Warning : LogEventLevel.Information, "Mode 6", text);
+            Info("Mode 6 test results (06)", text);
+        });
+    }
     public bool OnlineVinDecode { get => _settings.OnlineVinDecode; set { _settings.OnlineVinDecode = value; SaveSettings(); EventLog.UserAction("Online VIN decode (NHTSA vPIC) toggled", ("on", value)); OnPropertyChanged(); } }
     private void LoadSavedProfiles()
     {
@@ -520,6 +551,7 @@ public sealed class MainViewModel : ObservableObject
             EventLog.Message(LogEventLevel.Information, "Freeze frame", text);
             Info("Freeze frame (mode 02, frame 0)", text);
         });
+        InitPhase1(Err, (n, f) => C(n, f));
         DtcDetailsCommand = C("DTC details", async () =>
         {
             if (SelectedDtc is not { ModuleTx: uint tx, RawDtc: uint raw } row) throw new InvalidOperationException("Select a module DTC (read with 19 02) first. OBD-II rows have no UDS details; use Freeze frame.");

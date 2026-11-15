@@ -125,11 +125,22 @@ public sealed class SimulatedAdapter
         (0x01, var pid) when DriveCycle.Encode(pid, DriveCycle.At(Clock())) is { } d => Multi(0x7E8, new byte[] { 0x41, pid }.Concat(d).ToArray()),
         (0x03, _) => "7E806430203010101",     // 43 02 | 0301 0101 -> P0301, P0101 (synthetic)
         (0x04, _) => "7E80144",
+        (0x06, var mid) when Mode6Reply(mid) is { } m6 => Multi(0x7E8, new byte[] { 0x46 }.Concat(m6).ToArray()),
         (0x07, _) => Multi(0x7E8, new byte[] { 0x47, 0x01, 0x01, 0x71 }),             // pending P0171 (synthetic)
         (0x0A, _) => Multi(0x7E8, new byte[] { 0x4A, 0x01, 0x03, 0x01 }),             // permanent P0301 (synthetic)
         (0x02, var pid) when r.Length >= 3 && r[2] == 0x00 && FreezeFrame(pid) is { } ff => Multi(0x7E8, new byte[] { 0x42, pid, 0x00 }.Concat(ff).ToArray()),
         (0x09, 0x02) => Multi(0x7E8, new byte[] { 0x49, 0x02, 0x01 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray()),
         _ => "NO DATA",
+    };
+
+    /// <summary>SYNTHETIC Mode 6: MID 01 (O2 B1S1, two passing ms tests) and MID 21 (catalyst B1: one pass, one FAIL in counts).</summary>
+    private static byte[]? Mode6Reply(byte mid) => mid switch
+    {
+        0x00 => new byte[] { 0x00, 0x80, 0x00, 0x00, 0x01 },  // 01 and next range
+        0x20 => new byte[] { 0x20, 0x80, 0x00, 0x00, 0x00 },  // 21
+        0x01 => Convert.FromHexString("01" + "87" + "10" + "001F00000190" + "01" + "88" + "10" + "005600000190"),
+        0x21 => Convert.FromHexString("21" + "80" + "20" + "004000000080" + "21" + "81" + "24" + "000300000002"),
+        _ => null,
     };
 
     /// <summary>SYNTHETIC freeze frame 0 (stored by P0301): PIDs 02, 04, 05, 0C, 0D.</summary>

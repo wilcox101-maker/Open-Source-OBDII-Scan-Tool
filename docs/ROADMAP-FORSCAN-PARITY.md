@@ -5,7 +5,7 @@ This file compares what the app does today (v0.6.1) with FORScan's feature group
 decisions only Dale can make. It follows the policy in `PLAN.md`: clean-room, public sources only, no copied FORScan
 data, no proprietary OEM security algorithms.
 
-## Where we are (v0.8.0)
+## Where we are (v0.9.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -13,7 +13,7 @@ data, no proprietary OEM security algorithms.
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
 | Live data | Hundreds of PIDs per module, charts, logging | OBD-II mode 01 + a small verified Ford DID set on the dashboard, CSV recorder | Per-module PID browser, Ford DID catalog, charting, multi-module logging |
-| Tests | Self-tests, Mode 6, output control | Mode 6 / self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), Mode 6 (06), output state control (2F) |
+| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs | On-demand self-test (31 01 0202 style routines), Mode 6 (06), output state control (2F) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
@@ -27,10 +27,10 @@ release notes. Nothing that writes is called done until it has been verified on 
 
 ### Phase 1: Diagnostics depth (read-only, lowest risk)
 1. **Done in v0.8.0:** DTC detail: snapshot/freeze frame (19 03/19 04), extended data (19 06), DTC count (19 01), status bits and confirmed/pending/history view; OBD-II pending (07), permanent (0A) and freeze frame (02). Snapshot/extended layouts are shown raw until per-module definitions exist.
-2. DTC text: grow `dtc_generic.json`; add Ford-specific text only from redistributable sources (cite each source in the entry).
-3. Mode 6 (OBD 06) monitor results with limits, read live instead of from FORScan logs.
-4. Module identification page: F188/F111/F113/F124/F18C and friends for every responding module, exported with the vehicle profile.
-5. HS3 bus and 2021+ gateway module table (as a separate, opt-in vehicle).
+2. DTC text: grow `dtc_generic.json`; add Ford-specific text only from redistributable sources (cite each source in the entry). **Open:** needs a source whose license allows redistribution; not started.
+3. **Done in v0.9.0:** Mode 6 (OBD 06) monitor results read live: every supported OBDMID from every ECU, J1979 unit scaling, pass/fail on raw limits.
+4. **Done in v0.9.0:** Module identification grid on the Vehicle page (F188/F111/F113/F124/F18C, As-Built) with CSV export (serials blanked by default).
+5. HS3 bus and 2021+ gateway module table (as a separate, opt-in vehicle). **Open:** needs a 2021+ truck capture to confirm pins and addresses (`community-db/f150-2021plus-asbuilt/module-addresses.json` is a start, unverified).
 
 ### Phase 2: Live data and logging
 1. PID/DID browser per module with a community-maintained, sourced DID catalog (the `ford-enhanced-pids.json` format, extended with module, scaling, confidence).
