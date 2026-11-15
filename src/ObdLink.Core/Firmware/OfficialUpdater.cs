@@ -57,7 +57,24 @@ public static class OfficialUpdater
         return null;
     }
 
-    public static bool PublisherOk(string? subject) => subject is not null && Publishers.Any(p => subject.Contains(p, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// v0.6.1 audit: the certificate's simple name must BE one of the accepted publisher names (ignoring case, punctuation and an
+    /// LLC/Inc suffix). It used to be a substring test, so any valid certificate named e.g. "Not ScanTool" passed.
+    /// </summary>
+    public static bool PublisherOk(string? subject)
+    {
+        if (subject is null) return false;
+        var n = NormalizeName(subject);
+        return Publishers.Any(p => n == NormalizeName(p));
+    }
+
+    private static string NormalizeName(string s)
+    {
+        var letters = new string(s.ToUpperInvariant().Where(c => char.IsLetterOrDigit(c) || c == ' ').ToArray());
+        var words = letters.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (words.Count > 1 && words[^1] is "LLC" or "INC" or "LTD" or "CORP") words.RemoveAt(words.Count - 1);
+        return string.Join(' ', words).Replace("SCANTOOLNET", "SCANTOOL", StringComparison.Ordinal);
+    }
 
     /// <summary>Trust decision: a valid signature from OBD Solutions/ScanTool, or else a hash we have pinned. A signature from anyone else is rejected.</summary>
     public static UpdaterTrust Evaluate(SignatureInfo sig, string sha256)

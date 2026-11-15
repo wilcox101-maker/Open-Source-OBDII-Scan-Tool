@@ -16,14 +16,50 @@ public sealed class AdapterSession
     /// <summary>Profile detected from the ATI/STI/STDI replies (set by InitializeAsync).</summary>
     public AdapterProfile Profile { get; private set; }
     public StnProtocol? CurrentProtocol { get; private set; }
+    /// <summary>Ford bus the app last selected (null for non-bus protocols or after an unknown change). HS-CAN2 is tracked here because it has no STP preset of its own.</summary>
+    public Bus? CurrentBus { get; private set; }
     private string? _header;
+    private char? _elmProtocol;
+    private bool _stale;
+    /// <summary>True when something outside this session (raw console, link reconnect) may have changed adapter state. Cleared by the next EnsureReadyAsync.</summary>
+    public bool IsStale => _stale;
 
-    public AdapterSession(ElmLink link, ILogger? log = null, AdapterProfile? initial = null) { _link = link; Profile = initial ?? AdapterProfiles.OtherStn; _link.DefaultTimeout = Profile.CommandTimeout; _log = (log ?? Log.Logger).ForContext<AdapterSession>(); }
+    public AdapterSession(ElmLink link, ILogger? log = null, AdapterProfile? initial = null)
+    {
+        _link = link; Profile = initial ?? AdapterProfiles.OtherStn; _link.DefaultTimeout = Profile.CommandTimeout; _log = (log ?? Log.Logger).ForContext<AdapterSession>();
+        _link.Reopened += Invalidate; // a reopened link may be talking to a reset adapter (echo on, headers off, default ATSH 7DF)
+    }
+
+    /// <summary>
+    /// v0.6.1 audit: forget the cached header (ATSH/ATCRA) and remember that echo/headers/formatting may have changed.
+    /// Called after every raw-console AT/ST command and after the link reconnects. The next request re-asserts
+    /// ATE0/ATL0/ATS0/ATH1/ATCAF1 and the last protocol the app selected before it sets a header.
+    /// </summary>
+    public void Invalidate() { _header = null; _stale = true; }
+
+    /// <summary>Re-applies the base settings and the app's last protocol if <see cref="Invalidate"/> was called. No traffic otherwise.</summary>
+    public async Task EnsureReadyAsync(CancellationToken ct = default)
+    {
+        if (!_stale) return;
+        _stale = false; // cleared first so the protocol re-select below does not recurse
+        try
+        {
+            foreach (var c in new[] { "ATE0", "ATL0", "ATS0", "ATH1" }) await Expect(c, ct);
+            await Try("ATCAF1", ct); // the console may have turned CAN auto-formatting off
+            if (CurrentBus is Bus b && (b != Bus.HsCan || IsStn)) await SelectBusAsync(b, ct);
+            else if (CurrentProtocol is StnProtocol p && IsStn) await SelectProtocolAsync(p, ct);
+            else if (_elmProtocol is char n) await SelectElmProtocolAsync(n, ct);
+            _log.Information("Adapter state re-applied after an outside change (bus {Bus}, protocol {P})", CurrentBus, CurrentProtocol);
+        }
+        catch { _stale = true; throw; }
+    }
     public ElmLink Link => _link;
 
     /// <summary>ATZ, ATE0, ATL0, ATS0, ATH1, then identification (ATI, STI, STDI) and ATRV.</summary>
     public async Task<AdapterInfo> InitializeAsync(CancellationToken ct = default)
     {
+        // ATZ resets everything; nothing cached from before is valid and nothing needs re-applying.
+        _stale = false; _header = null; CurrentProtocol = null; CurrentBus = null; _elmProtocol = null;
         var z = await _link.SendAsync("ATZ", Profile.ResetTimeout, ct);
         string elmId = z.Lines.LastOrDefault() ?? "";
         foreach (var c in new[] { "ATE0", "ATL0", "ATS0", "ATH1" })
@@ -74,11 +110,14 @@ public sealed class AdapterSession
         bool ms = (int)p is >= 51 and <= 54, sw = (int)p is >= 61 and <= 64;
         if (ms && !Profile.Has(AdapterCapabilities.MsCan)) throw new NotSupportedException($"{Profile.DisplayName} does not support MS-CAN");
         if (sw && !Profile.Has(AdapterCapabilities.SwCan)) throw new NotSupportedException($"{Profile.DisplayName} does not support SW-CAN");
+        await EnsureReadyAsync(ct);
         await _link.SendAsync("STPC", ct: ct); // close current; may error if none open - ignored
         await Expect($"STP {(int)p}", ct);
         await Expect("STPO", ct);
         await ApplyDiagTimingAsync(ct);
         CurrentProtocol = p;
+        CurrentBus = p switch { StnProtocol.HsCan11_500 => Bus.HsCan, StnProtocol.MsCan11_125 => Bus.MsCan, _ => null };
+        _elmProtocol = null;
         _header = null;
     }
 
@@ -99,20 +138,28 @@ public sealed class AdapterSession
         if (bus is not (Bus.MsCan or Bus.HsCan2)) throw new NotSupportedException($"Bus {bus} is not implemented");
         if (!IsStn || !Profile.Has(AdapterCapabilities.MsCan)) throw new NotSupportedException($"{Profile.DisplayName} cannot use the MS-CAN pins (3/11)");
         if (bus == Bus.MsCan) { await SelectProtocolAsync(StnProtocol.MsCan11_125, ct); return; }
+        await EnsureReadyAsync(ct);
         await _link.SendAsync("STPC", ct: ct);
         await Expect("STP 53", ct);
         await Expect("STPBR 500000", ct);
         await Expect("STPO", ct);
         await ApplyDiagTimingAsync(ct);
-        CurrentProtocol = StnProtocol.MsCan11_125; _header = null;
+        // v0.6.1 audit: HS-CAN2 is STP 53 at 500k. It used to be recorded as MsCan11_125, which made the session believe it was on MS-CAN 125k.
+        CurrentProtocol = null; CurrentBus = Bus.HsCan2; _elmProtocol = null; _header = null;
     }
 
     /// <summary>Plain ELM327 protocol selection (ATSP n) for non-STN fallback.</summary>
-    public async Task SelectElmProtocolAsync(char n, CancellationToken ct = default) { await Expect($"ATSP{n}", ct); await ApplyDiagTimingAsync(ct); _header = null; }
+    public async Task SelectElmProtocolAsync(char n, CancellationToken ct = default)
+    {
+        await EnsureReadyAsync(ct);
+        await Expect($"ATSP{n}", ct); await ApplyDiagTimingAsync(ct);
+        _elmProtocol = n; CurrentProtocol = null; CurrentBus = n == '6' ? Bus.HsCan : null; _header = null;
+    }
 
     /// <summary>Sets transmit header (ATSH) and CAN receive filter (ATCRA) for physical addressing.</summary>
     public async Task SetCanTargetAsync(uint txId, uint? rxId, CancellationToken ct = default)
     {
+        await EnsureReadyAsync(ct);
         bool ext = txId > 0x7FF;
         string h = ext ? txId.ToString("X8") : txId.ToString("X3");
         if (_header == h) return;

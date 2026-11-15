@@ -39,9 +39,11 @@ public sealed class ElmDiagChannel : IDiagChannel
 
     /// <summary>
     /// Host-side ISO-TP transmit: ATCAF0, send First Frame, wait for Flow Control, send Consecutive Frames,
-    /// collect the response, then restore ATCAF1. Honors FC STmin (ms range) only coarsely; ignores BS&gt;0 waits.
-    /// [UNVERIFIED on MX+]: STN firmware may support native multi-frame TX with CAF1 (see FRPM); timing of
-    /// per-frame ATST waits over Bluetooth not measured.
+    /// collect the response, then restore ATCAF1 and the normal response wait.
+    /// v0.6.1 audit: honors FC WAIT (a CTS later in the same reply is used; WAIT alone stops the transfer), FC OVERFLOW (abort),
+    /// and block size BS&gt;0 (expects a new FC after every BS frames). Intermediate frames use a short response wait (ATST19, ~100 ms)
+    /// so the gap between frames stays well inside the module's ~1 s N_Cr timeout over Bluetooth.
+    /// [UNVERIFIED on MX+]: STN's STPX may do this inside the adapter; host-side timing over Bluetooth not measured on hardware.
     /// </summary>
     private async Task<IReadOnlyList<DiagResponse>> SendMultiFrameAsync(byte[] request, TimeSpan? timeout, CancellationToken ct)
     {
@@ -50,24 +52,72 @@ public sealed class ElmDiagChannel : IDiagChannel
         await link.SendAsync("ATCAF0", ct: ct);
         try
         {
-            var fc = await link.SendAsync(Convert.ToHexString(frames[0]), timeout, ct);
-            var fcFrame = fc.Lines.Select(l => l.Replace(" ", "")).FirstOrDefault(l => l.Length > (Use29Bit ? 8 : 3) && l[Use29Bit ? 8 : 3] == '3')
-                ?? throw new IsoTpException("No flow control frame after first frame");
-            var fcBytes = Convert.FromHexString(fcFrame[(Use29Bit ? 8 : 3)..].PadRight(6, '0')[..6]);
-            if ((fcBytes[0] & 0x0F) == 2) throw new IsoTpException("ECU flow control: overflow/abort");
-            int stMin = fcBytes[2] <= 0x7F ? fcBytes[2] : 1;
-            ElmResponse last = fc;
+            var fcResp = await link.SendAsync(Convert.ToHexString(frames[0]), timeout, ct);
+            var fc = await AwaitClearToSendAsync(fcResp, ct) ?? throw new IsoTpException("No flow control frame after first frame; nothing more was sent");
+            await link.SendAsync("ATST19", ct: ct); // ~100 ms wait after intermediate frames (no reply expected)
+            ElmResponse last = fcResp;
+            int sinceFc = 0;
             for (int i = 1; i < frames.Count; i++)
             {
-                if (stMin > 0) await Task.Delay(stMin, ct);
-                last = await link.SendAsync(Convert.ToHexString(frames[i]), i == frames.Count - 1 ? timeout : TimeSpan.FromSeconds(1), ct);
+                if (fc.StMinMs > 0) await Task.Delay(fc.StMinMs, ct);
+                bool final = i == frames.Count - 1;
+                if (final) await _session.ApplyDiagTimingAsync(ct); // normal (longer) wait for the module's answer
+                last = await link.SendAsync(Convert.ToHexString(frames[i]), final ? timeout : TimeSpan.FromSeconds(1), ct);
+                sinceFc++;
+                if (!final && fc.BlockSize > 0 && sinceFc == fc.BlockSize)
+                {
+                    fc = await AwaitClearToSendAsync(last, ct) ?? throw new IsoTpException($"No flow control after a block of {sinceFc} frames; the transfer was stopped at frame {i + 1} of {frames.Count}");
+                    sinceFc = 0;
+                }
             }
             if (last.Error == ElmError.NoData) return Array.Empty<DiagResponse>();
             if (!last.Ok) throw new DiagLinkException(last.Error, string.Join(" | ", last.Lines));
             return ParseFrames(last.Lines, Use29Bit);
         }
-        finally { await link.SendAsync("ATCAF1", ct: CancellationToken.None); }
+        finally
+        {
+            await link.SendAsync("ATCAF1", ct: CancellationToken.None);
+            try { await _session.ApplyDiagTimingAsync(CancellationToken.None); } catch (Exception) { /* optional timing command; the link logs failures */ }
+        }
     }
+
+    public readonly record struct FlowControl(int Status, int BlockSize, int StMinMs);
+
+    /// <summary>
+    /// Finds the clear-to-send flow control in one adapter reply. WAIT frames are skipped when a CTS follows them in the same reply.
+    /// If the module only said WAIT, the ELM text interface cannot keep listening between commands, so the transfer stops here
+    /// (safe: the module simply times out the partial message). OVERFLOW aborts.
+    /// </summary>
+    private Task<FlowControl?> AwaitClearToSendAsync(ElmResponse resp, CancellationToken ct) => Task.FromResult(ClearToSend(resp.Lines, Use29Bit));
+
+    public static FlowControl? ClearToSend(IEnumerable<string> lines, bool ext)
+    {
+        var fcs = ParseFlowControls(lines, ext);
+        foreach (var f in fcs)
+        {
+            if (f.Status == 0) return f;
+            if (f.Status == 2) throw new IsoTpException("ECU flow control: overflow/abort; nothing more was sent");
+        }
+        if (fcs.Count > 0) throw new IsoTpException($"ECU answered flow control WAIT ({fcs.Count}x) with no clear-to-send; the transfer was stopped and nothing more was sent");
+        return null;
+    }
+
+    public static List<FlowControl> ParseFlowControls(IEnumerable<string> lines, bool ext)
+    {
+        int hl = ext ? 8 : 3;
+        var list = new List<FlowControl>();
+        foreach (var raw in lines)
+        {
+            var l = raw.Replace(" ", "");
+            if (!IsFrameLine(l, ext) || l[hl] != '3') continue;
+            var b = Convert.FromHexString(l[hl..].PadRight(6, '0')[..6]);
+            int st = b[2] <= 0x7F ? b[2] : b[2] is >= 0xF1 and <= 0xF9 ? 1 : 127; // F1-F9 = 100-900 µs -> 1 ms; reserved -> 127 ms (ISO 15765-2)
+            list.Add(new FlowControl(b[0] & 0x0F, b[1], st));
+        }
+        return list;
+    }
+
+    private static bool IsFrameLine(string l, bool ext) { l = l.Replace(" ", ""); int hl = ext ? 8 : 3; return l.Length >= hl + 2 && l.Length % 2 == (hl % 2) && IsHex(l); }
 
     public static IReadOnlyList<DiagResponse> ParseFrames(IEnumerable<string> lines, bool ext)
     {

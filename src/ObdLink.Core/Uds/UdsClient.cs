@@ -103,11 +103,13 @@ public sealed class UdsClient
 
     public async Task<byte[]> RequestAsync(byte[] req, CancellationToken ct = default)
     {
-        await _ch.SetTargetAsync(TargetTxId, TargetTxId + 8, ct); // Ford/OBD convention rx = tx + 8 [convention, verify per module]
+        if (req.Length == 0) throw new ArgumentException("Empty UDS request", nameof(req));
+        uint rx = TargetTxId + 8; // Ford/OBD convention rx = tx + 8 [convention, verify per module]
+        await _ch.SetTargetAsync(TargetTxId, rx, ct);
         for (int i = 0; ; i++)
         {
             var resps = await _ch.RequestAsync(req, ct: ct);
-            var r = resps.FirstOrDefault()?.Payload ?? throw new TimeoutException($"No response from 0x{TargetTxId:X3}");
+            var r = PickFinal(resps, rx) ?? throw new TimeoutException($"No response from 0x{TargetTxId:X3}");
             if (r[0] == req[0] + 0x40) return r;
             if (r[0] == 0x7F && r.Length >= 3)
             {
@@ -118,6 +120,24 @@ public sealed class UdsClient
             }
             throw new InvalidDataException($"Unexpected response from 0x{TargetTxId:X3} to {Convert.ToHexString(req)}: {Convert.ToHexString(r)}");
         }
+    }
+
+    /// <summary>
+    /// v0.6.1 audit: picks the module's final answer. Only replies from <paramref name="rx"/> count (another module's frame is never
+    /// taken as this module's answer). When the adapter captured "7F xx 78" (pending) and then the real reply in one read,
+    /// the real reply wins; a pending reply is returned only if nothing else arrived.
+    /// </summary>
+    public static byte[]? PickFinal(IReadOnlyList<DiagResponse> resps, uint rx)
+    {
+        byte[]? pending = null;
+        foreach (var d in resps)
+        {
+            if (d.SourceId != rx || d.Payload.Length == 0) continue;
+            var p = d.Payload;
+            if (p[0] == 0x7F && p.Length >= 3 && p[2] == 0x78) { pending ??= p; continue; }
+            return p;
+        }
+        return pending;
     }
 
     private static bool IsIdempotent(byte sid) => sid is 0x10 or 0x19 or 0x22 or 0x3E;
@@ -135,7 +155,7 @@ public sealed class UdsClient
     {
         var r = await RequestAsync(new byte[] { 0x19, 0x02, mask }, ct);
         var list = new List<DtcRecord>();
-        for (int i = 3; i + 3 < r.Length + 0 && i + 4 <= r.Length; i += 4)
+        for (int i = 3; i + 4 <= r.Length; i += 4)
             list.Add(new DtcRecord((uint)(r[i] << 16 | r[i + 1] << 8 | r[i + 2]), r[i + 3]));
         return list;
     }
@@ -159,6 +179,8 @@ public sealed class UdsClient
     {
         if (level % 2 == 0) throw new ArgumentException("Seed request level must be odd");
         var seedResp = await RequestAsync(new byte[] { 0x27, level }, ct);
+        // v0.6.1 audit: an empty seed used to count as "already unlocked" (All() is true for no bytes).
+        if (seedResp.Length < 3 || seedResp[1] != level) throw new InvalidDataException($"Malformed SecurityAccess seed reply from 0x{TargetTxId:X3}: {Convert.ToHexString(seedResp)}");
         var seed = seedResp[2..];
         if (seed.All(b => b == 0)) return true; // already unlocked (ISO 14229 convention)
         var key = await SeedKey.ComputeKeyAsync(TargetTxId, level, seed, ct);

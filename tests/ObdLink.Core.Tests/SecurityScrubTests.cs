@@ -166,8 +166,8 @@ public class SecurityScrubTests
     {
         var src = Src("ObdLink.App/MainViewModel.cs");
         Assert.Contains("await OnBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), allowFallback: false);", src);
-        Assert.Contains("await OnBus(m, () => AsBuilt.WriteBlockAsync(", src);
-        Assert.Contains("await OnBus(row, () => AsBuilt.RestoreAsync(f), allowFallback: false);", src);
+        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);", src);
+        Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);", src);
         Assert.Equal(3, Count(src, "allowFallback: false"));
     }
 

@@ -1,3 +1,37 @@
+## v0.6.1
+
+**Write-safety release from the 2026-11-15 code audit.** Built and unit-tested on Linux and by GitHub Actions on Windows (`windows-latest`); not yet run by hand on Windows or on the truck. The exe is still **unsigned**. Ford products only. Portable, no installer. Read-only is the default at every start.
+
+**Download `ObdLinkApp-win-x64-v0.6.1.zip`** (normal Intel/AMD PCs). CI also uploads an unsigned x64 build for every push.
+
+### Fixed (each has tests in `tests/ObdLink.Core.Tests/WriteSafetyTests.cs`)
+
+- **Write could send the wrong data to a block.** Write joined every row in the As-Built grid, so after *Read all blocks* or *Import .abt* it sent several blocks (or another module's lines) into the one selected block. Now only the selected module's lines for the selected block are used, they must run 01..n with no gaps, and the module's current length must match. A different length is never written. Identical data writes nothing.
+- **Typed checksum, as in FORScan.** The grid has a **Check** column. Editing Data no longer fixes the checksum for you; the write is refused until the typed checksum matches the data, so a typo in Data is caught.
+- **Restore made no backup and did not check the vehicle.** Restore now requires the connected VIN (Read VIN or Identify first), refuses a backup from another VIN, checks every block's length, saves a `_pre-restore` backup of the current contents, and skips blocks that already match.
+- **Console could redirect the next module request.** `ATSH`, `ATZ`, `STP` and similar console commands changed the adapter without the app knowing, so the next request could go to the wrong module (for example a BCM request landing on the PCM). Any state-changing AT/ST console command now makes the app re-apply echo/headers/formatting, its protocol and the target header before its next request.
+- **A link drop could resend a write.** After a Bluetooth/serial drop the link re-sent whatever command was in flight, including writes, without re-initializing a possibly reset adapter (default header 7DF = every module). Vehicle requests are now never resent; the app reopens the link, re-applies its state on the next request, and tells you the request may or may not have reached the vehicle. Adapter-only AT/ST commands are still retried.
+- **"Response pending" write reported as a failure.** A module that answers 0x78 (or does not answer, or the link drops) may still have stored the data. The app now waits, reads the block back, and reports what is actually in the module. A real rejection (for example NRC 0x22) is still an error.
+- **Late prompt after a timeout.** The adapter's late `>` from an aborted command is now drained, so it cannot end the next command early.
+- **Multi-frame transmit (every As-Built write).** Flow control WAIT, OVERFLOW and block size are handled; intermediate frames use a ~100 ms response wait (ATST19) so the gap stays inside the module's ~1 s timeout. CAN auto-formatting and normal timing are restored even when a transfer fails.
+- **UDS replies.** Only the addressed module's reply counts; a final reply wins over a "pending" in the same read; an empty SecurityAccess seed is an error instead of "already unlocked".
+- **HS-CAN2** is tracked as its own bus instead of being recorded as MS-CAN 125k.
+- **Updater signature name** must be an accepted publisher name, not merely contain "ScanTool".
+
+### Project
+- `ObdLink.sln` replaces `ObdLink.slnx` so the build works with the .NET 8 SDK pinned in `global.json`.
+- GitHub Actions CI on Windows and Linux (`.github/workflows/ci.yml`).
+- Removed the remaining Dodge/Ram/Chrysler references from code comments and docs.
+- `docs/ROADMAP-FORSCAN-PARITY.md`: what it takes to reach FORScan-level features, in phases, and the decisions that need Dale.
+
+### Windows + truck verify
+1. DEMO: read block 01 of BCM, change one byte without retyping Check. Write is refused and names the line. Retype Check, write: the confirmation says "1 of N bytes change"; the result shows the backup path.
+2. DEMO: *Read all blocks* on the BCM, select block 01, write. Only block 01 changes (compare with a re-read).
+3. DEMO: Restore a backup before reading the VIN: refused. Read VIN, restore: a `_pre-restore` file appears in `Data\backups`.
+4. DEMO: console `ATSH7E0`, then *Read As-Built block* on the BCM. It still reads the BCM (Adapter traffic shows `ATSH726` again).
+5. Truck, read-only: Identify vehicle, Read all modules' DTCs, Read all As-Built blocks on two modules, MS-CAN included. Compare with FORScan.
+6. Truck, one write you have FORScan-verified before (battery maintainer on): write, then confirm in FORScan. Then restore the backup and confirm again.
+
 ## v0.6.0
 
 **Compiled on Linux. This build still needs a Windows pass** (steps below). v0.3.0 through v0.3.5 are **Windows-tested** (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, and v0.5.2 still need that same Windows pass. The exe is still **unsigned**. Ford products only. Portable, no installer; x64 and ARM64. MIT license. Read-only is the default at every start. No firmware is bundled.
@@ -401,7 +435,6 @@ Also includes all v0.3.2 fixes (real COM port preferred over DEMO, read-only at 
 **Unsigned and not yet tested on real Windows hardware.** Built and unit-tested on Linux only (EnableWindowsTargeting). Windows SmartScreen will warn when you run it.
 
 - **Scope change: Ford-only.**
-  - Removed Chrysler/Dodge/Ram: the vehicle option, tables, simulator data, docs/CHRYSLER-NETWORKS.md, and the example Ram entry.
   - The vehicle list is Ford-only, and As-Built is always available.
 - **Logging.**
   - Central event log covering every user action (timestamp, action, parameters, started/succeeded/failed plus error), a separate app message log (Info/Warn/Error with operation, exception, and adapter response), and adapter traffic.
