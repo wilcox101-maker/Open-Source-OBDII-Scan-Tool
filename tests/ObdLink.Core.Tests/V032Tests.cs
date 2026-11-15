@@ -65,6 +65,7 @@ public class V032Tests
 
     private static string Src(string f, [System.Runtime.CompilerServices.CallerFilePath] string me = "") =>
         File.ReadAllText(Path.Combine(Path.GetDirectoryName(me)!, "..", "..", "src", "ObdLink.App", f));
+    private static string me0([System.Runtime.CompilerServices.CallerFilePath] string me = "") => me;
 
     [Fact]
     public void AppNeverFallsBackToSimAndLabelsDemo()
@@ -144,8 +145,11 @@ public class V032Tests
     [Fact]
     public void BusFallbackAndScanRetryOnOtherBus()
     {
+        // v0.9.1: the bus-fallback logic moved from MainViewModel.OnBus into Core BusRouter; the view model now delegates.
         var vm = Src("MainViewModel.cs");
-        Assert.Contains("BusOverride = alt", vm); Assert.Contains("ModuleReplies.NoReplyMessage", vm); Assert.Contains("ModuleReplies.Alternates", vm);
+        Assert.Contains("_router", vm); Assert.Contains("router.RunAsync", vm); Assert.Contains("m.BusOverride = answered", vm);
+        var router = File.ReadAllText(Path.Combine(Path.GetDirectoryName(me0())!, "..", "..", "src", "ObdLink.Core", "Modules", "BusRouter.cs"));
+        Assert.Contains("ModuleReplies.NoReplyMessage", router); Assert.Contains("ModuleReplies.Alternates", router); Assert.Contains("onBusAnswered", router);
         Assert.Equal(new[] { ObdLink.Core.Elm.Bus.HsCan2, ObdLink.Core.Elm.Bus.MsCan }, ModuleReplies.Alternates(ObdLink.Core.Elm.Bus.HsCan));
         Assert.True(ModuleReplies.IsNoReply(new DiagLinkException(ElmError.CanError, "CAN ERROR"))); Assert.True(ModuleReplies.IsNoReply(new TimeoutException()));
         Assert.False(ModuleReplies.IsNoReply(new InvalidOperationException()));
