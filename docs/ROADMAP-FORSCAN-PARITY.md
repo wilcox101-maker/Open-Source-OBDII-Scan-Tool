@@ -74,7 +74,7 @@ Most of these run UDS routines (31) and many need SecurityAccess (27). See decis
   Candidate scope (not started): a J2534 v04.04 transport next to the STN/ELM one, so the app can drive genuine VCM II /
   VCMM units, Mongoose-class devices or a DIY pass-through device. MS-CAN would use J2534-2 pin selection instead of STN commands;
   `BusRouter` is the seam. Read and As-Built scope only; module flashing stays out (D2). Windows OEM J2534 DLLs are
-  usually 32-bit, so a 64-bit app may need an out-of-process bridge.
+  usually 32-bit, so a 64-bit app may need an out-of-process bridge. Background: `docs/vcm-research.md`.
 - **D4. Vehicles beyond the 2017 F-150.** Every added vehicle needs a module table and test captures. Which ones next?
 
 ## Engineering prerequisites (do before phase 3)
