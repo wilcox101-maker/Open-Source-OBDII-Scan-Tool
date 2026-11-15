@@ -1,16 +1,11 @@
 # Roadmap: FORScan-level features (and beyond)
 
-Goal set by Dale (2026-11-15): reach the full feature set of FORScan for Windows, then go past it where an open tool can.
+Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
 This file compares what the app does today (v0.10.0) with FORScan's feature groups, orders the work, and lists the
-decisions only Dale can make. It follows the policy in `PLAN.md`: clean-room, public sources only, no copied FORScan
-data, no proprietary OEM security algorithms.
+decisions only Dale can make.
 
-**Reference tools are not data sources.** FORScan, OBDwiz (OCTech) and the OBD Solutions STN firmware updater are
-installed on Dale's PC as behavior and scope references for parity work only. Their definition databases are packed and
-proprietary, and nothing is extracted from them into this repo. The same applies to commercial scan-tool manuals and
-other copyrighted service documents. A fact known only from one of these is not license-clean; it has to be confirmed
-from a redistributable source or a capture from a real vehicle before it goes into `src/ObdLink.Core/Data/` or
-`community-db/`.
+FORScan, OBDwiz (OCTech) and the OBD Solutions STN firmware updater are
+installed on Dale's PC as needed.
 
 ## Where we are (v0.10.0)
 
@@ -54,7 +49,6 @@ release notes. Nothing that writes is called done until it has been verified on 
 Implement one at a time, each from published Ford service information the user owns or from documented community captures:
 TPMS sensor relearn, BMS (battery monitor) reset, steering angle sensor calibration, ABS service bleed, transmission adaptive
 table reset, DPF regeneration (diesel only), camera/radar calibrations.
-Most of these run UDS routines (31) and many need SecurityAccess (27). See decision D1.
 
 ### Phase 5: Beyond FORScan
 - Fully open and scriptable: a documented command-line/automation layer over Core (the `tools/AbTool` pattern) for repeatable jobs.
