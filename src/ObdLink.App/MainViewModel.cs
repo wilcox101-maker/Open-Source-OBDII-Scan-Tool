@@ -23,9 +23,13 @@ using Serilog.Events;
 
 namespace ObdLink.App;
 
-public sealed class ModuleRow : ObservableObject
+public sealed class ModuleRow : ObservableObject, ObdLink.Core.Modules.IBusTarget
 {
     public required ModuleDefinition Def { get; init; }
+    // IBusTarget (v0.9.1): lets BusRouter route to this module without depending on the view model.
+    Bus ObdLink.Core.Modules.IBusTarget.DefaultBus => Def.Bus;
+    uint ObdLink.Core.Modules.IBusTarget.TxId => Def.TxId;
+    bool ObdLink.Core.Modules.IBusTarget.FoundConfirmed => Found == "YES";
     public string Acronym => Def.Acronym;
     public string FullName => ModuleAcronyms.FullName(Def.Acronym, Def.Name);
     public string Label => ModuleAcronyms.Label(Def.Acronym, Def.Name);
@@ -101,7 +105,7 @@ public sealed class MainViewModel : ObservableObject
     public string DataDirShort => (Paths.IsPortable ? "Data: " : "Data (LocalAppData): ") + Paths.DataDir;
     public string DataDirTooltip => Paths.IsPortable ? $"Portable data folder next to the exe:\n{Paths.DataDir}" : $"Not portable: {Paths.FallbackReason}\nUsing {Paths.DataDir}";
     public RelayCommand OpenDataFolderCommand { get; }
-    private AdapterSession? _session; private ElmDiagChannel? _ch; private RawConsoleService? _console; private AsBuiltService? _asBuilt;
+    private AdapterSession? _session; private ElmDiagChannel? _ch; private RawConsoleService? _console; private AsBuiltService? _asBuilt; private BusRouter? _router;
     private string _vin = "UNKNOWNVIN";
 
     /// <summary>Central user-interaction / app-message / traffic log.</summary>
@@ -842,7 +846,7 @@ public sealed class MainViewModel : ObservableObject
     private async Task DisconnectAsync()
     {
         if (_session != null) await _session.Link.DisposeAsync();
-        _session = null; _ch = null; _console = null; _asBuilt = null;
+        _session = null; _ch = null; _console = null; _asBuilt = null; _router = null;
         Connection = ConnectionStatus.Disconnected; Baud = ""; MsCanAvailable = false;
         EventLog.Message(LogEventLevel.Information, "Disconnect", "Disconnected");
     }
@@ -876,6 +880,7 @@ public sealed class MainViewModel : ObservableObject
             _ch = new ElmDiagChannel(_session);
             _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
             _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m) { SeedKey = _seedKey }, Safety(), Paths.BackupsDir);
+            _router = new BusRouter(_session, () => CanSwitchBus, (lvl, ch, msg) => EventLog.Message(lvl, ch, msg));
             ApplySeedKey();
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
@@ -889,7 +894,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             if (_session != null) { try { await _session.Link.DisposeAsync(); } catch (Exception closeEx) { EventLog.Message(LogEventLevel.Debug, "Adapter", "Closing the old link failed: " + closeEx.Message); } }
-            _session = null; _ch = null; _console = null; _asBuilt = null;
+            _session = null; _ch = null; _console = null; _asBuilt = null; _router = null;
             Connection = ConnectionStatus.Failed(ex.Message);
             throw;
         }
@@ -1337,37 +1342,14 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private async Task OnBus(ModuleRow m, Func<Task> f, bool allowFallback = true)
     {
-        try { await OnBusCore(m.Bus, m, f); NoteAnsweredBus(m, m.Bus); return; }
-        catch (Exception ex) when (allowFallback && ModuleReplies.IsNoReply(ex) && CanSwitchBus && m.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2)
+        var router = _router ?? throw new InvalidOperationException("Not connected");
+        await router.RunAsync(m, f, allowFallback, answered =>
         {
-            EventLog.Message(LogEventLevel.Warning, "Bus", $"{m.Acronym} 0x{m.Address}: no reply on {ModuleReplies.BusName(m.Bus)} ({ex.Message}); trying the other buses");
-            var next = ModuleBusMemory.Remaining(m.Bus, m.Def.Bus);
-            if (next.Length == 0) next = ModuleReplies.Alternates(m.Bus);
-            foreach (var alt in next)
-            {
-                try { await OnBusCore(alt, m, f); }
-                catch (Exception ex2) when (ModuleReplies.IsNoReply(ex2)) { EventLog.Message(LogEventLevel.Information, "Bus", $"{m.Acronym}: no reply on {ModuleReplies.BusName(alt)} ({ex2.Message})"); continue; }
-                m.BusOverride = alt == m.Def.Bus ? null : alt;
-                NoteAnsweredBus(m, alt);
-                EventLog.Message(LogEventLevel.Information, "Bus", $"{m.Acronym} 0x{m.Address} answered on {ModuleReplies.BusName(alt)}; using that bus from now on");
-                return;
-            }
-            throw new InvalidOperationException(ModuleReplies.NoReplyMessage(m.Acronym, m.Def.TxId, m.Bus, m.Found == "YES", triedBoth: true));
-        }
-        catch (Exception ex) when (ModuleReplies.IsNoReply(ex)) { throw new InvalidOperationException(ModuleReplies.NoReplyMessage(m.Acronym, m.Def.TxId, m.Bus, m.Found == "YES", triedBoth: false)); }
-    }
-    private async Task OnBusCore(Bus bus, ModuleRow m, Func<Task> f)
-    {
-        if (bus != Bus.HsCan && !CanSwitchBus) throw new InvalidOperationException($"{m.Acronym} is on {ModuleReplies.BusName(bus)}; this adapter cannot use the MS-CAN pins (OBDLink MX+ / EX can).");
-        // HS-CAN reads used to assume the adapter was already there. A previous MS-CAN / HS-CAN2 session, or the console, may have left another protocol selected.
-        if (bus == Bus.HsCan)
-        {
-            if (_session!.CurrentProtocol != StnProtocol.HsCan11_500) await _session.SelectBusAsync(Bus.HsCan);
-            await f();
-            return;
-        }
-        await _session!.SelectBusAsync(bus);
-        try { await f(); } finally { await SelectDiagProtocol(); }
+            // Preserves OnBus's side effects: remember the bus that answered. On a first-try success this re-sets the
+            // same value (no-op); after a fallback it records the new override.
+            m.BusOverride = answered == m.Def.Bus ? null : answered;
+            NoteAnsweredBus(m, answered);
+        });
     }
     private void ShowBlocks(IEnumerable<AsBuiltBlock> blocks)
     {
