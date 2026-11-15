@@ -1,11 +1,11 @@
 # OpenDiag-MX: Technical Design Plan
 
-Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 chipset). Target vehicles: **Ford only** (primary: 2017 F-150). Chrysler/Ram support was dropped in v0.1.1.
+Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 chipset). Target vehicles: **Ford only** (primary: 2017 F-150).
 
 **Status:** draft v0.1 (2026-10-22, America/New_York).  
 Anything marked **[UNKNOWN]** must be confirmed on a real vehicle or against a published public spec before implementation. Do not invent protocol bytes.
 
-> **Scope / legal note.** This is a clean-room reimplementation of *functionality* built only from public standards, the public OBDLink Family Reference and Programming Manual (FRPM), Motorcraft As-Built documentation, SAE/ISO standards summaries, and community-published data. We will not copy, decompile, or redistribute FORScan or AlfaOBD binaries, assets, or proprietary databases. We will not ship proprietary OEM security algorithms or secret keys. We will not implement any hardware or software bypass of the FCA/Stellantis Security Gateway (SGW); write access on 2018+ FCA vehicles requires legitimate AutoAuth / OEM-authorized tooling [S10][S11].
+> **Scope / legal note.** This is a clean-room reimplementation of *functionality* built only from public standards, the public OBDLink Family Reference and Programming Manual (FRPM), Motorcraft As-Built documentation, SAE/ISO standards summaries, and community-published data. We will not copy, decompile, or redistribute FORScan or AlfaOBD binaries, assets, or proprietary databases. We will not ship proprietary OEM security algorithms or secret keys.
 
 ---
 
@@ -88,7 +88,7 @@ From FRPM [S1][S2]:
 |---|---|---|
 | HS-CAN ISO 11898 raw, 11-bit, 500k, var DLC | `STP 31` | Raw frames |
 | HS-CAN ISO 15765, 11-bit, 500k, DLC=8 | `STP 33` | Default Ford / modern OBD |
-| HS-CAN ISO 15765, 29-bit, 500k | `STP 34` | Some FCA / extended addressing |
+| HS-CAN ISO 15765, 29-bit, 500k | `STP 34` | 29-bit / extended addressing |
 | HS-CAN ISO 15765, 11-bit, 250k | `STP 35` | Less common light-duty |
 | **MS-CAN** ISO 15765, 11-bit, 125k, DLC=8 | **`STP 53`** | Ford Medium-Speed CAN on OBD pins **3 & 11** |
 | MS-CAN ISO 15765, 29-bit, 125k | `STP 54` | |
@@ -242,7 +242,7 @@ Community tooling treats blocks such as **DE00 / DE01 / …** as UDS DIDs that b
 
 **Write path (Phase 2):**
 
-1. Mandatory backup (§10).
+1. Mandatory backup (§11).
 2. SafetyGuard voltage + ignition-state checks.
 3. SecurityAccess if NRC `0x33` / session requires it (§8).
 4. `2E DExx` + data.
@@ -299,24 +299,20 @@ Some Ford powertrain unlock/programming flows historically needed FEPS voltage o
 
 ---
 
-## 9. (Removed) Chrysler / FCA
+## 9. DTC lookup database
 
-As of v0.1.1 the project is **Ford-only**. Chrysler/Dodge/Ram/FCA support, including SGW handling, was dropped at the product owner's request. See the git history for the earlier research.
-
-## 10. DTC lookup database
-
-### 10.1 Layers
+### 9.1 Layers
 
 1. **SAE generic (P0xxx, U0xxx, C0xxx, B0xxx)** — public definitions from SAE J2012 / EPA summaries; store code → short text → severity hint.
 2. **Manufacturer enhanced** — Ford-specific wording where legally redistributable (OEM service pubs the user owns, or community-submitted with source tag). Prefer linking to user-supplied FSM PDFs over redistributing copyrighted text.
 3. **Status bits** — decode UDS `0x19` status availability masks (testFailed, confirmed, pending, …).
 
-### 10.2 Schema (SQLite sketch)
+### 9.2 Schema (SQLite sketch)
 
 ```sql
 CREATE TABLE dtc_def (
   code TEXT NOT NULL,           -- e.g. 'P0420' or 'U0100'
-  oem TEXT,                     -- NULL | 'FORD' | 'FCA'
+  oem TEXT,                     -- NULL | 'FORD'
   system TEXT,                  -- powertrain/body/...
   title TEXT NOT NULL,
   description TEXT,
@@ -337,18 +333,18 @@ Ship a baseline SAE pack; OEM packs as optional downloads.
 
 ---
 
-## 11. Community programming database
+## 10. Community programming database
 
 Shareable **configuration mods** (As-Built bit flips), not firmware.
 
-### 11.1 Goals
+### 10.1 Goals
 
 - Versioned, reviewed, diffable.
 - Bound to vehicle platform (make, model, year range, module HW/SW part numbers).
 - Explicit risk level and restore instructions.
 - Signed releases (git tags + optional minisign).
 
-### 11.2 Proposed YAML record
+### 10.2 Proposed YAML record
 
 ```yaml
 id: ford.apim.disable_bto
@@ -378,7 +374,7 @@ authors: ["community:alice"]
 schema_version: 1
 ```
 
-### 11.3 Process
+### 10.3 Process
 
 - PR review checklist: platform evidence, backup tested, checksum validated, no security-key material.
 - App shows risk banner; high/brick requires typing module name.
@@ -386,7 +382,7 @@ schema_version: 1
 
 ---
 
-## 12. Backup / restore
+## 11. Backup / restore
 
 Before **any** `0x2E` / clear that mutates config:
 
@@ -403,7 +399,7 @@ Store bundles under `%LocalAppData%/OpenDiagMX/backups/` and offer copy-to-USB.
 
 ---
 
-## 13. Safety interlocks (`SafetyGuard`)
+## 12. Safety interlocks (`SafetyGuard`)
 
 | Check | Default policy |
 |---|---|
@@ -419,7 +415,7 @@ No silent retries that could amplify a bad write.
 
 ---
 
-## 14. UI layout (WPF)
+## 13. UI layout (WPF)
 
 ```
 ┌─ Menu: File | Adapter | Vehicle | Tools | Help ───────────────────┐
@@ -451,7 +447,7 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 
 ---
 
-## 15. Phased milestone roadmap
+## 14. Phased milestone roadmap
 
 ### Phase 0 — Skeleton (1–2 weeks)
 
@@ -467,7 +463,7 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 2. Read battery voltage continuously.
 3. Read VIN (OBD `$0902` and/or UDS `22 F190`).
 4. Scan modules on HS-CAN + MS-CAN (`STP 33` / `STP 53`) from a seed address list + discovery.
-5. Read & display DTCs (J1979 + UDS `0x19` where available); clear with confirm (skip/block on SGW).
+5. Read & display DTCs (J1979 + UDS `0x19` where available); clear with confirm.
 6. Read As-Built / config DIDs for modules we can document; export backup bundle.
 7. **No writes** in MVP except DTC clear.
 
@@ -495,12 +491,11 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 
 - ECU firmware flash / J2534 passthru replacement.
 - Key / immobilizer programming.
-- SGW bypass.
 - Supporting non-MX+ clones with broken STN command sets (may work accidentally; not a support target).
 
 ---
 
-## 16. Testing strategy
+## 15. Testing strategy
 
 - **Golden traces:** record anonymized sessions from user vehicles; ReplayAdapter CI.
 - **Property tests:** As-Built checksum round-trip; ISO-TP segmentation reassembly.
@@ -509,7 +504,7 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 
 ---
 
-## 17. Open questions for the product owner
+## 16. Open questions for the product owner
 
 1. Which exact vehicles / model years / engines will you test on first (Ford)?
 2. Do those vehicles expose the modules you care about on MS-CAN @ 125k from a stock MX+, or do you already use a modified cable / OBD splitter?
@@ -520,7 +515,7 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 
 ---
 
-## 18. Sources cited
+## 17. Sources cited
 
 | ID | Source | URL |
 |---|---|---|
@@ -533,19 +528,16 @@ Dark theme default (garage glare); large touch-friendly hit targets optional.
 | S7 | cyanlabs/apim-asbuilt-decode | https://github.com/cyanlabs/apim-asbuilt-decode |
 | S8 | UDS overview (ISO 14229 services, 0x22/0x27) | https://icanhack.nl/knowledge-base/diagnostics/uds/ |
 | S9 | UDS command cheatsheet / addressing notes | https://udssimulator.com/docs/uds-cheatsheet |
-| S10 | AutoAuth High Level Overview (ETI / FCA SGW) | https://etools.org/wp-content/uploads/2024/09/AutoAuth-High-Level-Overview-Ver10.pdf |
-| S11 | Security Gateway Module FAQ (ETI) | https://etools.org/wp-content/uploads/2024/09/SGW-FAQ-Ver-12.pdf |
 | S12 | Community AB checksum explanation (MaverickTruckClub) | https://www.mavericktruckclub.com/forum/threads/decoding-the-ab-file-with-vba-and-a-bonus-pointless-math-lesson.48443/ |
 | S13 | FORScan programming how-to (checksum auto-fix mention) | https://my-ford-focus.de/en/forscan-programming/ |
 | S14 | Public research: older Ford seed/key discussions (historical; not a key pack) | https://github.com/andrewraharjo/CAN-Bus-Hack_Prius_Focus/blob/master/ecomcat_api/FordStuff.py |
 | S15 | FoA Orion Keys (FG Falcon–scoped public derive API; illustrates policy boundary) | https://github.com/jakka351/FoA-Orion-Keys |
 | S16 | Motorcraft As-Built portal (VIN factory data) | https://www.motorcraftservice.com/AsBuilt |
-| S17 | Stellantis / ETI SGW landing | https://etools.org/stellantis-gateway/ |
 | S18 | Faraday project notes on FORScan-like UDS scope (prior art, not a dependency) | https://github.com/r1cm3d/faraday/blob/main/docs/UDS.md |
 
 ---
 
-## 19. Document history
+## 18. Document history
 
 | Ver | Date (America/New_York) | Notes |
 |---|---|---|

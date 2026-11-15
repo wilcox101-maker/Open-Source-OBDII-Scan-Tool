@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    # The app is Windows-only (WPF). This job builds and tests on the real target OS and
+    # publishes the same self-contained x64 build that releases use, for hands-on testing.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        run: dotnet build ObdLink.sln -c Release
+      - name: Test
+        run: dotnet test tests/ObdLink.Core.Tests -c Release --no-build --logger "trx;LogFileName=results.trx"
+      - name: Publish win-x64 (unsigned test build)
+        run: dotnet publish src/ObdLink.App/ObdLink.App.csproj -c Release -r win-x64 -o publish/win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OBDLinkDiag-win-x64-${{ github.sha }}
+          path: publish/win-x64
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows
+          path: tests/ObdLink.Core.Tests/TestResults
+
+  linux:
+    # Core + tests + a compile of the App (EnableWindowsTargeting), as on the maintainer's Linux build box.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        run: dotnet build ObdLink.sln -c Release
+      - name: Test
+        run: dotnet test tests/ObdLink.Core.Tests -c Release --no-build
