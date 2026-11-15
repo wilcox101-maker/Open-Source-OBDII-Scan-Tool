@@ -4,8 +4,6 @@ Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FO
 This file compares what the app does today (v0.10.0) with FORScan's feature groups, orders the work, and lists the
 decisions only Dale can make.
 
-FORScan, OBDwiz (OCTech) and the OBD Solutions STN firmware updater are
-installed on Dale's PC as needed.
 
 ## Where we are (v0.10.0)
 
