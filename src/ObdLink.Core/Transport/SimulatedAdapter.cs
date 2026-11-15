@@ -125,8 +125,24 @@ public sealed class SimulatedAdapter
         (0x01, var pid) when DriveCycle.Encode(pid, DriveCycle.At(Clock())) is { } d => Multi(0x7E8, new byte[] { 0x41, pid }.Concat(d).ToArray()),
         (0x03, _) => "7E806430203010101",     // 43 02 | 0301 0101 -> P0301, P0101 (synthetic)
         (0x04, _) => "7E80144",
+        (0x07, _) => Multi(0x7E8, new byte[] { 0x47, 0x01, 0x01, 0x71 }),             // pending P0171 (synthetic)
+        (0x0A, _) => Multi(0x7E8, new byte[] { 0x4A, 0x01, 0x03, 0x01 }),             // permanent P0301 (synthetic)
+        (0x02, var pid) when r.Length >= 3 && r[2] == 0x00 && FreezeFrame(pid) is { } ff => Multi(0x7E8, new byte[] { 0x42, pid, 0x00 }.Concat(ff).ToArray()),
         (0x09, 0x02) => Multi(0x7E8, new byte[] { 0x49, 0x02, 0x01 }.Concat(System.Text.Encoding.ASCII.GetBytes(Vin)).ToArray()),
         _ => "NO DATA",
+    };
+
+    /// <summary>SYNTHETIC freeze frame 0 (stored by P0301): PIDs 02, 04, 05, 0C, 0D.</summary>
+    private static byte[]? FreezeFrame(byte pid) => pid switch
+    {
+        0x00 => new byte[] { 0x58, 0x18, 0x00, 0x00 }, // 02 04 05 0C 0D
+        0x20 or 0x40 => new byte[] { 0x00, 0x00, 0x00, 0x00 },
+        0x02 => new byte[] { 0x03, 0x01 },
+        0x04 => new byte[] { 0x80 },
+        0x05 => new byte[] { 0x5A },
+        0x0C => new byte[] { 0x0F, 0xA0 },
+        0x0D => new byte[] { 0x30 },
+        _ => null,
     };
 
     private string Uds(uint tx, byte[] r, bool padded = false)
@@ -139,8 +155,7 @@ public sealed class SimulatedAdapter
             0x10 => SessionControl(tx, r),
             0x11 => new byte[] { 0x51, r[1] },
             0x14 => new byte[] { 0x54 },
-            0x19 => UdsDtcs.TryGetValue(tx, out var dl) ? new byte[] { 0x59, 0x02, 0xFF }.Concat(dl.SelectMany(d => new[] { (byte)(d.Dtc >> 16), (byte)(d.Dtc >> 8), (byte)d.Dtc, d.Status })).ToArray()
-                                                     : new byte[] { 0x59, 0x02, 0xFF, 0x91, 0x23, 0x45, 0x2F },
+            0x19 => ReadDtcInfo(tx, r),
             0x27 => SecurityAccess(tx, r),
             0x1A => new byte[] { 0x7F, 0x1A, 0x11 },
             0x22 => Read(tx, (ushort)(r[1] << 8 | r[2])),
@@ -178,6 +193,35 @@ public sealed class SimulatedAdapter
     public static double OssRpm(double kmh) => kmh / 3.6 / 2.6 * 60 * 3.55;
     private byte[] Oss() { var raw = (ushort)Math.Round(OssRpm(DriveCycle.At(Clock()).SpeedKmh) * 4); return new byte[] { 0x62, 0x1E, 0x13, (byte)(raw >> 8), (byte)raw }; }
     private byte[] Tft() { var raw = (short)Math.Round(DriveCycle.At(Clock()).TftC * 16); return new byte[] { 0x62, 0x1E, 0x1C, (byte)(raw >> 8), (byte)raw }; }
+
+    /// <summary>
+    /// SYNTHETIC UDS 0x19. 02: DTC list (default one DTC 9123-45 status 2F). 01: count. 03: snapshot ids (record 01 for the first DTC).
+    /// 04: one snapshot record with one identifier (DID DD00, 4 data bytes). 06: one extended record (01 = occurrence counter 5).
+    /// Other sub-functions answer NRC 0x12.
+    /// </summary>
+    private byte[] ReadDtcInfo(uint tx, byte[] r)
+    {
+        var dl = UdsDtcs.TryGetValue(tx, out var l) ? l : new List<(uint Dtc, byte Status)> { (0x912345, 0x2F) };
+        byte[] D(uint d) => new[] { (byte)(d >> 16), (byte)(d >> 8), (byte)d };
+        if (r.Length < 2) return new byte[] { 0x7F, 0x19, 0x13 };
+        switch (r[1])
+        {
+            case 0x01: return new byte[] { 0x59, 0x01, 0xFF, 0x01, (byte)(dl.Count >> 8), (byte)dl.Count };
+            case 0x02: return new byte[] { 0x59, 0x02, 0xFF }.Concat(dl.SelectMany(d => D(d.Dtc).Append(d.Status))).ToArray();
+            case 0x03: return dl.Count == 0 ? new byte[] { 0x59, 0x03 } : new byte[] { 0x59, 0x03 }.Concat(D(dl[0].Dtc)).Append((byte)0x01).ToArray();
+            case 0x04 or 0x06 when r.Length >= 6:
+            {
+                uint dtc = (uint)(r[2] << 16 | r[3] << 8 | r[4]);
+                var hit = dl.FirstOrDefault(d => d.Dtc == dtc);
+                if (hit == default) return new byte[] { 0x7F, 0x19, 0x31 };
+                var head = new byte[] { 0x59, r[1] }.Concat(D(dtc)).Append(hit.Status);
+                bool first = dl[0].Dtc == dtc;
+                if (r[1] == 0x04) return (first && r[5] is 0x01 or 0xFF ? head.Concat(new byte[] { 0x01, 0x01, 0xDD, 0x00, 0x00, 0x01, 0x23, 0x45 }) : head).ToArray();
+                return head.Concat(new byte[] { 0x01, 0x05 }).ToArray();
+            }
+            default: return new byte[] { 0x7F, 0x19, 0x12 };
+        }
+    }
 
     /// <summary>SYNTHETIC SecurityAccess: seed 11 22 33; the accepted key is the seed reversed (33 22 11). A wrong key gives NRC 0x35.</summary>
     private byte[] SecurityAccess(uint tx, byte[] r)

@@ -41,6 +41,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.6.0 | - | New build; verify on Windows (dashboard pop-out, Keep live, material backgrounds; see v0.6.0 release notes) |
 | Windows | v0.6.1 | CI (windows-latest) build + unit tests | Write-safety fixes; verify on Windows and on the truck (see v0.6.1 release notes) |
 | Windows | v0.7.0 | CI (windows-latest) build + unit tests | Seed/key plug-ins; verify on Windows (see v0.7.0 release notes) |
+| Windows | v0.8.0 | CI (windows-latest) build + unit tests | DTC detail (Phase 1); verify on Windows and the truck (see v0.8.0 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
 Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.
