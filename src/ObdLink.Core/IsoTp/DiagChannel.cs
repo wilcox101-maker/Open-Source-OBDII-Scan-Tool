@@ -12,6 +12,18 @@ public interface IDiagChannel
 }
 
 /// <summary>
+/// Optional capability: keep receiving from the current target without transmitting anything. ISO 14229-2 requires this after
+/// a "response pending" (NRC 0x78) reply: the client waits up to P2* for the final answer instead of sending the request again.
+/// The ELM/STN text interface cannot do this (each command transmits), so <see cref="ElmDiagChannel"/> does not implement it;
+/// a pass-thru (J2534) transport can.
+/// </summary>
+public interface IDiagReceiveChannel
+{
+    /// <summary>Returns every complete response that arrives within <paramref name="timeout"/>; empty if none.</summary>
+    Task<IReadOnlyList<DiagResponse>> ReceiveAsync(TimeSpan timeout, CancellationToken ct = default);
+}
+
+/// <summary>
 /// Diagnostic channel over an ELM/STN adapter with CAN auto-formatting on (ATCAF1, default):
 /// the adapter performs ISO-TP segmentation/flow-control on transmit; with ATH1 + ATS0 it prints
 /// each received frame as "&lt;id&gt;&lt;PCI&gt;&lt;data&gt;", which we reassemble host-side with IsoTpReassembler.

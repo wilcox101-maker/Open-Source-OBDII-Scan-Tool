@@ -10,11 +10,8 @@ namespace ObdLink.Core.ConsoleCmds;
 /// </summary>
 public static class ConsoleGuard
 {
-    public static readonly byte[] StateChanging =
-    {
-        0x04, 0x08, 0x11, 0x14, 0x27, 0x28, 0x2C, 0x2E, 0x2F,
-        0x31, 0x34, 0x35, 0x36, 0x37, 0x38, 0x3B, 0x3D, 0x85, 0x86, 0x87,
-    };
+    /// <summary>Same table as the UDS client's service gate (<see cref="Uds.UdsServices.StateChanging"/>).</summary>
+    public static readonly byte[] StateChanging = Uds.UdsServices.StateChanging;
 
     public readonly record struct Decision(bool Allowed, string? Reason);
 
@@ -62,5 +59,5 @@ public static class ConsoleGuard
         return false;
     }
 
-    private static bool IsChanging(byte sid) => StateChanging.Contains(sid);
+    private static bool IsChanging(byte sid) => Uds.UdsServices.IsStateChanging(sid);
 }

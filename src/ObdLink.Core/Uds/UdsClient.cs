@@ -27,16 +27,27 @@ public sealed class UdsNegativeResponseException : Exception
 
 public static class UdsNrc
 {
-    // ISO 14229-1 negative response codes (subset).
+    // ISO 14229-1 negative response codes. 0x94-0xEF and 0xF0-0xFE are ranges (specific / manufacturer conditions not correct).
     public static string Describe(byte n) => n switch
     {
         0x10 => "generalReject", 0x11 => "serviceNotSupported", 0x12 => "subFunctionNotSupported",
         0x13 => "incorrectMessageLengthOrInvalidFormat", 0x14 => "responseTooLong", 0x21 => "busyRepeatRequest",
-        0x22 => "conditionsNotCorrect", 0x24 => "requestSequenceError", 0x31 => "requestOutOfRange",
+        0x22 => "conditionsNotCorrect", 0x24 => "requestSequenceError", 0x25 => "noResponseFromSubnetComponent",
+        0x26 => "failurePreventsExecutionOfRequestedAction", 0x31 => "requestOutOfRange",
         0x33 => "securityAccessDenied", 0x35 => "invalidKey", 0x36 => "exceedNumberOfAttempts",
-        0x37 => "requiredTimeDelayNotExpired", 0x72 => "generalProgrammingFailure",
+        0x37 => "requiredTimeDelayNotExpired", 0x70 => "uploadDownloadNotAccepted", 0x71 => "transferDataSuspended",
+        0x72 => "generalProgrammingFailure", 0x73 => "wrongBlockSequenceCounter",
         0x78 => "requestCorrectlyReceived-ResponsePending", 0x7E => "subFunctionNotSupportedInActiveSession",
-        0x7F => "serviceNotSupportedInActiveSession", _ => "unknown"
+        0x7F => "serviceNotSupportedInActiveSession",
+        0x81 => "rpmTooHigh", 0x82 => "rpmTooLow", 0x83 => "engineIsRunning", 0x84 => "engineIsNotRunning",
+        0x85 => "engineRunTimeTooLow", 0x86 => "temperatureTooHigh", 0x87 => "temperatureTooLow",
+        0x88 => "vehicleSpeedTooHigh", 0x89 => "vehicleSpeedTooLow", 0x8A => "throttle/PedalTooHigh",
+        0x8B => "throttle/PedalTooLow", 0x8C => "transmissionRangeNotInNeutral", 0x8D => "transmissionRangeNotInGear",
+        0x8F => "brakeSwitch(es)NotClosed", 0x90 => "shifterLeverNotInPark", 0x91 => "torqueConverterClutchLocked",
+        0x92 => "voltageTooHigh", 0x93 => "voltageTooLow",
+        >= 0x94 and <= 0xEF => "reservedForSpecificConditionsNotCorrect",
+        >= 0xF0 and <= 0xFE => "vehicleManufacturerSpecificConditionsNotCorrect",
+        _ => "unknown"
     };
 
     /// <summary>Plain-English meaning of an NRC for the message log / error dialogs.</summary>
@@ -61,6 +72,21 @@ public static class UdsNrc
         0x78 => "the module is still processing (response pending)",
         0x7E => "sub-function not supported in the current diagnostic session",
         0x7F => "service not supported in the current diagnostic session (an extended session may be required)",
+        0x25 => "a sub-network component behind this module did not answer",
+        0x26 => "a fault in the module prevents this action",
+        0x70 => "the module refused the download/upload request",
+        0x71 => "the data transfer was suspended",
+        0x73 => "the transfer block sequence counter was wrong",
+        0x81 => "engine speed is too high for this action", 0x82 => "engine speed is too low for this action",
+        0x83 => "the engine must be off for this action", 0x84 => "the engine must be running for this action",
+        0x85 => "the engine has not run long enough", 0x86 => "temperature is too high", 0x87 => "temperature is too low",
+        0x88 => "vehicle speed is too high", 0x89 => "vehicle speed is too low",
+        0x8A => "throttle/pedal is too high", 0x8B => "throttle/pedal is too low",
+        0x8C => "the transmission must be in neutral", 0x8D => "the transmission must be in gear",
+        0x8F => "the brake pedal must be pressed", 0x90 => "the shifter must be in park",
+        0x91 => "the torque converter clutch is locked", 0x92 => "supply voltage is too high", 0x93 => "supply voltage is too low",
+        >= 0x94 and <= 0xEF => "a vehicle condition required for this action is not met",
+        >= 0xF0 and <= 0xFE => "a manufacturer-specific vehicle condition is not met",
         _ => "manufacturer-specific or unknown negative response",
     };
 
@@ -68,8 +94,13 @@ public static class UdsNrc
     {
         0x01 => "OBD mode 01", 0x03 => "OBD mode 03", 0x09 => "OBD mode 09",
         0x10 => "DiagnosticSessionControl", 0x11 => "ECUReset", 0x14 => "ClearDiagnosticInformation", 0x19 => "ReadDTCInformation",
-        0x1A => "KWP ReadEcuIdentification", 0x22 => "ReadDataByIdentifier", 0x27 => "SecurityAccess", 0x2E => "WriteDataByIdentifier",
-        0x2F => "InputOutputControl", 0x31 => "RoutineControl", 0x3E => "TesterPresent", _ => "service",
+        0x1A => "KWP ReadEcuIdentification", 0x22 => "ReadDataByIdentifier", 0x23 => "ReadMemoryByAddress",
+        0x24 => "ReadScalingDataByIdentifier", 0x27 => "SecurityAccess", 0x28 => "CommunicationControl", 0x29 => "Authentication",
+        0x2A => "ReadDataByPeriodicIdentifier", 0x2C => "DynamicallyDefineDataIdentifier", 0x2E => "WriteDataByIdentifier",
+        0x2F => "InputOutputControl", 0x31 => "RoutineControl", 0x34 => "RequestDownload", 0x35 => "RequestUpload",
+        0x36 => "TransferData", 0x37 => "RequestTransferExit", 0x38 => "RequestFileTransfer", 0x3D => "WriteMemoryByAddress",
+        0x3E => "TesterPresent", 0x83 => "AccessTimingParameter", 0x84 => "SecuredDataTransmission", 0x85 => "ControlDTCSetting",
+        0x86 => "ResponseOnEvent", 0x87 => "LinkControl", _ => "service",
     };
 }
 
@@ -91,34 +122,88 @@ public sealed record DtcRecord(uint Code, byte Status)
     public string Display => $"{Obd.DtcFormat.FromTwoBytes((ushort)(Code >> 8))}-{Code & 0xFF:X2}";
 }
 
-/// <summary>ISO 14229-1 client (subset) over an IDiagChannel.</summary>
+/// <summary>ISO 14229-1 client over an IDiagChannel. Transport rules (P2/P2*, response pending, suppressed responses) follow ISO 14229-2.</summary>
 public sealed class UdsClient
 {
     private readonly IDiagChannel _ch;
     public uint TargetTxId { get; }
     public ISeedKeyProvider SeedKey { get; set; } = new NullSeedKeyProvider();
+    /// <summary>ELM-style channels only: how many times an idempotent request is sent again after "pending" (0x78) or "busy" (0x21).</summary>
     public int PendingRetries { get; set; } = 5;
+    public TimeSpan PendingRetryDelay { get; set; } = TimeSpan.FromMilliseconds(200);
+    /// <summary>Receive-capable channels only: how many consecutive "pending" (0x78) replies are accepted, each followed by a P2* wait.</summary>
+    public int MaxPendingReplies { get; set; } = 20;
+    /// <summary>When set, state-changing services (<see cref="UdsServices.StateChanging"/>) need the gate open before anything is sent.</summary>
+    public Safety.WriteGate? Gate { get; set; }
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+    /// <summary>P2/P2* the module reported in its last DiagnosticSessionControl reply (ISO defaults until then).</summary>
+    public UdsServerTiming ServerTiming { get; private set; } = UdsServerTiming.Default;
+    /// <summary>Session the module confirmed last; null until a DiagnosticSessionControl succeeds. An ECU reset returns it to Default.</summary>
+    public UdsSession? ActiveSession { get; private set; }
+    /// <summary>When the last request was transmitted (S3 activity for <see cref="TesterPresentKeeper"/>).</summary>
+    public DateTimeOffset? LastRequestAt { get; private set; }
 
     public UdsClient(IDiagChannel ch, uint targetTxId) { _ch = ch; TargetTxId = targetTxId; }
 
+    /// <summary>
+    /// Sends one request and returns the module's positive response. Returns an empty array when the request set the
+    /// suppress-positive-response bit and the module stayed silent (success, per ISO 14229-1).
+    /// After "response pending" (0x78): a receive-capable channel waits up to P2* for the final answer without re-sending;
+    /// an ELM-style channel re-sends idempotent requests only, and otherwise reports NRC 0x78 so the caller can settle the outcome.
+    /// </summary>
     public async Task<byte[]> RequestAsync(byte[] req, CancellationToken ct = default)
     {
         if (req.Length == 0) throw new ArgumentException("Empty UDS request", nameof(req));
+        if (Gate is not null && UdsServices.IsStateChanging(req[0])) Gate.Require($"{UdsNrc.ServiceName(req[0])} (0x{req[0]:X2})");
+        bool suppressed = UdsServices.SuppressesPositiveResponse(req);
         uint rx = TargetTxId + 8; // Ford/OBD convention rx = tx + 8 [convention, verify per module]
         await _ch.SetTargetAsync(TargetTxId, rx, ct);
-        for (int i = 0; ; i++)
+        for (int attempt = 0; ; attempt++)
         {
+            LastRequestAt = Clock.GetUtcNow();
             var resps = await _ch.RequestAsync(req, ct: ct);
-            var r = PickFinal(resps, rx) ?? throw new TimeoutException($"No response from 0x{TargetTxId:X3}");
-            if (r[0] == req[0] + 0x40) return r;
-            if (r[0] == 0x7F && r.Length >= 3)
+            bool resend = false;
+            for (int pending = 0; !resend;)
             {
-                // 0x78 response-pending: the ELM text interface returns once the first frame arrives,
-                // so we can only re-issue the request. [LIMITATION] Not safe for non-idempotent services; see README.
-                if ((r[2] == 0x78 || r[2] == 0x21) && i < PendingRetries && IsIdempotent(req[0])) { await Task.Delay(200, ct); continue; }
+                var r = PickFinal(resps, rx);
+                if (r is null)
+                {
+                    if (pending > 0)
+                        throw new TimeoutException($"Module 0x{TargetTxId:X3} answered response pending (0x78) to {UdsNrc.ServiceName(req[0])} but sent no final answer within P2* ({ServerTiming.P2Star.TotalMilliseconds:0} ms)");
+                    if (suppressed) { OnPositive(req, Array.Empty<byte>()); return Array.Empty<byte>(); }
+                    throw new TimeoutException($"No response from 0x{TargetTxId:X3}");
+                }
+                if (r[0] == req[0] + 0x40) { OnPositive(req, r); return r; }
+                if (r[0] != 0x7F || r.Length < 3)
+                    throw new InvalidDataException($"Unexpected response from 0x{TargetTxId:X3} to {Convert.ToHexString(req)}: {Convert.ToHexString(r)}");
+                if (r[2] == 0x78 && _ch is IDiagReceiveChannel listen)
+                {
+                    if (pending >= MaxPendingReplies)
+                        throw new TimeoutException($"Module 0x{TargetTxId:X3} answered response pending (0x78) {pending} times to {UdsNrc.ServiceName(req[0])}; stopped waiting");
+                    pending++;
+                    resps = await listen.ReceiveAsync(ServerTiming.P2Star, ct);
+                    continue;
+                }
+                // ELM text interface: it returns on the first reply and cannot keep listening, so the only option is to send again.
+                // [LIMITATION] Only safe for idempotent services; see README.
+                if ((r[2] is 0x78 or 0x21) && attempt < PendingRetries && IsIdempotent(req[0])) { await Task.Delay(PendingRetryDelay, ct); resend = true; continue; }
                 throw new UdsNegativeResponseException(r[1], r[2], TargetTxId, req);
             }
-            throw new InvalidDataException($"Unexpected response from 0x{TargetTxId:X3} to {Convert.ToHexString(req)}: {Convert.ToHexString(r)}");
+        }
+    }
+
+    private void OnPositive(byte[] req, byte[] resp)
+    {
+        switch (req[0])
+        {
+            case 0x10 when req.Length >= 2:
+                ActiveSession = (UdsSession)(req[1] & 0x7F);
+                ServerTiming = UdsServerTiming.TryParse(resp, out var t) ? t : UdsServerTiming.Default;
+                break;
+            case 0x11:
+                ActiveSession = UdsSession.Default;
+                ServerTiming = UdsServerTiming.Default;
+                break;
         }
     }
 
@@ -144,7 +229,10 @@ public sealed class UdsClient
 
     public Task<byte[]> DiagnosticSessionControlAsync(UdsSession s, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x10, (byte)s }, ct);
     public Task<byte[]> EcuResetAsync(ResetType t, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x11, (byte)t }, ct);
-    public Task<byte[]> TesterPresentAsync(CancellationToken ct = default) => RequestAsync(new byte[] { 0x3E, 0x00 }, ct);
+    public Task<byte[]> TesterPresentAsync(CancellationToken ct = default) => TesterPresentAsync(false, ct);
+    /// <summary>3E 00, or 3E 80 when <paramref name="suppressResponse"/> (no reply expected; an empty result means success).</summary>
+    public Task<byte[]> TesterPresentAsync(bool suppressResponse, CancellationToken ct = default)
+        => RequestAsync(new byte[] { 0x3E, suppressResponse ? (byte)0x80 : (byte)0x00 }, ct);
 
     /// <summary>0x14 ClearDiagnosticInformation, group 0xFFFFFF = all.</summary>
     public Task<byte[]> ClearDtcsAsync(uint group = 0xFFFFFF, CancellationToken ct = default)
@@ -165,6 +253,40 @@ public sealed class UdsClient
         var r = await RequestAsync(new byte[] { 0x22, (byte)(did >> 8), (byte)did }, ct);
         if (r.Length < 3 || r[1] != (byte)(did >> 8) || r[2] != (byte)did) throw new InvalidDataException("DID echo mismatch");
         return r[3..];
+    }
+
+    /// <summary>
+    /// 0x22 with several DIDs in one request. The reply is the DIDs' records back to back, so each DID's data length must be known
+    /// (<see cref="DidRequest.Length"/>). Modules may cap the number of DIDs per request; they answer NRC 0x13 or 0x14 when it is exceeded.
+    /// </summary>
+    public async Task<IReadOnlyList<DidValue>> ReadDataByIdentifiersAsync(IReadOnlyList<DidRequest> dids, CancellationToken ct = default)
+    {
+        if (dids.Count == 0) throw new ArgumentException("No DIDs to read", nameof(dids));
+        if (dids.Select(d => d.Did).Distinct().Count() != dids.Count) throw new ArgumentException("A DID is listed more than once", nameof(dids));
+        if (dids.Any(d => d.Length <= 0)) throw new ArgumentException("Every DID needs a data length above zero", nameof(dids));
+        var req = new byte[1 + 2 * dids.Count];
+        req[0] = 0x22;
+        for (int i = 0; i < dids.Count; i++) { req[1 + 2 * i] = (byte)(dids[i].Did >> 8); req[2 + 2 * i] = (byte)dids[i].Did; }
+        return ParseMultiDid(await RequestAsync(req, ct), dids);
+    }
+
+    /// <summary>Splits a 62 reply into per-DID records. Every DID must be echoed in order with exactly its length, and nothing may be left over.</summary>
+    public static IReadOnlyList<DidValue> ParseMultiDid(byte[] resp, IReadOnlyList<DidRequest> dids)
+    {
+        if (resp.Length == 0 || resp[0] != 0x62) throw new InvalidDataException($"Not a ReadDataByIdentifier reply: {Convert.ToHexString(resp)}");
+        var list = new List<DidValue>(dids.Count);
+        int pos = 1;
+        foreach (var d in dids)
+        {
+            if (pos + 2 + d.Length > resp.Length)
+                throw new InvalidDataException($"ReadDataByIdentifier reply too short for DID 0x{d.Did:X4} ({d.Length} bytes): {Convert.ToHexString(resp)}");
+            int echo = resp[pos] << 8 | resp[pos + 1];
+            if (echo != d.Did) throw new InvalidDataException($"ReadDataByIdentifier reply has DID 0x{echo:X4} where 0x{d.Did:X4} was expected: {Convert.ToHexString(resp)}");
+            list.Add(new DidValue(d.Did, resp[(pos + 2)..(pos + 2 + d.Length)]));
+            pos += 2 + d.Length;
+        }
+        if (pos != resp.Length) throw new InvalidDataException($"ReadDataByIdentifier reply has {resp.Length - pos} unexpected trailing byte(s): {Convert.ToHexString(resp)}");
+        return list;
     }
 
     public async Task WriteDataByIdentifierAsync(ushort did, byte[] data, CancellationToken ct = default)
