@@ -14,7 +14,8 @@ namespace ObdLink.App;
 /// <item>Output hold: 2F did 03 state with a <see cref="ControlLease"/>. Pressing again, <see cref="DashActions.HoldSeconds"/> s
 /// passing, removing the card or closing the window sends 2F did 00 (allowed even after writes are switched off).</item>
 /// <item>DID write: reads the current value first (shown as old → new and logged so it can be written back), writes, reads back
-/// and says whether the module now holds the new value.</item>
+/// and says whether the module now holds the new value. <see cref="UndoCommand"/> then writes the old value back (same gate,
+/// battery check and typed WRITE), but only while the module still holds what the card wrote.</item>
 /// </list>
 /// </summary>
 public sealed class DashActionCardVm : ObservableObject
@@ -27,13 +28,22 @@ public sealed class DashActionCardVm : ObservableObject
     public DashItem Item { get; }
     public DashAction Spec => Item.Action!;
     public AsyncCommand RunCommand { get; }
+    public AsyncCommand UndoCommand { get; }
+    private DashWriteUndo? _undo;
+    /// <summary>True after a DID write whose old value was read: the card offers Undo.</summary>
+    public bool CanUndo => _undo is not null;
+    public string UndoTip => _undo?.Summary ?? "";
 
     public DashActionCardVm(DashItem item, DashActionHost? host, IEventLog log)
     {
         Item = item; _host = host; _log = log;
         RunCommand = new AsyncCommand($"Dashboard write card: {Label}", log, RunAsync, (n, e) => { Status = "Failed: " + e.Message; _host?.Err(n, e); },
             () => new (string, object?)[] { ("card", Label), ("kind", Spec.Kind), ("module", Spec.Module), ("id", Spec.Id) });
+        UndoCommand = new AsyncCommand($"Dashboard write card undo: {Label}", log, UndoAsync, (n, e) => { Status = "Undo failed: " + e.Message; _host?.Err(n, e); },
+            () => new (string, object?)[] { ("card", Label), ("module", Spec.Module), ("id", Spec.Id), ("old", _undo is null ? null : Convert.ToHexString(_undo.Before)) });
     }
+
+    private void SetUndo(DashWriteUndo? u) { _undo = u; OnPropertyChanged(nameof(CanUndo)); OnPropertyChanged(nameof(UndoTip)); }
 
     public string Label => string.IsNullOrWhiteSpace(Spec.Label) ? Spec.Kind.ToString() : Spec.Label;
     public string Description
@@ -89,8 +99,13 @@ public sealed class DashActionCardVm : ObservableObject
                     break;
                 default:
                     _log.Message(LogEventLevel.Information, "Dashboard", $"{Label}: DID 0x{plan.Id:X4} on 0x{plan.TxId:X3} was {before ?? "(unreadable)"} before the write");
+                    // Undo is offered before the write is sent, so a write whose answer is lost can still be undone. Undo re-reads
+                    // the DID first: if the write never landed it finds the old value and has nothing to do.
+                    byte[]? old = before is null ? null : Convert.FromHexString(before);
+                    SetUndo(DashActions.UndoFor(Spec, old, plan.Data, plan.Data));
                     await uds.WriteDataByIdentifierAsync(plan.Id, plan.Data);
                     var back = await uds.ReadDataByIdentifierAsync(plan.Id);
+                    SetUndo(DashActions.UndoFor(Spec, old, plan.Data, back));
                     var ok = back.AsSpan().SequenceEqual(plan.Data);
                     Status = $"{DateTimeOffset.Now:HH:mm:ss} wrote {Convert.ToHexString(plan.Data)} (was {before ?? "unreadable"}); read back {Convert.ToHexString(back)}: " + (ok ? "verified." : "DIFFERENT - the module did not keep the value.");
                     if (!ok) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: read-back {Convert.ToHexString(back)} differs from written {Convert.ToHexString(plan.Data)}");
@@ -98,6 +113,32 @@ public sealed class DashActionCardVm : ObservableObject
             }
         });
         if (_lease is { } held) _ = AutoReleaseAsync(held);
+    }
+
+    private async Task UndoAsync()
+    {
+        var undo = _undo ?? throw new InvalidOperationException("Nothing to undo: write with this card first (its old value must have been readable).");
+        var module = Host.ModuleName(undo.Plan.TxId);
+        await Host.OnModule(undo.Plan.TxId, async uds =>
+        {
+            var safety = Host.Safety();
+            await safety.EnsureVoltageAsync(); // write gate + battery window
+            var now = await uds.ReadDataByIdentifierAsync(undo.Plan.Id);
+            if (undo.Refusal(now) is string no)
+            {
+                if (now.AsSpan().SequenceEqual(undo.Before)) SetUndo(null);
+                throw new InvalidOperationException(no);
+            }
+            await safety.RequireAsync(DashActions.Steps(undo.Plan, Label + " (undo)", module, Convert.ToHexString(now)));
+            await uds.DiagnosticSessionControlAsync(UdsSession.Extended);
+            _log.Message(LogEventLevel.Information, "Dashboard", $"{Label}: undo, DID 0x{undo.Plan.Id:X4} on 0x{undo.Plan.TxId:X3} {Convert.ToHexString(now)} → {Convert.ToHexString(undo.Before)}");
+            await uds.WriteDataByIdentifierAsync(undo.Plan.Id, undo.Before);
+            var back = await uds.ReadDataByIdentifierAsync(undo.Plan.Id);
+            bool ok = back.AsSpan().SequenceEqual(undo.Before);
+            if (ok) SetUndo(null);
+            Status = $"{DateTimeOffset.Now:HH:mm:ss} undo: wrote {Convert.ToHexString(undo.Before)} back; read back {Convert.ToHexString(back)}: " + (ok ? "verified." : "DIFFERENT - the module did not keep the old value.");
+            if (!ok) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: undo read-back {Convert.ToHexString(back)} differs from {Convert.ToHexString(undo.Before)}");
+        });
     }
 
     private async Task AutoReleaseAsync(ControlLease lease)
