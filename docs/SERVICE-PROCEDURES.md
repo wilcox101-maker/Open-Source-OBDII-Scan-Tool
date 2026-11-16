@@ -240,7 +240,7 @@ Cycles the ABS valves and pump so trapped air leaves the hydraulic unit during a
 A NeedsCapture procedure becomes runnable only with identifiers from one of:
 
 1. **A cited public source** (Ford service information, a TSB, a forum post quoting a Ford tool). Confidence Community.
-2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded from the adapter link. Confidence Verified after a successful run (verification plan, Phase 3 D2).
+2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded with `obdcli proxy` and summarized with `obdcli capture-summary` (`docs/CLI.md`). Confidence Verified after this app runs it once with its conditions and no new DTCs (verification plan, Phase 3 D2).
 3. **Synthesis**: the same routine on a related model year or module generation. Confidence Synthesized; the app asks for UNVERIFIED and the release notes say so.
 
 Whatever the source, a routine only goes on the truck allow-list after it was run once with its listed conditions and left no new DTCs.

@@ -4,9 +4,10 @@
 capture, As-Built backup) and for contributors who want to work without a truck: every command also runs against the
 built-in simulator with `--demo`.
 
-**It never writes to the vehicle.** Every UDS client it creates has a closed write gate, so a state-changing service
+**It never writes to the vehicle by itself.** Every UDS client it creates has a closed write gate, so a state-changing service
 (clear DTCs, As-Built write, routines, resets, 85/28/2F) is refused before anything is sent. A test checks the source for
-write calls. Writing stays in the app, behind its backups and confirmations.
+write calls. Writing stays in the app, behind its backups and confirmations. The one exception is `proxy`, which relays
+another program's requests (and refuses pyrotechnic routines): what it sends is decided by that program.
 
 ## Get it
 - CI publishes a self-contained Windows build for every commit: artifact `obdcli-win-x64-<sha>` (one `obdcli.exe`, no install).
@@ -37,6 +38,8 @@ Exit codes: `0` OK, `1` error (adapter, vehicle, file), `2` usage error.
 | `options --abt 726.abt [--tab NAME] [--search TEXT]` | Offline: lists the 2015-2020 F-150 community-sheet options for the file's lines, with the current value and meaning. |
 | `options --abt 726.abt --set "ADDR PATTERN=DIGITS" [--set ...] --out 726-new.abt` | Offline: edits options and writes a **new** `.abt` (checksums recomputed, conflicting edits refused, the input file is never overwritten). Load the new file in the app (Import .abt) to review it and write it through the normal safe path. |
 | `vbf-info --file image.vbf` | Offline: checks a VBF flash file against the flash engine's reader: header fields, every block's address, length and checksum. A block whose stored checksum is not CRC-16/CCITT-FALSE is shown as MISMATCH, with the other common 16-bit checksum it matches if any. Exit 0 = the app would accept the file, 3 = it would refuse it. Never touches the vehicle. |
+| `proxy --port COM5 [--baud 115200] [--listen 35000] --log capture.txt` | **Capture** (v0.23.0). Relays another diagnostic program to the adapter and logs every command and reply, so the requests that program sends for a service procedure on your own truck can be recorded. Point the other program at a Wi-Fi/TCP ELM adapter at `127.0.0.1` port 35000 (listens on this PC only). Pyrotechnic routines (31 xx E200-E2FF) are never forwarded. This is the one command that relays writes: what is sent is decided by the other program. The log holds raw replies including the VIN: keep it private. Whether a given program accepts a TCP adapter at 127.0.0.1 is [UNVERIFIED]; use it only with programs whose license allows it. |
+| `capture-summary --log capture.txt [--json]` | Offline: the shareable part of a capture. Per module, the session changes and state-changing requests (routines, writes, resets, IO control, clears) in order, with what each module answered; the routines the modules accepted are listed at the end as catalog candidates. Seeds and keys are left out and VINs are masked. Reads are counted, not listed. |
 
 ## J2534 pass-thru devices (VCM II / VCMM, Mongoose, clones, DIY)
 - `obdcli j2534-list` shows what is installed. Most J2534 drivers are **32-bit**: use the **x86** `obdcli` build
@@ -46,6 +49,13 @@ Exit codes: `0` OK, `1` error (adapter, vehicle, file), `2` usage error.
 - With J2534 the app waits properly after a module's "response pending" instead of sending the request again.
 - `monitor` needs an ELM327/STN adapter for now.
 - Close other programs that use the device first (one program per device).
+
+## Capturing a service procedure (to fill `docs/SERVICE-PROCEDURES.md`)
+
+1. Wired adapter (OBDLink EX), truck parked, battery charger on. `obdcli proxy --port COM5 --log bms.txt`.
+2. In the other program, connect to a Wi-Fi adapter at 127.0.0.1:35000 and run **one** procedure. Write down the time you started it.
+3. Ctrl+C, then `obdcli capture-summary --log bms.txt`. The accepted routine at that time is the candidate; share the summary, not the log.
+4. The catalog entry is added with the capture as its source and stays Community/UNVERIFIED until this app runs it once on the truck with no new DTCs.
 
 ## Examples
 ```
