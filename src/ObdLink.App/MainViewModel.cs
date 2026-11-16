@@ -81,20 +81,6 @@ public sealed class AsBuiltRow : ObservableObject
     public AsBuiltEditLine ToEdit() => new(Addr, Data, EnteredChecksum);
 }
 
-/// <summary>One line of the As-Built change history.</summary>
-public sealed record AsBuiltHistoryRow(AsBuiltChange Change)
-{
-    public string When => Change.At.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss");
-    public string Where => Change.Where;
-    public string Kind => Change.Kind;
-    public int Bytes => Change.BytesChanged;
-    public string Before => Change.Before;
-    public string After => Change.After;
-    public string Vin => "…" + Change.VinTail;
-    public string Backup => Change.BackupFile;
-    public string Note => Change.Note;
-}
-
 public sealed class MainViewModel : ObservableObject
 {
     private static readonly PortInfo DemoMx = new("DEMO-MX+", "Simulated OBDLink MX+", PortKind.Virtual);
@@ -118,16 +104,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<PortInfo> Ports { get; } = new();
     public ObservableCollection<string> Vehicles { get; } = new(VehicleProfiles.All);
     public ObservableCollection<ModuleRow> Modules { get; } = new();
-    public ObservableCollection<AsBuiltRow> AsBuiltRows { get; } = new();
-    /// <summary>Factory reference baseline (Ford motorcraftservice.com .ab). Read-only reference. It is never written to a module automatically.</summary>
-    private FordAbFile? _factory;
-    private string _factoryInfo = "No factory .ab loaded"; public string FactoryInfo { get => _factoryInfo; set => Set(ref _factoryInfo, value); }
-    public ObservableCollection<AsBuiltDiff> FactoryDiff { get; } = new();
-    public AsyncCommand ImportFactoryAbCommand { get; }
-    public AsyncCommand ExportFactoryAbCommand { get; }
     public AsyncCommand CompareToFactoryCommand { get; }
-    public AsyncCommand ImportAbtCommand { get; }
-    public AsyncCommand ExportAbtCommand { get; }
 
     private PortInfo? _port; private bool _refreshingPorts, _simExplicit;
     public PortInfo? SelectedPort
@@ -184,6 +161,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>DTCs page (split out of this class).</summary>
     public DtcViewModel Dtc { get; }
     public BusMonitorViewModel Monitor { get; }
+    /// <summary>As-Built page state + offline file commands (split out of this class, step 1).</summary>
+    public AsBuiltPageViewModel AsBuiltPage { get; }
     public AsBuiltOptionsViewModel AsBuiltOptions { get; }
     /// <summary>Why adapter commands are refused right now (the bus monitor owns the adapter), or null.</summary>
     private string? AdapterBlocked() => Monitor is { Running: true } ? "The bus monitor is using the adapter. Press Stop on the Bus Monitor tab first." : null;
@@ -204,7 +183,6 @@ public sealed class MainViewModel : ObservableObject
     public bool IsConnected => Connection.State == ConnectionState.Connected;
     private string _baud = ""; public string Baud { get => _baud; set => Set(ref _baud, value); }
     private bool _ms; public bool MsCanAvailable { get => _ms; set => Set(ref _ms, value); }
-    private string _blk = "1"; public string AsBuiltBlockNo { get => _blk; set { if (Set(ref _blk, value)) EventLog.UserAction("As-Built block entered", ("block", value)); } }
     private string _ci = ""; public string ConsoleInput { get => _ci; set => Set(ref _ci, value); }
     private string _co = ""; public string ConsoleOutput { get => _co; set => Set(ref _co, value); }
     private bool _allow; public bool ConsoleAllowWrites { get => _allow; set { if (Set(ref _allow, value)) { EventLog.UserAction("Console 'Allow writes' toggled", ("on", value)); if (_console != null) _console.AllowWrites = value; } } }
@@ -333,7 +311,6 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>v0.16.0: restores the backup taken before the last verified write of the selected module.</summary>
     public AsyncCommand UndoAsBuiltCommand { get; }
     /// <summary>v0.16.0: verified As-Built changes (newest first), from asbuilt-history.jsonl in the backups folder.</summary>
-    public ObservableCollection<AsBuiltHistoryRow> AsBuiltHistory { get; } = new();
     public AsyncCommand ConsoleSendCommand { get; }
     public AsyncCommand IdentifyVehicleCommand { get; }
     public AsyncCommand OpenMotorcraftCommand { get; }
@@ -484,7 +461,7 @@ public sealed class MainViewModel : ObservableObject
         }, Err, p, can);
         bool AsBuiltCan() => AsBuiltActionsEnabled;
         (string, object?)[] Mod() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address) };
-        (string, object?)[] ModBlk() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address), ("block", AsBuiltBlockNo) };
+        (string, object?)[] ModBlk() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address), ("block", AsBuiltPage.AsBuiltBlockNo) };
 
         try { _settings = AppSettings.Load(SettingsPath); }
         catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
@@ -502,7 +479,9 @@ public sealed class MainViewModel : ObservableObject
             () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
             (m, f, fallback) => OnBus(m, f, fallback), Safety, ModuleBatchAsync, t => BatchText = t, Info);
         LiveData.Blocked = AdapterBlocked;
-        AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltRows.ToList());
+        AsBuiltPage = new AsBuiltPageViewModel(EventLog, (n, f) => C(n, f), OpenFile, SaveFile, (t, m) => Ask(t, m),
+            () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups);
+        AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList());
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         InitSeedKey(Err);
@@ -564,7 +543,7 @@ public sealed class MainViewModel : ObservableObject
             RequireAsBuilt(m);
             // v0.6.1 audit: only this module's lines for this block are written (the grid may hold other blocks or modules),
             // lines must be complete and every typed checksum must match. Length is checked against the module in AsBuiltService.
-            var newBlock = AsBuiltWritePlan.BuildBlock((ushort)m.Def.TxId, Block, AsBuiltRows.Select(r => r.ToEdit()));
+            var newBlock = AsBuiltWritePlan.BuildBlock((ushort)m.Def.TxId, Block, AsBuiltPage.AsBuiltRows.Select(r => r.ToEdit()));
             await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) block {Block:X2} on {ModuleReplies.BusName(m.Bus)}, {newBlock.Data.Length} bytes. A write does not try another bus.") });
             AsBuiltWriteResult res = null!;
             await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);
@@ -601,63 +580,16 @@ public sealed class MainViewModel : ObservableObject
             if (!res.Written) { Info("Undo", res.Note); return; }
             Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}");
         }, Mod, AsBuiltCan);
-        ImportFactoryAbCommand = C("Import factory .ab", () =>
-        {
-            _factory = FordAbFile.Load(OpenFile("Factory .ab", "Ford As-Built|*.ab|All files|*.*", Paths.AsBuiltDir)); RefreshBackups();
-            var bad = _factory.Lines.Count(l => !l.ChecksumValid);
-            FactoryInfo = $"Factory .ab: VIN …{(_factory.Vin.Length >= 6 ? _factory.Vin[^6..] : _factory.Vin)}, {_factory.AsBuiltModules.Count()} modules, {_factory.Lines.Count} lines, {bad} bad checksums";
-            EventLog.Message(bad > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Import factory .ab", FactoryInfo);
-            return Task.CompletedTask;
-        });
-        ExportFactoryAbCommand = C("Export .ab", () =>
-        {
-            if (_factory is null) throw new InvalidOperationException("Import a factory .ab first");
-            var f = SaveFile("Factory .ab", "Ford As-Built|*.ab", "factory-redacted.ab", Paths.AsBuiltDir);
-            var redact = Ask("Export", "Redact VIN (keep last 6) and module serials?");
-            File.WriteAllText(f, (redact ? _factory.Redacted() : _factory).ToXml());
-            EventLog.Message(LogEventLevel.Information, "Export .ab", $"Saved {f} (redacted: {redact})");
-            return Task.CompletedTask;
-        });
-        ImportAbtCommand = C("Import .abt", () =>
-        {
-            var abt = ForscanAbtFile.Load(OpenFile("FORScan .abt", "FORScan As-Built backup|*.abt|All files|*.*", Paths.AsBuiltDir));
-            AsBuiltRows.Clear();
-            foreach (var l in abt.Lines) AsBuiltRows.Add(AsBuiltRow.From(l));
-            var bad = abt.Lines.Count(l => !l.ChecksumValid);
-            FactoryDiff.Clear();
-            var info = $".abt: {string.Join(",", abt.Modules.Select(m => m.ToString("X3")))}, {abt.Lines.Count} lines, {bad} bad checksums";
-            if (_factory is not null)
-            {
-                foreach (var m in abt.Modules) foreach (var d in AsBuiltDiff.Compare(_factory.Lines, abt.Lines, m)) FactoryDiff.Add(d);
-                info += " | vs factory: " + string.Join(", ", FactoryDiff.GroupBy(d => d.Kind).Select(g => $"{g.Key}={g.Count()}"));
-            }
-            FactoryInfo = info;
-            EventLog.Message(bad > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Import .abt", info);
-            return Task.CompletedTask;
-        });
-        ExportAbtCommand = C("Export .abt", () =>
-        {
-            if (AsBuiltRows.Count == 0) throw new InvalidOperationException("Read or import As-Built rows first");
-            var lines = AsBuiltRows.Select(r => AsBuiltLine.Create(r.Addr, Convert.FromHexString(r.Data.Replace(" ", "")))).ToList();
-            var f = SaveFile("FORScan .abt", "FORScan As-Built backup|*.abt", $"{lines[0].Address.Module:X3}.abt", Paths.AsBuiltDir);
-            var abt = ForscanAbtFile.Parse(ForscanAbtFile.Format(lines));
-            if (_factory is { Vin.Length: 17 } && Ask("Export", "Redact VIN (keep last 6) in block data?"))
-                abt = abt.Redacted(_factory.Vin);
-            File.WriteAllText(f, abt.ToText());
-            EventLog.Message(LogEventLevel.Information, "Export .abt", $"Saved {f}");
-            return Task.CompletedTask;
-        });
         CompareToFactoryCommand = C("Compare to factory", async () =>
         {
-            if (_factory is null) throw new InvalidOperationException("Import a factory .ab first");
+            if (AsBuiltPage.Factory is not { } factory) throw new InvalidOperationException("Import a factory .ab first");
             if (SelectedModule is { } m) RequireAsBuilt(m);
             var current = new List<AsBuiltLine>();
-            foreach (var b in _factory.Blocks(Module))
-                current.AddRange(_factory.SplitLike(Module, b, (await AsBuilt.ReadBlockAsync(Module, b)).Data));
+            foreach (var b in factory.Blocks(Module))
+                current.AddRange(factory.SplitLike(Module, b, (await AsBuilt.ReadBlockAsync(Module, b)).Data));
             if (SelectedModule is { } ok) MarkAsBuilt(ok, AsBuiltSupport.Supported);
-            FactoryDiff.Clear();
-            foreach (var d in AsBuiltDiff.Compare(_factory.Lines, current, Module)) FactoryDiff.Add(d);
-            EventLog.Message(LogEventLevel.Information, "Compare to factory", string.Join(", ", FactoryDiff.GroupBy(d => d.Kind).Select(g => $"{g.Key}={g.Count()}")));
+            AsBuiltPage.ShowDiff(AsBuiltDiff.Compare(factory.Lines, current, Module));
+            EventLog.Message(LogEventLevel.Information, "Compare to factory", AsBuiltPageViewModel.DiffSummary(AsBuiltPage.FactoryDiff));
         }, Mod, AsBuiltCan);
         IdentifyVehicleCommand = C("Identify vehicle", async () =>
         {
@@ -710,7 +642,7 @@ public sealed class MainViewModel : ObservableObject
             var ab = FordAbFile.Load(src);
             var dest = Path.Combine(ObdLink.Core.Storage.AppPaths.Ensure(Paths.AsBuiltDir), Path.GetFileName(src));
             if (!string.Equals(Path.GetFullPath(src), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase)) File.Copy(src, dest, overwrite: true);
-            _factory = ab; RefreshBackups();
+            AsBuiltPage.SetFactory(ab);
             if (_current is null && ab.Vin.Length == 17) _current = _profiles.Values.FirstOrDefault(p => p.Vin == ab.Vin);
             if (_current is { } cur && (cur.Vin.Length != 17 || cur.Vin == ab.Vin))
             {
@@ -718,8 +650,8 @@ public sealed class MainViewModel : ObservableObject
                 if (cur.Vin.Length == 17) cur.Save(Paths.VehiclesDir);
                 VehicleInfo = DescribeProfile(cur);
             }
-            FactoryInfo = $"Factory .ab: VIN …{(ab.Vin.Length >= 6 ? ab.Vin[^6..] : ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines (copied to {dest})";
-            EventLog.Message(LogEventLevel.Information, "Import .ab", FactoryInfo);
+            AsBuiltPage.FactoryInfo = $"Factory .ab: VIN …{AsBuiltPageViewModel.VinTail(ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines (copied to {dest})";
+            EventLog.Message(LogEventLevel.Information, "Import .ab", AsBuiltPage.FactoryInfo);
             return Task.CompletedTask;
         });
         ConsoleSendCommand = C("Console send", async () =>
@@ -743,14 +675,7 @@ public sealed class MainViewModel : ObservableObject
 
     private ElmDiagChannel Ch => _ch ?? throw new InvalidOperationException("Not connected - click Connect first (use a DEMO port to try without a vehicle)");
     private ushort Module => (ushort)(SelectedModule?.Def.TxId ?? throw new InvalidOperationException("Select a module in the module list first"));
-    private byte Block
-    {
-        get
-        {
-            try { return Convert.ToByte(AsBuiltBlockNo.Trim(), 16); }
-            catch (Exception) { throw new InvalidOperationException($"Block '{AsBuiltBlockNo}' is not a valid block number (1-99, as in FORScan)"); }
-        }
-    }
+    private byte Block => AsBuiltPage.Block;
     private UdsClient Uds() => new(Ch, Module);
     private SafetyGuard Safety() => new(_session ?? throw new InvalidOperationException("Not connected"), _confirm, gate: Gate);
 
@@ -1235,18 +1160,11 @@ public sealed class MainViewModel : ObservableObject
         r.Def.InFactoryAb || factory.Contains(r.Def.TxId) || r.LastBackup != null || ModuleRow.TypicalAsBuilt.Contains(r.Acronym);
 
     /// <summary>Recomputes As-Built flags + newest backup per module, then refreshes the As-Built picker.</summary>
-    private void RefreshHistory()
-    {
-        AsBuiltHistory.Clear();
-        try { foreach (var c in new AsBuiltHistory(Paths.BackupsDir).Load().Reverse()) AsBuiltHistory.Add(new AsBuiltHistoryRow(c)); }
-        catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "As-Built history", "Could not read the change history", ex); }
-    }
-
     private void RefreshBackups()
     {
-        RefreshHistory();
+        AsBuiltPage.RefreshHistory();
         var found = AsBuiltBatch.FindBackups(Paths.AsBuiltDir, Paths.BackupsDir);
-        var fac = _factory?.AsBuiltModules.Select(x => (uint)x).ToHashSet() ?? new();
+        var fac = AsBuiltPage.FactoryModules;
         foreach (var r in Modules)
         {
             if (found.TryGetValue(r.Def.TxId, out var b)) { r.LastBackup = b.When; r.BackupPath = b.Path; } else { r.LastBackup = null; r.BackupPath = null; }
@@ -1257,7 +1175,7 @@ public sealed class MainViewModel : ObservableObject
     private void RefreshAsBuiltModules()
     {
         var keep = SelectedModule;
-        var fac = _factory?.AsBuiltModules.Select(x => (uint)x).ToHashSet() ?? new();
+        var fac = AsBuiltPage.FactoryModules;
         AsBuiltModules.Clear();
         foreach (var r in Modules.Where(r => AsBuiltSupportPolicy.ShowInList(r.AsBuiltSupport, GuessedAsBuilt(r, fac), AsBuiltShowAll, r.Found))) AsBuiltModules.Add(r);
         if (keep != null) { _mod = null; SelectedModule = keep; }
@@ -1382,8 +1300,7 @@ public sealed class MainViewModel : ObservableObject
     }
     private void ShowBlocks(IEnumerable<AsBuiltBlock> blocks)
     {
-        AsBuiltRows.Clear();
-        foreach (var b in blocks) foreach (var l in b.Lines()) AsBuiltRows.Add(AsBuiltRow.From(l));
+        AsBuiltPage.ShowLines(blocks.SelectMany(b => b.Lines()));
     }
 
     private async Task ReadAllBlocksAsync()
@@ -1396,7 +1313,7 @@ public sealed class MainViewModel : ObservableObject
         ShowBlocks(blocks);
         var path = await AsBuiltBatch.SaveAsync(AsBuiltBatch.DateFolder(Paths.AsBuiltDir, DateTime.Now), MaskedVin, (ushort)m.Def.TxId, blocks, DateTime.Now);
         RefreshBackups();
-        ModuleHint = $"{m.Acronym}: {blocks.Count} block(s), {AsBuiltRows.Count} lines - saved {path}";
+        ModuleHint = $"{m.Acronym}: {blocks.Count} block(s), {AsBuiltPage.AsBuiltRows.Count} lines - saved {path}";
         EventLog.Message(LogEventLevel.Information, "Read all As-Built blocks", ModuleHint);
     }
 
@@ -1467,8 +1384,7 @@ public sealed class MainViewModel : ObservableObject
         AsBuiltBlock b = null!;
         await OnBus(m, async () => b = await AsBuilt.ReadBlockAsync((ushort)m.Def.TxId, Block));
         MarkAsBuilt(m, AsBuiltSupport.Supported);
-        AsBuiltRows.Clear();
-        foreach (var l in b.Lines()) AsBuiltRows.Add(AsBuiltRow.From(l));
-        EventLog.Message(LogEventLevel.Information, "Read As-Built block", $"{SelectedModule?.Label} block {AsBuiltBlockNo} (DID 0x{did:X4}): {b.Data.Length} bytes, {AsBuiltRows.Count} lines");
+        AsBuiltPage.ShowLines(b.Lines());
+        EventLog.Message(LogEventLevel.Information, "Read As-Built block", $"{SelectedModule?.Label} block {AsBuiltPage.AsBuiltBlockNo} (DID 0x{did:X4}): {b.Data.Length} bytes, {AsBuiltPage.AsBuiltRows.Count} lines");
     }
 }

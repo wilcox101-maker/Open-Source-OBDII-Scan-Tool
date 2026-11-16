@@ -120,8 +120,8 @@ public partial class MainWindow : Window
             case "readAllAb": Go("As-Built"); Run(_vm.ReadAllModulesAsBuiltCommand); break;
             case "backup": Run(_vm.BackupAsBuiltCommand); break;
             case "write": Run(_vm.WriteAsBuiltCommand); break;           // confirmation + read-only gate inside the command
-            case "open": Run(_vm.ImportFactoryAbCommand); break;
-            case "export": Run(_vm.ExportFactoryAbCommand); break;
+            case "open": Run(_vm.AsBuiltPage.ImportFactoryAbCommand); break;
+            case "export": Run(_vm.AsBuiltPage.ExportFactoryAbCommand); break;
             case "capture": Run(_vm.DiagnosticsCaptureCommand); break;
             case "exportLogs": Run(_vm.EventsPanel.ExportCommand); break;
             case "find": FindLogs(); break;

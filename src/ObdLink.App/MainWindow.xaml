@@ -56,11 +56,11 @@
   <DockPanel x:Name="RootPanel">
     <Menu DockPanel.Dock="Top" x:Name="MainMenu">
       <MenuItem Header="_File">
-        <MenuItem Header="_Open factory .ab…" InputGestureText="Ctrl+O" Command="{Binding ImportFactoryAbCommand}"/>
-        <MenuItem Header="Open FORScan ._abt…" Command="{Binding ImportAbtCommand}"/>
+        <MenuItem Header="_Open factory .ab…" InputGestureText="Ctrl+O" Command="{Binding AsBuiltPage.ImportFactoryAbCommand}"/>
+        <MenuItem Header="Open FORScan ._abt…" Command="{Binding AsBuiltPage.ImportAbtCommand}"/>
         <MenuItem Header="_Export">
-          <MenuItem Header="_Factory .ab (optionally redacted)…" InputGestureText="Ctrl+S" Command="{Binding ExportFactoryAbCommand}"/>
-          <MenuItem Header="FORScan .abt…" Command="{Binding ExportAbtCommand}"/>
+          <MenuItem Header="_Factory .ab (optionally redacted)…" InputGestureText="Ctrl+S" Command="{Binding AsBuiltPage.ExportFactoryAbCommand}"/>
+          <MenuItem Header="FORScan .abt…" Command="{Binding AsBuiltPage.ExportAbtCommand}"/>
           <MenuItem Header="E_vents log…" InputGestureText="Ctrl+E" Command="{Binding EventsPanel.ExportCommand}"/>
           <MenuItem Header="Messages log…" Command="{Binding MessagesPanel.ExportCommand}"/>
           <MenuItem Header="Adapter traffic log…" Command="{Binding TrafficPanel.ExportCommand}"/>
@@ -457,18 +457,18 @@
               <Button Command="{Binding ReadAllBlocksCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Reads every As-Built block of this module and saves Data\asbuilt\&lt;date&gt;\*.asbuilt.json (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read all blocks"/></StackPanel></Button>
               <Button Command="{Binding ReadAllModulesAsBuiltCommand}" ToolTip="Backs up all blocks of every As-Built module that answered the scan (read-only). MS-CAN modules need an MX+ / EX"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Read all modules (backup)"/></StackPanel></Button>
               <TextBlock Text="Block:" VerticalAlignment="Center" Margin="12,3,3,3"/>
-              <TextBox Width="40" VerticalContentAlignment="Center" Text="{Binding AsBuiltBlockNo}"/>
+              <TextBox Width="40" VerticalContentAlignment="Center" Text="{Binding AsBuiltPage.AsBuiltBlockNo}"/>
               <Button Command="{Binding ReadAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read"/></StackPanel></Button>
               <Button Command="{Binding BackupAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Backup"/></StackPanel></Button>
               <Button Command="{Binding WriteAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes to the module. Backup + confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE70F;"/><TextBlock Text="Write + verify…"/></StackPanel></Button>
               <Button Command="{Binding RestoreAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes the backup to the module. Confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Restore from backup…"/></StackPanel></Button>
-              <Button Command="{Binding ImportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import factory .ab…"/></StackPanel></Button>
-              <Button Command="{Binding ExportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .ab…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ImportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import factory .ab…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ExportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .ab…"/></StackPanel></Button>
               <Button Command="{Binding CompareToFactoryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8FD;"/><TextBlock Text="Compare to factory"/></StackPanel></Button>
-              <Button Command="{Binding ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
-              <Button Command="{Binding ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
             </WrapPanel>
-            <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding FactoryInfo}" TextWrapping="Wrap"/>
+            <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding AsBuiltPage.FactoryInfo}" TextWrapping="Wrap"/>
             <TabControl DockPanel.Dock="Bottom" Height="300">
               <TabItem Header="Options (community sheet)" DataContext="{Binding AsBuiltOptions}">
                 <DockPanel>
@@ -508,7 +508,7 @@
                     <Button Command="{Binding UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last verified write of the selected module (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Verified writes and restores only (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
                   </WrapPanel>
-                  <DataGrid ItemsSource="{Binding AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
+                  <DataGrid ItemsSource="{Binding AsBuiltPage.AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
                     <DataGrid.Columns>
                       <DataGridTextColumn Header="When" Binding="{Binding When}"/>
                       <DataGridTextColumn Header="Block" Binding="{Binding Where}"/>
@@ -524,7 +524,7 @@
                 </DockPanel>
               </TabItem>
               <TabItem Header="Compare to factory">
-                <DataGrid ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
+                <DataGrid ItemsSource="{Binding AsBuiltPage.FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
                   <DataGrid.Columns>
                     <DataGridTextColumn Header="Address" Binding="{Binding Address}"/>
                     <DataGridTextColumn Header="Factory (.ab)" Binding="{Binding Factory}" Width="*"/>
@@ -536,7 +536,7 @@
             </TabControl>
             <TextBlock DockPanel.Dock="Bottom" Margin="3" TextWrapping="Wrap" Foreground="{DynamicResource Warn}"
                        Text="Edit Data (hex, no checksum), then type the matching value in Check (as in FORScan). Only lines of the selected module and block are written, and the length must match the module. Block→DID mapping (DE00+n-1) is an UNVERIFIED community convention."/>
-            <DataGrid ItemsSource="{Binding AsBuiltRows}" AutoGenerateColumns="False" CanUserAddRows="False" FontFamily="{StaticResource Mono}">
+            <DataGrid ItemsSource="{Binding AsBuiltPage.AsBuiltRows}" AutoGenerateColumns="False" CanUserAddRows="False" FontFamily="{StaticResource Mono}">
               <DataGrid.Columns>
                 <DataGridTextColumn Header="Address" Binding="{Binding Address}" IsReadOnly="True"/>
                 <DataGridTextColumn Header="Data (hex)" Binding="{Binding Data, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
