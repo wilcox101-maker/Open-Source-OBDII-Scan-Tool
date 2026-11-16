@@ -48,6 +48,9 @@ public sealed class MockTransport : ITransport
         return Task.CompletedTask;
     }
 
+    /// <summary>Delivers unsolicited adapter output (monitor mode).</summary>
+    public void Push(string text) => _rx.Writer.TryWrite(text);
+
     public async Task<string> ReadAsync(CancellationToken ct = default) => await _rx.Reader.ReadAsync(ct);
 
     public void DiscardInput() { while (_rx.Reader.TryRead(out _)) { } }

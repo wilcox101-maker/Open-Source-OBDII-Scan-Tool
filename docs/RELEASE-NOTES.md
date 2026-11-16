@@ -1,3 +1,26 @@
+## v0.13.0
+
+**Phase 2: bus monitor. Read-only: nothing is transmitted.** Includes v0.12.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.13.0.zip`** (normal Intel/AMD PCs).
+
+New **Bus Monitor** tab:
+- Pick **HS-CAN**, **MS-CAN** or **HS-CAN2** (the last two need an MX+ / EX). Start listens silently (ATCSM1 + ATMA): the adapter does not acknowledge or send frames.
+- Grid per CAN ID: count, rate (Hz), DLC, latest data, **Changed bits** and last seen. Changed bits shows, per byte, which bits have changed since Reset stats, so live signals stand out while static bytes show `··`.
+- **Filter**: `all`, `diag` (700-7FF), one ID (`7E8`, `18DAF110`) or id/mask (`700/780`). It is applied in the app; the adapter's own receive filters are not touched, so normal requests afterwards are unaffected.
+- **Record CSV** writes every kept frame (`time,id,ext,dlc,data`) to the logs folder.
+- If the adapter's buffer fills (BUFFER FULL, likely on a busy bus over Bluetooth), the monitor restarts and the status line counts the overflows.
+- While it runs, the monitor owns the adapter. Other adapter commands are refused with a message (Connect/Disconnect stop it first). Live data stops, and modules kept in an extended session are released and return to their default session after 5 s. Afterwards the app restores formatting, header and receive filter before the next request.
+
+Internal: Core `MonitorLine` (11/29-bit, spaces on/off), `IdFilter`, `MonitorStats`, `CanCsvLog`, `BusMonitor`; `ElmLink.MonitorAsync`. Stop sends a single CR from the cancellation callback, so it works even when a Windows serial read ignores cancellation. Exactly one CR: a second would repeat ATMA. Simulator streams synthetic broadcast frames per bus.
+
+### Windows + truck verify
+1. DEMO: Bus Monitor → HS-CAN → Start: IDs 167, 201, 3B3, 420 appear with rates. 201 and 3B3 show changed bits, 420 mostly `··`. Stop → status shows frames and frames/s.
+2. DEMO: filter `201` → only 201; `diag` → nothing (no diagnostic traffic while monitoring). Record CSV for a few seconds → file in the logs folder.
+3. DEMO: while monitoring, click Read module DTCs → refused with "The bus monitor is using the adapter…". Stop, then Read works. Disconnect while monitoring → monitor stops cleanly.
+4. DEMO (MX+ / EX profile): MS-CAN → 080, 3B2, 433.
+5. Truck, engine running, parked: HS-CAN `all` for 30 s. Note the frames/s and any overflows (Bluetooth vs USB if you have both). Then MS-CAN. Then Stop and confirm Read module DTCs and Live Data still work. Expect IDs to change with doors, lights and pedal; the app does not decode them.
+
 ## v0.12.0
 
 **Phase 2: charts, replay and triggers. Read-only.** Includes v0.11.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

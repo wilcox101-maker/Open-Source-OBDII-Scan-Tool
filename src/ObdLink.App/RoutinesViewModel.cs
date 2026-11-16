@@ -41,12 +41,13 @@ public sealed class RoutinesViewModel : ObservableObject
     public RelayCommand ClearCommand { get; }
 
     public RoutinesViewModel(IEventLog log, Func<UdsSessionHost?> host, Func<ModuleRow?> module, Func<ModuleRow, Func<Task>, bool, Task> onBus,
-        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err)
+        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null)
     {
         _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err;
         (string, object?)[] P() => new (string, object?)[] { ("module", _module()?.Label), ("addr", _module()?.Address), ("routine", RoutineId), ("option", Option) };
         AsyncCommand C(string name, Func<Task> f) => new(name, log, async () =>
         {
+            if (blocked?.Invoke() is string why) throw new InvalidOperationException(why);
             await _bus.WaitAsync();
             try { await f(); }
             finally { _bus.Release(); Refresh(); }

@@ -93,8 +93,12 @@ public sealed class LiveDataViewModel : ObservableObject
     private List<LiveSignal> _catalog = new();
 
     /// <summary>Discovers supported Mode 01 PIDs and loads the enhanced DID table, then builds the selectable list.</summary>
+    /// <summary>Set by the main view model: a reason adapter commands are refused right now (the bus monitor runs), or null.</summary>
+    public Func<string?>? Blocked { get; set; }
+
     private async Task DiscoverAsync()
     {
+        if (Blocked?.Invoke() is string why) throw new InvalidOperationException(why);
         var ch = _ch() ?? throw new InvalidOperationException("Connect first (a DEMO port works without a vehicle).");
         var engine = new DashboardEngine(ch);
         await _bus.WaitAsync();
@@ -111,6 +115,7 @@ public sealed class LiveDataViewModel : ObservableObject
     private async Task StartAsync()
     {
         if (Active) return;
+        if (Blocked?.Invoke() is string why) throw new InvalidOperationException(why);
         CloseReplay();
         if (_catalog.Count == 0) await DiscoverAsync();
         var picked = Available.Where(a => a.Selected).Select(a => a.Signal).ToList();

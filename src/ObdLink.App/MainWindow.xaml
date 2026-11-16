@@ -382,6 +382,37 @@
             </DockPanel>
           </Border>
         </TabItem>
+        <TabItem Header="Bus Monitor" Tag="&#xEC05;" DataContext="{Binding Monitor}">
+          <Border Style="{StaticResource CardStyle}">
+            <DockPanel>
+              <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                <TextBlock Text="Bus" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox ItemsSource="{Binding BusChoices}" SelectedItem="{Binding BusChoice}" Width="90" Margin="0,0,10,0" IsEnabled="{Binding Idle}" ToolTip="MS-CAN and HS-CAN2 need an OBDLink MX+ / EX"/>
+                <TextBlock Text="Filter" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <TextBox Width="110" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Margin="0,0,10,0" IsEnabled="{Binding Idle}"
+                         ToolTip="all | diag (700-7FF) | one ID (7E8, 18DAF110) | id/mask (700/780). Applied in the app; the adapter still receives everything."/>
+                <Button Command="{Binding StartCommand}" Margin="0,0,4,0" IsEnabled="{Binding Idle}" ToolTip="Silent monitor (ATCSM1 + ATMA). Nothing is transmitted."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Start"/></StackPanel></Button>
+                <Button Command="{Binding StopCommand}" Margin="0,0,10,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71A;"/><TextBlock Text="Stop"/></StackPanel></Button>
+                <Button Command="{Binding RecordCommand}" Content="{Binding RecordText}" Margin="0,0,4,0" ToolTip="Write every kept frame to a CSV (time,id,ext,dlc,data) in the logs folder"/>
+                <Button Command="{Binding ResetCommand}" Content="Reset stats" ToolTip="Clear counts, rates and the changed-bits marks"/>
+              </WrapPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="2,0,2,6" TextWrapping="Wrap" Foreground="{DynamicResource Accent}" Text="{Binding Status}"/>
+              <TextBlock DockPanel.Dock="Bottom" Margin="2,6,2,0" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
+                         Text="Changed shows, per byte, the bits that have changed since Reset stats (·· = never changed), so live signals stand out. While the monitor runs it owns the adapter: other adapter commands are refused, live data stops, and modules kept in an extended session return to their default session. A Bluetooth adapter may not keep up with a busy bus; overflows are counted."/>
+              <DataGrid ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" FontFamily="{StaticResource Mono}" HeadersVisibility="Column">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="ID" Binding="{Binding IdText}" Width="80"/>
+                  <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="80"/>
+                  <DataGridTextColumn Header="Hz" Binding="{Binding Rate}" Width="60"/>
+                  <DataGridTextColumn Header="DLC" Binding="{Binding Dlc}" Width="40"/>
+                  <DataGridTextColumn Header="Data" Binding="{Binding Data}" Width="200"/>
+                  <DataGridTextColumn Header="Changed bits" Binding="{Binding Changed}" Width="200"/>
+                  <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+        </TabItem>
         <TabItem Header="Routines" Tag="&#xE945;">
           <Border Style="{StaticResource CardStyle}">
             <DockPanel>
