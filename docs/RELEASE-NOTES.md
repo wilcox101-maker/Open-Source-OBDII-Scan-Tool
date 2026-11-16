@@ -1,3 +1,25 @@
+## v0.21.0
+
+**As-Built write recovery: every write is journaled, and a write that did not finish is found and fixed.** Includes v0.20.1 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+- **Write journal.** Before an As-Built 0x2E is sent, a *pending* line is flushed to disk in `asbuilt-history.jsonl` (block, old data, new data, backup file). After the read-back an outcome line follows: **verified**, **mismatch** (the block holds something else), **unknown** (no answer and no read-back, e.g. the adapter was pulled), **rejected** (the module refused with a definite NRC; nothing stored) or **not-written** (the block still holds the old data). A PC crash or a pulled adapter now leaves a *pending* or *unknown* line instead of nothing. Lines from earlier versions read as verified.
+- **"A write did not finish" banner** on the As-Built page, with two buttons:
+  - **Check** reads the block (read-only) and records whether it holds the new data, the old data, or something else.
+  - **Restore backup…** puts back the backup taken just before that write: the normal restore (VIN match, a fresh backup first, typed WRITE, read-back), on the module's own bus only.
+- **Right after a failed write, restore or undo**, the app offers to read the block (read-only) so you see at once what it holds.
+- **Undo last write** now also covers a write that ended mismatched, unknown or interrupted (its backup was taken first). A refused write (nothing stored) is skipped.
+- **A multi-block restore that stops half way** says how far it got ("stopped after 1 of 2 block(s)") and what to do next, instead of a bare error.
+- Change history shows an **Outcome** column.
+
+Internal: `AsBuiltOutcome`, `AsBuiltChange.Outcome/AttemptId`, `AsBuiltHistory.LoadLines/Load` (folded per attempt)/`Resolve`/`Unresolved`, journal appends flushed with write-through; `AsBuiltService.CheckAttemptAsync`/`RecoverAttemptAsync`, `PartialRestoreException`; simulator knobs `SilentAfterWrite`/`Reconnect()` and `WritesBeforeReject`. Plan: project note "vehicle write recovery" (gaps A1-A3, X1).
+
+### Windows + truck verify
+1. **DEMO (Phase 0):** write a changed As-Built block on DEMO-EX (writes enabled): history shows one row, Outcome *verified*.
+2. **DEMO:** history file check: open `Data\backups\asbuilt-history.jsonl`; the write is two lines (pending, verified) with the same AttemptId.
+3. **Truck (Phase 2, one block, the module you already tested):** write a one-byte change, and **pull the adapter's USB cable right after typing WRITE and pressing Enter**. Expect an error saying the result is UNKNOWN and the red banner on the As-Built page. Plug back in, Connect, press **Check**: it should report the new or the old data. Then **Restore backup…**: the block returns to the old bytes (read it again to confirm). The banner disappears.
+4. **Truck:** close the app while the banner shows, start it again: the banner is still there (it comes from the journal, not memory).
+5. **Truck:** Undo last write of this module after a normal verified write still restores the previous bytes.
+
 ## v0.20.1
 
 **Fixes found while capturing the README screenshots on Windows 11 (v0.20.0, DEMO-EX).** Includes v0.20.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.

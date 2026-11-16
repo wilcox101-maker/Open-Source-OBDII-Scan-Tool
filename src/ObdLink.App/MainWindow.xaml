@@ -520,6 +520,16 @@
               <Button Command="{Binding AsBuiltPage.ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
               <Button Command="{Binding AsBuiltPage.ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
             </WrapPanel>
+            <Border DockPanel.Dock="Top" Margin="3,4,3,2" Padding="8,6" CornerRadius="4" Background="{DynamicResource DangerBg}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
+                    Visibility="{Binding AsBuiltPage.HasUnfinished, Converter={StaticResource BoolVis}}">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button Command="{Binding AsBuiltPage.CheckUnfinishedCommand}" ToolTip="Reads the block (read-only) and records whether it holds the new data, the old data, or something else"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8FD;"/><TextBlock Text="Check"/></StackPanel></Button>
+                  <Button Command="{Binding AsBuiltPage.RecoverUnfinishedCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the write that did not finish (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Restore backup…"/></StackPanel></Button>
+                </StackPanel>
+                <TextBlock Text="{Binding AsBuiltPage.UnfinishedText}" Foreground="{DynamicResource DangerFg}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+              </DockPanel>
+            </Border>
             <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding AsBuiltPage.FactoryInfo}" TextWrapping="Wrap"/>
             <TabControl DockPanel.Dock="Bottom" Height="300">
               <TabItem Header="Options (community sheet)" DataContext="{Binding AsBuiltOptions}">
@@ -557,14 +567,15 @@
               <TabItem Header="Change history">
                 <DockPanel>
                   <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
-                    <Button Command="{Binding AsBuiltPage.UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last verified write of the selected module (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Verified writes and restores only (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
+                    <Button Command="{Binding AsBuiltPage.UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last write of the selected module, including one that did not finish (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Every write and restore with its outcome (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
                   </WrapPanel>
                   <DataGrid ItemsSource="{Binding AsBuiltPage.AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
                     <DataGrid.Columns>
                       <DataGridTextColumn Header="When" Binding="{Binding When}"/>
                       <DataGridTextColumn Header="Block" Binding="{Binding Where}"/>
                       <DataGridTextColumn Header="Kind" Binding="{Binding Kind}"/>
+                      <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}"/>
                       <DataGridTextColumn Header="Bytes" Binding="{Binding Bytes}"/>
                       <DataGridTextColumn Header="Before" Binding="{Binding Before}" Width="*"/>
                       <DataGridTextColumn Header="After" Binding="{Binding After}" Width="*"/>

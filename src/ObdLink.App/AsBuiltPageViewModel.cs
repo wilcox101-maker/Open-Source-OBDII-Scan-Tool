@@ -20,6 +20,8 @@ public sealed record AsBuiltHistoryRow(AsBuiltChange Change)
     public string Vin => "…" + Change.VinTail;
     public string Backup => Change.BackupFile;
     public string Note => Change.Note;
+    /// <summary>verified / mismatch / unknown / pending / rejected / not-written / recovered.</summary>
+    public string Outcome => Change.Outcome;
 }
 
 /// <summary>
@@ -113,6 +115,14 @@ public sealed class AsBuiltPageViewModel : ObservableObject
     public AsyncCommand RestoreAsBuiltCommand { get; }
     public AsyncCommand UndoAsBuiltCommand { get; }
     public AsyncCommand CompareToFactoryCommand { get; }
+    public AsyncCommand CheckUnfinishedCommand { get; }
+    public AsyncCommand RecoverUnfinishedCommand { get; }
+
+    /// <summary>Writes that did not end cleanly (newest per block), from the journal. Non-empty → the banner shows.</summary>
+    public IReadOnlyList<AsBuiltChange> Unfinished { get; private set; } = Array.Empty<AsBuiltChange>();
+    private string _unfinishedText = "";
+    public string UnfinishedText { get => _unfinishedText; private set { if (Set(ref _unfinishedText, value)) OnPropertyChanged(nameof(HasUnfinished)); } }
+    public bool HasUnfinished => UnfinishedText.Length > 0;
 
     /// <param name="factoryChanged">Called after the factory .ab changes (the main view model refreshes module flags and backups).</param>
     /// <param name="actionsEnabled">Whether the selected module may have As-Built (can-execute of the module commands).</param>
@@ -134,6 +144,8 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         RestoreAsBuiltCommand = cmd("Restore As-Built from backup", RestoreAsync, null, actionsEnabled);
         UndoAsBuiltCommand = cmd("Undo last As-Built write", UndoAsync, Mod, actionsEnabled);
         CompareToFactoryCommand = cmd("Compare to factory", CompareAsync, Mod, actionsEnabled);
+        CheckUnfinishedCommand = cmd("Check unfinished As-Built write", () => CheckUnfinishedAsync(), null, () => HasUnfinished);
+        RecoverUnfinishedCommand = cmd("Restore backup of unfinished As-Built write", RecoverUnfinishedAsync, null, () => HasUnfinished);
     }
 
     /// <summary>Re-evaluates can-execute of the module commands (after the selected module or its As-Built support changed).</summary>
@@ -146,6 +158,8 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         CompareToFactoryCommand.RaiseCanExecuteChanged();
         RestoreAsBuiltCommand.RaiseCanExecuteChanged();
         UndoAsBuiltCommand.RaiseCanExecuteChanged();
+        CheckUnfinishedCommand?.RaiseCanExecuteChanged();
+        RecoverUnfinishedCommand?.RaiseCanExecuteChanged();
     }
 
     /// <summary>Refuses a module known to have no As-Built (NRC 0x31 on DE00) before anything is sent.</summary>
@@ -235,7 +249,11 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         var newBlock = AsBuiltWritePlan.BuildBlock((ushort)m.Def.TxId, Block, AsBuiltRows.Select(r => r.ToEdit()));
         await _host.Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) block {Block:X2} on {ModuleReplies.BusName(m.Bus)}, {newBlock.Data.Length} bytes. A write does not try another bus.") });
         AsBuiltWriteResult res = null!;
-        await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);
+        try
+        {
+            await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or PartialRestoreException) { await OfferCheckAfterFailureAsync(); throw; }
         _host.MarkAsBuilt(m, AsBuiltSupport.Supported);
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Write", res.Note); return; }
@@ -251,7 +269,11 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         RequireAsBuilt(row);
         await _host.Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"Restore 0x{row.Def.TxId:X3} ({row.Label}) on {ModuleReplies.BusName(row.Bus)} from the backup of VIN …{VinTail(bk.Vin)}. A restore does not try another bus.") });
         AsBuiltWriteResult res = null!;
-        await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);
+        try
+        {
+            await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or PartialRestoreException) { await OfferCheckAfterFailureAsync(); throw; }
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Restore", res.Note); return; }
         _host.Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}");
@@ -266,7 +288,11 @@ public sealed class AsBuiltPageViewModel : ObservableObject
             ?? throw new InvalidOperationException($"No recorded change of {m.Label} with its backup still on disk. Nothing was written.");
         await _host.Safety().RequireAsync(new[] { new ConfirmationStep("Undo", $"Undo the {last.Kind} of {last.Where} on {last.At.LocalDateTime:yyyy-MM-dd HH:mm} ({last.BytesChanged} byte(s)) by restoring {last.BackupFile}? The normal restore checks follow (VIN match, fresh backup, typed WRITE, read-back).") });
         AsBuiltWriteResult res = null!;
-        await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);
+        try
+        {
+            await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or PartialRestoreException) { await OfferCheckAfterFailureAsync(); throw; }
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Undo", res.Note); return; }
         _host.Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}");
@@ -309,8 +335,75 @@ public sealed class AsBuiltPageViewModel : ObservableObject
     public void RefreshHistory()
     {
         AsBuiltHistory.Clear();
-        try { foreach (var c in new AsBuiltHistory(_backupsDir()).Load().Reverse()) AsBuiltHistory.Add(new AsBuiltHistoryRow(c)); }
-        catch (Exception ex) { _log.Message(LogEventLevel.Warning, "As-Built history", "Could not read the change history", ex); }
+        try
+        {
+            var h = new AsBuiltHistory(_backupsDir());
+            foreach (var c in h.Load().Reverse()) AsBuiltHistory.Add(new AsBuiltHistoryRow(c));
+            Unfinished = h.Unresolved();
+        }
+        catch (Exception ex) { _log.Message(LogEventLevel.Warning, "As-Built history", "Could not read the change history", ex); Unfinished = Array.Empty<AsBuiltChange>(); }
+        UnfinishedText = UnfinishedSummary(Unfinished);
+        RaiseModuleCommands();
+    }
+
+    /// <summary>Banner text for writes that did not finish; empty when there are none.</summary>
+    public static string UnfinishedSummary(IReadOnlyList<AsBuiltChange> open) => open.Count == 0 ? "" :
+        (open.Count == 1 ? "An As-Built write did not finish: " : $"{open.Count} As-Built writes did not finish: ")
+        + string.Join("; ", open.Select(c => $"{c.Where} ({c.Kind}, {c.Outcome}, {c.At.LocalDateTime:yyyy-MM-dd HH:mm})"))
+        + ". Check reads the block (read-only). Restore puts back the backup taken before the write.";
+
+    /// <summary>The unfinished write to act on: the selected module's newest, else the newest overall.</summary>
+    private AsBuiltChange PickUnfinished() =>
+        Unfinished.Where(c => c.Module == _host.SelectedModule?.Def.TxId).OrderBy(c => c.At).LastOrDefault()
+        ?? Unfinished.OrderBy(c => c.At).LastOrDefault()
+        ?? throw new InvalidOperationException("There is no unfinished As-Built write.");
+
+    /// <summary>Reads the block of an unfinished write (read-only) and records what it holds: the new data, the old data, or something else.</summary>
+    private async Task CheckUnfinishedAsync(AsBuiltChange? which = null)
+    {
+        var c = which ?? PickUnfinished();
+        var row = _host.FindModule(c.Module) ?? throw new InvalidOperationException($"Module 0x{c.Module:X3} is not in the module list. Scan first.");
+        (string Outcome, byte[] Now) r = ("", Array.Empty<byte>());
+        await OnBus(row, async () => r = await AsBuilt.CheckAttemptAsync(c));
+        _host.RefreshBackups();
+        _host.Info("Check unfinished write", r.Outcome switch
+        {
+            AsBuiltOutcome.Verified => $"{c.Where} holds the NEW data ({Convert.ToHexString(r.Now)}): the write did take effect. Nothing else to do.",
+            AsBuiltOutcome.NotWritten => $"{c.Where} holds the OLD data ({Convert.ToHexString(r.Now)}): the write did not take effect. The module is as it was.",
+            _ => $"{c.Where} holds {Convert.ToHexString(r.Now)}: neither the old nor the new data. Use Restore to put back the backup taken before the write ({c.BackupFile}).",
+        });
+    }
+
+    /// <summary>Restores the backup taken before an unfinished write (normal restore checks: VIN match, fresh backup, typed WRITE, read-back).</summary>
+    private async Task RecoverUnfinishedAsync()
+    {
+        var c = PickUnfinished();
+        var row = _host.FindModule(c.Module) ?? throw new InvalidOperationException($"Module 0x{c.Module:X3} is not in the module list. Scan first.");
+        RequireAsBuilt(row);
+        await _host.Safety().RequireAsync(new[] { new ConfirmationStep("Recover", $"Restore {c.BackupFile} to {c.Where} on {ModuleReplies.BusName(row.Bus)}? It holds what the block had before the {c.Kind} that did not finish ({c.At.LocalDateTime:yyyy-MM-dd HH:mm}). A restore does not try another bus.") });
+        AsBuiltWriteResult res = null!;
+        await OnBus(row, async () => res = await AsBuilt.RecoverAttemptAsync(c, _vin), allowFallback: false);
+        _host.RefreshBackups();
+        _host.Info("Recover", res.Written
+            ? $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).\nBackup taken before the restore: {res.BackupPath}"
+            : "The module already held the backup's data; the unfinished write did not take effect. Nothing was written.");
+    }
+
+    /// <summary>
+    /// After a write/restore/undo whose result is not verified: refresh, then offer the read-only check right away (when the link
+    /// still works). The original error is shown by the command wrapper either way.
+    /// </summary>
+    private async Task OfferCheckAfterFailureAsync()
+    {
+        _host.RefreshBackups();
+        if (!HasUnfinished) return;
+        var c = PickUnfinished();
+        if (!_ask("Write did not finish", $"The {c.Kind} of {c.Where} did not finish ({c.Outcome}). Read the block now to see what it holds? (read-only)")) return;
+        try { await CheckUnfinishedAsync(c); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.Message(LogEventLevel.Warning, "As-Built", "Check after a failed write could not read the block; use Check unfinished write after reconnecting", ex);
+        }
     }
 
     /// <summary>Replaces the grid with <paramref name="lines"/>.</summary>
