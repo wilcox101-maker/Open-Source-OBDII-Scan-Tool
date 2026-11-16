@@ -57,6 +57,8 @@ Exit codes: `0` OK, `1` error (adapter, vehicle, file), `2` usage error.
 3. Ctrl+C, then `obdcli capture-summary --log bms.txt`. The accepted routine at that time is the candidate; share the summary, not the log.
 4. The catalog entry is added with the capture as its source and stays Community/UNVERIFIED until this app runs it once on the truck with no new DTCs.
 
+For a whole session (self-tests, KAM, calibrations, relearn, PATS read-only), use `docs/CAPTURE-CHECKLIST.md`.
+
 ## Examples
 ```
 obdcli --demo info
