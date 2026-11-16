@@ -54,7 +54,7 @@ public static class UdsRoutines
     public static string? RefusalReason(ushort rid) => Classify(rid) switch
     {
         RoutineIdRange.PyrotechnicDeploy => "pyrotechnic deployment routines (E200-E2FF) can fire airbags or pretensioners and are never sent",
-        RoutineIdRange.Programming => "programming routines (FF00/FF01) belong to module flashing, which this tool does not do",
+        RoutineIdRange.Programming => "programming routines (FF00/FF01) are only sent by the flash engine (Flash/FlashEngine), never from the Routines tab or the console",
         _ => null,
     };
 
