@@ -46,6 +46,8 @@ Tells the BCM a new battery is installed: battery state of charge back to its de
 - Not after a simple charge: the reset clears the battery's learned aging data, which is only right for a new battery.
 - Battery type (flooded / AGM / EFB) is NOT set by this procedure. If you changed type, check the BCM As-Built battery type first [UNVERIFIED location].
 
+**Asked first (No stops the run):** Did you disconnect and re-connect battery recently?
+
 **Requests:** `10 03, 31 01 20 1A` (type UNVERIFIED)
 
 **Afterwards:**

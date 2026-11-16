@@ -1,3 +1,18 @@
+## v0.23.2
+
+**BMS reset asks first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **Routines tab → Run procedure…** for "Battery Monitoring System (BMS) reset" now opens with one Yes/No question: **"Did you disconnect and re-connect battery recently?"** No (or closing the dialog) stops the run before the other confirmations and before anything is sent. Yes continues to the usual steps (when, conditions, typed UNVERIFIED). Dale, 2026-11-16: reset only after a real battery change, as one gated question.
+- `docs/SERVICE-PROCEDURES.md` shows the question under the BMS reset ("Asked first").
+- Other procedures are unchanged (no question).
+
+Internal: `ServiceProcedure.Gate` (optional), asked as the first `ConfirmationStep`. Tests: question first and Yes/No (not typed), only BMS has one, a No stops after one dialog with `UserDeclinedException`; checked to fail with the BMS question removed.
+
+### Windows + truck verify
+1. **DEMO:** Writes on → Routines → Service procedure → BMS reset → Run procedure…: the first dialog is the battery question. **No**: nothing more is asked, the log says declined, nothing is sent.
+2. **DEMO:** same, **Yes**: the when / conditions / UNVERIFIED steps follow as in v0.23.1; the DEMO BCM refuses (NRC 0x31).
+3. **Truck:** none until a battery is actually replaced.
+
 ## v0.23.1
 
 **Service procedures in the app.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.

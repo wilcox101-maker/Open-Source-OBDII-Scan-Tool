@@ -32,6 +32,7 @@ public static class ServiceProceduresDoc
             List("Use when", p.UseWhen);
             List("Conditions", p.Conditions);
             List("Warnings", p.Warnings);
+            if (p.Gate is { Length: > 0 } g) sb.AppendLine($"**Asked first (No stops the run):** {g}").AppendLine();
             if (p.Runnable) sb.AppendLine($"**Requests:** `{p.RequestSummary}` (type {p.Phrase})").AppendLine();
             else sb.AppendLine($"**Not runnable:** {p.NotRunnableReason}").AppendLine();
             List("Afterwards", p.After);
