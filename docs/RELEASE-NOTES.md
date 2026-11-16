@@ -1,3 +1,18 @@
+## v0.23.14
+
+**Module software vs the factory record, offline (W5 v1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- When **Identify vehicle** has read the modules and the vehicle's **factory .ab** (Motorcraft As-Built record) is loaded, the vehicle text now ends with a check of each module's **software / strategy (F188)**, **core assembly (F111)** and **assembly part number (F113)** against the record: how many match, and one line for each that **differs**, isn't in the record, or wasn't read. Serial numbers and the VIN are never compared.
+- It reports **differences only**. It doesn't say which version is newer or whether an update is available: on Dale's 2017 F-150 the record has PCM HL3A-14C204-**BDC** while the truck has **BDB**, and why is unknown. The line reads: *PCM (0x7E0): installed software / strategy (F188) differs from the factory record (installed HL3A-14C204-BDB, record BDC).*
+- **Offline**: compares two things you already have; nothing is downloaded. A "latest known calibration from Ford" check would need a redistributable source and isn't built.
+- Only runs when the .ab's VIN matches the identified vehicle (or either VIN is masked).
+
+Internal: `Vehicles/CalibrationCheck` (`Compare` for live `ModuleIdentity` lists and for FORScan profiles, `Report`, `CalibrationStatus`); `MainViewModel.DescribeProfile` appends the report. Tests `CalibrationCheckTests` (5) on Dale's redacted FORScan profile + factory .ab fixtures: one difference (PCM F188 BDB vs BDC), live-ID mapping, no direction words, no network code; rewording to "a newer calibration is available" fails them.
+
+### Windows + truck verify
+1. **DEMO:** Identify vehicle, then Import downloaded .ab (any factory .ab): the vehicle text ends with "Software vs factory record (offline): …".
+2. **Truck (Phase 1, read-only):** Identify vehicle with Dale's factory .ab loaded: expect exactly one difference, PCM F188 installed BDB vs record BDC, and everything else matching.
+
 ## v0.23.13
 
 **IPMB (camera module) writes need a typed IPMB; its backups are flagged (KB-R6).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
