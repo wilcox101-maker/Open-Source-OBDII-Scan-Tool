@@ -144,6 +144,10 @@ public sealed class UdsClient
     public DateTimeOffset? LastRequestAt { get; private set; }
 
     public UdsClient(IDiagChannel ch, uint targetTxId) { _ch = ch; TargetTxId = targetTxId; }
+    /// <summary>The channel this client talks through (used by services that need to keep receiving, e.g. 2A periodic data).</summary>
+    public IDiagChannel Channel => _ch;
+    /// <summary>The module's response CAN ID: request ID + 8 [Ford/OBD convention, verify per module].</summary>
+    public uint ResponseId => TargetTxId + 8;
 
     /// <summary>
     /// Sends one request and returns the module's positive response. Returns an empty array when the request set the
@@ -156,7 +160,7 @@ public sealed class UdsClient
         if (req.Length == 0) throw new ArgumentException("Empty UDS request", nameof(req));
         if (Gate is not null && UdsServices.IsStateChanging(req[0])) Gate.Require($"{UdsNrc.ServiceName(req[0])} (0x{req[0]:X2})");
         bool suppressed = UdsServices.SuppressesPositiveResponse(req);
-        uint rx = TargetTxId + 8; // Ford/OBD convention rx = tx + 8 [convention, verify per module]
+        uint rx = ResponseId;
         await _ch.SetTargetAsync(TargetTxId, rx, ct);
         for (int attempt = 0; ; attempt++)
         {
@@ -225,7 +229,7 @@ public sealed class UdsClient
         return pending;
     }
 
-    private static bool IsIdempotent(byte sid) => sid is 0x10 or 0x19 or 0x22 or 0x3E;
+    private static bool IsIdempotent(byte sid) => sid is 0x10 or 0x19 or 0x22 or 0x23 or 0x3E;
 
     public Task<byte[]> DiagnosticSessionControlAsync(UdsSession s, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x10, (byte)s }, ct);
     public Task<byte[]> EcuResetAsync(ResetType t, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x11, (byte)t }, ct);
