@@ -14,6 +14,8 @@ public sealed class TesterPresentKeeper
 {
     /// <summary>ISO 14229-2 S3server. The keep-alive interval has to stay below it.</summary>
     public static readonly TimeSpan S3Server = TimeSpan.FromMilliseconds(5000);
+    /// <summary>Default idle time before a keep-alive 3E 80 (well inside S3).</summary>
+    public static readonly TimeSpan DefaultInterval = TimeSpan.FromSeconds(2);
 
     private readonly UdsClient _uds;
     public TimeSpan Interval { get; }
@@ -21,7 +23,7 @@ public sealed class TesterPresentKeeper
     public TesterPresentKeeper(UdsClient uds, TimeSpan? interval = null)
     {
         _uds = uds;
-        Interval = interval ?? TimeSpan.FromSeconds(2);
+        Interval = interval ?? DefaultInterval;
         if (Interval <= TimeSpan.Zero || Interval >= S3Server)
             throw new ArgumentOutOfRangeException(nameof(interval), Interval, $"Keep-alive interval must be above zero and below S3 ({S3Server.TotalMilliseconds} ms)");
     }

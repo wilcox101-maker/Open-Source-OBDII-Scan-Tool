@@ -129,10 +129,12 @@ public sealed class UdsClient
     public uint TargetTxId { get; }
     public ISeedKeyProvider SeedKey { get; set; } = new NullSeedKeyProvider();
     /// <summary>ELM-style channels only: how many times an idempotent request is sent again after "pending" (0x78) or "busy" (0x21).</summary>
-    public int PendingRetries { get; set; } = 5;
-    public TimeSpan PendingRetryDelay { get; set; } = TimeSpan.FromMilliseconds(200);
+    public const int DefaultPendingRetries = 5, DefaultMaxPendingReplies = 20;
+    public static readonly TimeSpan DefaultPendingRetryDelay = TimeSpan.FromMilliseconds(200);
+    public int PendingRetries { get; set; } = DefaultPendingRetries;
+    public TimeSpan PendingRetryDelay { get; set; } = DefaultPendingRetryDelay;
     /// <summary>Receive-capable channels only: how many consecutive "pending" (0x78) replies are accepted, each followed by a P2* wait.</summary>
-    public int MaxPendingReplies { get; set; } = 20;
+    public int MaxPendingReplies { get; set; } = DefaultMaxPendingReplies;
     /// <summary>When set, state-changing services (<see cref="UdsServices.StateChanging"/>) need the gate open before anything is sent.</summary>
     public Safety.WriteGate? Gate { get; set; }
     public TimeProvider Clock { get; set; } = TimeProvider.System;
