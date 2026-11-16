@@ -1,3 +1,18 @@
+## v0.21.3
+
+**Flashing: resume can't lock itself out, never re-flashes a finished module, and always has a backup.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended until the secondary bootloader (SBL) stage lands.
+
+- **Resume checks reach a stuck module.** Before, Resume re-ran the full checks and refused when the module did not answer TesterPresent, which is exactly how some modules behave while stuck in their bootloader. Now, on a resume, a programming-session request is tried: any answer (positive or negative) lets recovery continue, with a warning. A silent module fails with steps to follow (ignition off 10 s and on, charger, wired OBDLink EX, wait for the security delay, run the checks again) and no automatic retry loop. A new flash keeps the strict link check.
+- **No second flash of a finished module.** If the link dropped after the module was reset, Resume first reads the module's part number; when it already matches the file, the job is marked complete and nothing is erased or written.
+- **Backup before anything else.** A job interrupted before its backup was saved (the module was still running normally) takes the backup on Resume before entering programming.
+
+Internal: `FlashJournalState.ReachedProgramming / ReachedReset`, `FlashPreflight.RunAsync(resume:)`, engine resume path; simulator `IgnoreTesterPresentInBootloader`, `SimFlashFault.LinkDownAfter`. Tests `FlashRecoveryTests` (all 4 fail on the previous code).
+
+### Windows + truck verify
+1. **DEMO:** start a DEMO flash and pull the plug equivalent (Stop / Disconnect) mid-download; Resume finishes it.
+2. **DEMO:** Run checks on an open job: the Link row says the module answered (or the bootloader note), not a hard failure.
+3. **Truck:** none (no real-module flashing yet).
+
 ## v0.21.2
 
 **Flashing: the programming session survives pauses, and a lost session is recovered.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended: the secondary bootloader (SBL) stage is not built yet.
