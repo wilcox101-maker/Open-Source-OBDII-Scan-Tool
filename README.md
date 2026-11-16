@@ -1,20 +1,60 @@
-# OBDLink MX+ Diagnostics (open source, MIT)
+# OBDLink EX / MX+ Diagnostics for Ford (open source, MIT)
 
-A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built). See `PLAN.md` for the design.
+A Windows diagnostic app for the **OBDLink EX** (USB) and **OBDLink MX+** (Bluetooth) STN-based adapters. The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built). It detects which adapter is connected and adjusts timeouts, buses and warnings to it. See `PLAN.md` for the design.
 
-> ⚠ Writing module configuration can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
+> ⚠ Writing module configuration or flashing a module can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
 
-## Status (v0.20.0 on master, 2026-11-15)
-- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers, v0.13.0 read-only bus monitor (HS/MS/HS2, per-ID rates and changed bits, CSV), v0.14.0 multi-PID OBD-II polling (up to 6 PIDs per request), v0.15.0 As-Built options by name (community sheet → grid → normal safe write), v0.16.0 As-Built change history and undo, v0.17.0 `obdcli` command line (read-only, `docs/CLI.md`), v0.18.0 J2534 pass-thru devices in `obdcli` (VCM II / Mongoose / clones; x86 build for 32-bit drivers), v0.19.0 Flash tab and journaled flash engine (EX and MX+, tested on a simulated module only; `docs/FLASHING.md`), v0.20.0 three dashboard pop-out windows with per-window layouts, layout export/import and gated write cards. Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
+## Screenshots
+
+Real captures of v0.20.0 on Windows 11 (DLN-DALEW2), connected to the built-in **DEMO-EX** simulator: every value below is simulated, not from a vehicle.
+
+**Main window: module scan.** The header shows the detected adapter (*OBDLink EX (simulated)*), battery voltage and the write state (*READ-ONLY TEST MODE* by default at every start). The left rail holds the pages: Modules, DTCs, Live Data, Bus Monitor, Routines, Flash, As-Built, Vehicle, Console, Logs, Guide, Settings.
+
+![Main window, module scan on DEMO-EX](docs/screenshots/01-modules.png)
+
+### Three dashboard pop-out windows (v0.20.0)
+
+View → **Dashboard** (Ctrl+Shift+G), **Dashboard 2** (Ctrl+Shift+2) and **Dashboard 3** (Ctrl+Shift+3). Each window keeps its own layout, background and position; one shared poll loop feeds all of them and reads only what the open windows show. Gauges: analog/digital dials, bars, tiles, lamps, a tire-pressure top view, and the gear tile (marked UNVERIFIED until checked against the cluster).
+
+![Dashboard 1, default layout](docs/screenshots/02-dashboard-1.png)
+
+*Dashboard 2 with its own layout and the carbon-fiber background:*
+
+![Dashboard 2, carbon-fiber background](docs/screenshots/03-dashboard-2-carbon.png)
+
+*Dashboard 3 with **write cards** (bottom row): a routine start (31 01, type RUN), an output hold (2F 03, type HOLD, released after 10 s or when the window closes) and a DID write (2E, type WRITE, with the old value read first and a read-back after). Each card shows the exact request it sends. Nothing is sent until writes are enabled, the battery check passes and the phrase is typed. Airbag deployment routines, flashing routines, As-Built blocks and identification DIDs are refused on every path. Layouts, write cards included, export to and import from `.dashboard.json` files.*
+
+![Dashboard 3 with write cards](docs/screenshots/04-dashboard-3-write-cards.png)
+
+### Module flashing (v0.19.0, tested on a simulated module only)
+
+**Flash** tab: open a VBF file (or the synthetic DEMO image), run the checks: file vs module, battery window, link health, part number, adapter, PC power. On an OBDLink MX+ the adapter line is a warning (wireless link; wired EX recommended), not a block.
+
+![Flash tab, all checks passed on DEMO-EX](docs/screenshots/05-flash-checks.png)
+
+*The warnings you confirm, then type FLASH:*
+
+![Flash warnings](docs/screenshots/06-flash-warnings.png)
+
+*Flashing: red do-not-disconnect banner, progress, retries absorbed (lost answers are resent with the same block counter), and a journal of every acknowledged block so an interrupted job can be resumed on either adapter. The module is never reset after a failure.*
+
+![Flash in progress](docs/screenshots/07-flash-running.png)
+
+![Flash finished](docs/screenshots/08-flash-finished.png)
+
+Engine, error handling and what is still UNVERIFIED for real Ford modules: `docs/FLASHING.md`. Check a real VBF offline first with `obdcli vbf-info --file x.vbf`.
+
+## Status (v0.20.1 on master, 2026-11-16)
+- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers, v0.13.0 read-only bus monitor (HS/MS/HS2, per-ID rates and changed bits, CSV), v0.14.0 multi-PID OBD-II polling (up to 6 PIDs per request), v0.15.0 As-Built options by name (community sheet → grid → normal safe write), v0.16.0 As-Built change history and undo, v0.17.0 `obdcli` command line (read-only, `docs/CLI.md`), v0.18.0 J2534 pass-thru devices in `obdcli` (VCM II / Mongoose / clones; x86 build for 32-bit drivers), v0.19.0 Flash tab and journaled flash engine (EX and MX+, tested on a simulated module only; `docs/FLASHING.md`), v0.20.0 three dashboard pop-out windows with per-window layouts, layout export/import and gated write cards, v0.20.1 dashboard and dialog fixes found while taking the screenshots. Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
 - **Not yet verified on the truck** since v0.6.0: every version from v0.6.1 on is built and unit-tested on Windows and Linux by CI only. Run each version's "Windows + truck verify" list before tagging a release.
 - **Latest tagged release:** v0.6.0.
-- **Next:** MainViewModel split, J2534 transport. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
+- **Next:** run the v0.19.0 / v0.20.x Windows checks (DEMO first), MainViewModel split, J2534 in the app. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
 
 ## Layout
 ```
 ObdLink.sln
 src/ObdLink.Core          transport, ELM/STN, ISO-TP, UDS, OBD-II (incl. Mode 6), modules + bus routing, As-Built, DTCs, live data, safety, seed/key plug-in loader, logging
-src/ObdLink.App           WPF UI (net8.0-windows): connect, vehicle + module IDs, modules, DTCs, As-Built grid, live data, dashboard, console, settings, log
+src/ObdLink.App           WPF UI (net8.0-windows): connect (EX / MX+ detection), vehicle + module IDs, modules, DTCs, As-Built grid, live data, bus monitor, routines, flash, three dashboard windows, console, settings, log
 tests/ObdLink.Core.Tests  xUnit tests against SimulatedAdapter (no hardware needed)
 tools/AbTool              command-line .ab/.abt helper
 tools/SeedKeyPluginSample template for a user-supplied seed/key plug-in (answers the DEMO simulator only)
@@ -63,7 +103,8 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.16.0 | CI (windows-latest) build + unit tests | As-Built change history + undo; verify on Windows (see v0.16.0 release notes) |
 | Windows | v0.17.0 | CI (windows-latest) build + unit tests | obdcli command line; verify on Windows and the truck (see v0.17.0 release notes) |
 | Windows | v0.19.0 | CI (windows-latest) build + unit tests | Flash tab; DEMO flash + truck preflight only (see v0.19.0 release notes) |
-| Windows | v0.20.0 | CI (windows-latest) build + unit tests | Three dashboard windows, layout files, write cards; DEMO first (see v0.20.0 release notes) |
+| Windows 11 (DLN-DALEW2) | v0.20.0 | DEMO-EX, driven by automation for the README screenshots | Module scan, three dashboard windows, write cards added (not pressed), DEMO flash end to end. Not a full v0.20.0 verify pass |
+| Windows | v0.20.1 | CI (windows-latest) build + unit tests | Dashboard toolbar wraps, windows 2/3 cascade, write-card button size, typed-phrase prompt keeps focus (see v0.20.1 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
 Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.

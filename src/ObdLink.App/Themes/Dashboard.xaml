@@ -80,7 +80,7 @@
         <TextBlock DockPanel.Dock="Top" Text="{Binding Label}" Style="{StaticResource SectionTitle}" TextTrimming="CharacterEllipsis"/>
         <TextBlock DockPanel.Dock="Top" Text="{Binding Description}" FontSize="11" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Margin="0,2,0,6"/>
         <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
-        <Button x:Name="Go" HorizontalAlignment="Left" Style="{StaticResource DangerButtonStyle}" Command="{Binding RunCommand}" IsEnabled="{Binding Valid}"
+        <Button x:Name="Go" HorizontalAlignment="Left" VerticalAlignment="Top" Style="{StaticResource DangerButtonStyle}" Command="{Binding RunCommand}" IsEnabled="{Binding Valid}"
                 ToolTip="Sends only after writes are enabled (Settings), the battery check, a confirmation and the typed phrase">
           <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="{Binding ButtonText}"/></StackPanel>
         </Button>

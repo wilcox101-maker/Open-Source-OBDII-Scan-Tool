@@ -51,9 +51,11 @@ public partial class DashboardWindow : Window
             }
         }
         var place = DashboardWindowPlacement.Resolve(Dash.SavedPlacement, target, monitors);
+        // v0.20.1: windows 2 and 3 opened for the first time cascade from window 1 instead of covering it exactly.
+        var cascade = Dash.SavedPlacement.PlacementSaved ? 0 : DashboardWindowPlacement.CascadeOffset * (Dash.Slot - 1);
         WindowStartupLocation = WindowStartupLocation.Manual;
-        Left = place.Left;
-        Top = place.Top;
+        Left = place.Left + cascade;
+        Top = place.Top + cascade;
         Width = place.Width;
         Height = place.Height;
         if (place.Maximize) WindowState = WindowState.Maximized;

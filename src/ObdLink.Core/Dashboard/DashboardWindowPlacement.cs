@@ -9,6 +9,8 @@ public static class DashboardWindowPlacement
     public const double MaxWidth = 4000;
     public const double MaxHeight = 3000;
     public const double MinVisible = 64;
+    /// <summary>Offset (DIPs) between dashboard windows 1, 2 and 3 the first time they open, so they do not cover each other exactly.</summary>
+    public const double CascadeOffset = 48;
 
     public readonly record struct MonitorArea(double Left, double Top, double Width, double Height);
     public readonly record struct PlacementRequest(bool PlacementSaved, double Left, double Top, double Width, double Height, bool Maximized);

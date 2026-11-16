@@ -1,3 +1,20 @@
+## v0.20.1
+
+**Fixes found while capturing the README screenshots on Windows 11 (v0.20.0, DEMO-EX).** Includes v0.20.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+
+- **Typed confirmation kept its focus.** After a Yes/No dialog, the app queued a main-window activation; when a second dialog opened right away (Flash warnings, then *Type FLASH*), that activation took keyboard focus from the prompt, so typing went nowhere until you clicked it. The main window is no longer activated while a modal dialog is open. Applies to every multi-step confirmation (FLASH, WRITE, RUN, HOLD).
+- **Dashboard toolbar wraps.** At the default 1100 px width the toolbar ran off the window and hid the Layout picker and the rate text. It now wraps to a second row.
+- **Dashboard windows 2 and 3 cascade** 48 px from window 1 the first time they open, instead of covering it exactly. Saved positions are unchanged.
+- **Write-card buttons** keep their normal height instead of stretching to fill the card.
+- README: screenshots (`docs/screenshots/`) and an updated overview.
+
+Seen, not changed: the Flash log does not scroll to the newest line by itself during a flash.
+
+### Windows verify
+1. Flash tab on DEMO with writes enabled: Flash… → Yes → the *Type FLASH* box has the cursor; type FLASH and press Enter without clicking first. Same for a dashboard write card (RUN / HOLD / WRITE).
+2. Open a dashboard at its default size: the toolbar wraps and the Layout box is visible.
+3. With a fresh `Data` folder, open Dashboard, Dashboard 2 and Dashboard 3: each is offset from the previous one. Move them, close, reopen: they come back where you left them.
+
 ## v0.20.0
 
 **Three dashboard pop-out windows with saved layouts and write cards.** Includes v0.19.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
