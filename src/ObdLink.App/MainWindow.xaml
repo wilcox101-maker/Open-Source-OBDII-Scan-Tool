@@ -114,11 +114,11 @@
         <MenuItem Header="Diagnostics _capture" InputGestureText="Ctrl+Alt+C" Command="{Binding DiagnosticsCaptureCommand}"/>
         <MenuItem Header="Discovery _sweep (UNVERIFIED IDs)" Command="{Binding DiscoveryCommand}"/>
         <MenuItem Header="Adapter _firmware">
-          <MenuItem Header="Check adapter _firmware" InputGestureText="Ctrl+Alt+F" Command="{Binding CheckFirmwareCommand}"/>
-          <MenuItem Header="_Get official updater" Command="{Binding GetUpdaterCommand}" ToolTip="Downloads OBDLink's official STN Firmware Update Utility from scantool.net into Data\firmware\updater\ and checks it"/>
-          <MenuItem Header="_Run official updater…" Command="{Binding RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (UAC prompt)"/>
-          <MenuItem Header="Open firmware _folder" Command="{Binding OpenFirmwareFolderCommand}"/>
-          <MenuItem Header="Official updater _page" Command="{Binding OpenFirmwarePageCommand}"/>
+          <MenuItem Header="Check adapter _firmware" InputGestureText="Ctrl+Alt+F" Command="{Binding Firmware.CheckFirmwareCommand}"/>
+          <MenuItem Header="_Get official updater" Command="{Binding Firmware.GetUpdaterCommand}" ToolTip="Downloads OBDLink's official STN Firmware Update Utility from scantool.net into Data\firmware\updater\ and checks it"/>
+          <MenuItem Header="_Run official updater…" Command="{Binding Firmware.RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (UAC prompt)"/>
+          <MenuItem Header="Open firmware _folder" Command="{Binding Firmware.OpenFirmwareFolderCommand}"/>
+          <MenuItem Header="Official updater _page" Command="{Binding Firmware.OpenFirmwarePageCommand}"/>
         </MenuItem>
         <MenuItem Header="Pause / resume dashboard" InputGestureText="Ctrl+P" Command="{Binding Dashboard.PauseCommand}"/>
         <MenuItem Header="Record dashboard CSV" InputGestureText="Ctrl+Shift+P" Command="{Binding Dashboard.RecordCommand}"/>
@@ -208,17 +208,17 @@
     <Border DockPanel.Dock="Top" Visibility="{Binding PortHintVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
       <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Fg}" Text="{Binding PortHint}"/>
     </Border>
-    <Border DockPanel.Dock="Top" Visibility="{Binding FirmwareBannerVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
+    <Border DockPanel.Dock="Top" Visibility="{Binding Firmware.FirmwareBannerVisible, Converter={StaticResource BoolVis}}" Background="{DynamicResource ChipWarn}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="10,6">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <Button Command="{Binding DownloadFirmwareCommand}" IsEnabled="{Binding FirmwareCanDownload}" ToolTip="Downloads the official package (scantool.net) into Data\firmware\ and verifies it. Does not flash."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Download firmware"/></StackPanel></Button>
-          <Button Command="{Binding GetUpdaterCommand}" ToolTip="Downloads OBDLink's official updater from scantool.net (https only) into Data\firmware\updater\ and checks it. Never bundled with this app."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Get official updater"/></StackPanel></Button>
-          <Button Command="{Binding RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (Windows asks for permission)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run official updater"/></StackPanel></Button>
-          <Button Command="{Binding OpenFirmwareFolderCommand}" Visibility="{Binding FirmwareHasFolder, Converter={StaticResource BoolVis}}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open folder"/></StackPanel></Button>
-          <Button Command="{Binding OpenFirmwarePageCommand}" ToolTip="{Binding FirmwarePage}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Official updater page"/></StackPanel></Button>
-          <Button Command="{Binding DismissFirmwareCommand}" ToolTip="Hide this notice"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/></Button>
+          <Button Command="{Binding Firmware.DownloadFirmwareCommand}" IsEnabled="{Binding Firmware.FirmwareCanDownload}" ToolTip="Downloads the official package (scantool.net) into Data\firmware\ and verifies it. Does not flash."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Download firmware"/></StackPanel></Button>
+          <Button Command="{Binding Firmware.GetUpdaterCommand}" ToolTip="Downloads OBDLink's official updater from scantool.net (https only) into Data\firmware\updater\ and checks it. Never bundled with this app."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Get official updater"/></StackPanel></Button>
+          <Button Command="{Binding Firmware.RunUpdaterCommand}" ToolTip="Disconnects the adapter and starts OBDLink's official updater (Windows asks for permission)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run official updater"/></StackPanel></Button>
+          <Button Command="{Binding Firmware.OpenFirmwareFolderCommand}" Visibility="{Binding Firmware.FirmwareHasFolder, Converter={StaticResource BoolVis}}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE838;"/><TextBlock Text="Open folder"/></StackPanel></Button>
+          <Button Command="{Binding Firmware.OpenFirmwarePageCommand}" ToolTip="{Binding Firmware.FirmwarePage}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE774;"/><TextBlock Text="Official updater page"/></StackPanel></Button>
+          <Button Command="{Binding Firmware.DismissFirmwareCommand}" ToolTip="Hide this notice"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/></Button>
         </StackPanel>
-        <TextBlock Text="{Binding FirmwareBanner}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource Fg}"/>
+        <TextBlock Text="{Binding Firmware.FirmwareBanner}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource Fg}"/>
       </DockPanel>
     </Border>
 
@@ -686,7 +686,7 @@
                     <CheckBox Content="Check adapter firmware on connect" IsChecked="{Binding FirmwareCheckEnabled}" ToolTip="Reads STI on connect and asks OBDLink's public firmware feed for the latest stable version. Silent when offline. Skipped in DEMO. Never flashes anything."/>
                     <TextBlock Text="Firmware updater exe (optional override)" Margin="0,6,0,2"/>
                     <DockPanel>
-                      <Button DockPanel.Dock="Right" Content="Browse…" Command="{Binding BrowseUpdaterPathCommand}" Margin="4,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="Browse…" Command="{Binding Firmware.BrowseUpdaterPathCommand}" Margin="4,0,0,0"/>
                       <TextBox Text="{Binding FirmwareUpdaterPath, UpdateSourceTrigger=LostFocus}" ToolTip="Full path to StnFirmwareUpdater.exe. Empty = auto-detect (installed copy, then the one downloaded to Data\firmware\updater\)"/>
                     </DockPanel>
                   </StackPanel>
