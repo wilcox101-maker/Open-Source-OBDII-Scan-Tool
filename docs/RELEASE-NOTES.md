@@ -1,3 +1,24 @@
+## v0.12.0
+
+**Phase 2: charts, replay and triggers. Read-only.** Includes v0.11.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.12.0.zip`** (normal Intel/AMD PCs).
+
+Live Data tab:
+- **Chart** under the grid. Tick **Plot** on up to 8 rows (the first 8 are ticked when you Start). Each signal gets its own lane with its own scale, its name and unit, the latest value and the window's high/low. Lanes share one time axis. Window: 10 s to 15 min. Peaks survive however many samples share a pixel. Hover shows a time cursor with every lane's value at that instant. A signal keeps its colour when you tick or untick others.
+- **Triggers**: type `rpm > 3000` or `ect < 70 hys 2` and **Add**. Each crossing adds a line to the hit list and the Events log, plus a dashed line in the chart. With hysteresis, a value hovering on the threshold fires once, not every poll.
+- **Replay**: **Open recording…** loads a CSV recorded by Live Data or the dashboard. **Play / pause** at 0.5x to 16x through the same grid, chart and triggers. No adapter traffic, and no connection needed. Unreadable lines are skipped and counted.
+- Chart history keeps up to one hour per signal at 10 Hz (oldest dropped first).
+
+Internal: Core `SignalHistory` (ring buffer per signal, min/max decimation), `LiveCsvLog` + `ReplayCursor`, `SignalTrigger` + `TriggerMonitor`, all unit-tested. The chart palette is the validated 8-slot categorical palette, checked against this app's light and dark card colours.
+
+### Windows + truck verify
+1. DEMO: Live Data → List signals → tick 4-5 → Start. The chart shows one lane per signal, moving left. Hover: the cursor shows each lane's value and the time. Untick one row's Plot: its lane goes, and the others keep their colours. Try ticking a 9th: refused with a message.
+2. DEMO: Window 10 s / 60 s / 300 s rescales; Clear chart empties it. Light and Dark themes both readable (lane titles in text colour).
+3. DEMO: trigger `rpm > 1500` (or a signal you picked): a hit line and a dashed marker appear when it crosses, once per crossing.
+4. DEMO: Record CSV for ~30 s, Stop. Open recording… → that file: Play replays it into grid + chart. 4x is faster, pause and resume work, and Close replay clears it. Adapter traffic shows nothing during replay.
+5. Truck: chart rpm / speed / ECT / TFT on a short drive. Replay the recording afterwards and compare with FORScan's graph of the same drive if you have one.
+
 ## v0.11.0
 
 **Ford Enhanced UDS, first write-side service: RoutineControl (31), with session keep-alive.** Includes v0.10.0 and earlier, plus the UDS protocol core, read-side services and routine control in Core (PRs #17, #19-#21). Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

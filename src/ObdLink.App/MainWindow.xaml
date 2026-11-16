@@ -310,7 +310,12 @@
                 <Button Command="{Binding StartCommand}" Margin="0,0,4,0" IsEnabled="{Binding CanEditSelection}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Start"/></StackPanel></Button>
                 <Button Command="{Binding StopCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71A;"/><TextBlock Text="Stop"/></StackPanel></Button>
                 <Button Command="{Binding RecordCommand}" Margin="0,0,4,0" Content="{Binding RecordText}" ToolTip="Write every poll cycle to a CSV in the logs folder (base units)"/>
-                <Button Command="{Binding ResetCommand}" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
+                <Button Command="{Binding ResetCommand}" Margin="0,0,12,0"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Reset min/max"/></StackPanel></Button>
+                <Button Command="{Binding OpenReplayCommand}" Margin="0,0,4,0" ToolTip="Play back a CSV recorded here or by the dashboard. No adapter traffic."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Open recording…"/></StackPanel></Button>
+                <Button Command="{Binding PlayPauseCommand}" Margin="0,0,4,0" IsEnabled="{Binding HasReplay}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Play / pause"/></StackPanel></Button>
+                <ComboBox ItemsSource="{Binding SpeedChoices}" SelectedItem="{Binding ReplaySpeed}" ItemStringFormat="{}{0}×" Width="60" Margin="0,0,4,0" ToolTip="Replay speed"/>
+                <Button Command="{Binding CloseReplayCommand}" Margin="0,0,6,0" IsEnabled="{Binding HasReplay}" Content="Close replay"/>
+                <TextBlock Text="{Binding ReplayText}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}"/>
               </WrapPanel>
               <TextBlock DockPanel.Dock="Bottom" Text="{Binding Info}" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Margin="0,6,0,0"/>
               <Grid>
@@ -336,18 +341,43 @@
                     </ListBox.ItemTemplate>
                   </ListBox>
                 </DockPanel>
-                <DataGrid Grid.Column="1" ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" FontFamily="{StaticResource Mono}" HeadersVisibility="Column">
+                <Grid Grid.Column="1">
+                  <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="80"/><RowDefinition Height="6"/><RowDefinition Height="2*" MinHeight="140"/></Grid.RowDefinitions>
+                <DataGrid Grid.Row="0" ItemsSource="{Binding Rows}" AutoGenerateColumns="False" CanUserAddRows="False" FontFamily="{StaticResource Mono}" HeadersVisibility="Column">
                   <DataGrid.Columns>
-                    <DataGridTextColumn Header="Signal" Binding="{Binding Name}" Width="*"/>
-                    <DataGridTextColumn Header="Value" Binding="{Binding Current}" Width="80"/>
-                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="60"/>
-                    <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="70"/>
-                    <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="70"/>
-                    <DataGridTextColumn Header="Avg" Binding="{Binding Avg}" Width="70"/>
-                    <DataGridTextColumn Header="Samples" Binding="{Binding Samples}" Width="70"/>
-                    <DataGridTextColumn Header="Src" Binding="{Binding Kind}" Width="56"/>
+                    <DataGridTemplateColumn Header="Plot" Width="40">
+                      <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Plot, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" ToolTip="Show this signal in the chart (up to 8)"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Signal" Binding="{Binding Name}" Width="*" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding Current}" Width="80" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="70" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="70" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Avg" Binding="{Binding Avg}" Width="70" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Samples" Binding="{Binding Samples}" Width="70" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Src" Binding="{Binding Kind}" Width="56" IsReadOnly="True"/>
                   </DataGrid.Columns>
                 </DataGrid>
+                <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" Height="6" Background="Transparent" ResizeDirection="Rows"/>
+                <DockPanel Grid.Row="2">
+                  <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
+                    <TextBlock Text="CHART" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Window" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding WindowChoices}" SelectedItem="{Binding ChartWindowSeconds}" ItemStringFormat="{}{0} s" Width="70" Margin="0,0,4,0"/>
+                    <Button Command="{Binding ClearChartCommand}" Content="Clear chart" Margin="0,0,12,0"/>
+                    <TextBlock Text="Trigger" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="Marks the chart and logs a line when a signal crosses a threshold. Examples: rpm &gt; 3000, ect &lt; 70 hys 2"/>
+                    <TextBox Width="150" Text="{Binding TriggerText, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" ToolTip="key &gt; value  or  key &lt; value [hys n]"/>
+                    <Button Command="{Binding AddTriggerCommand}" Content="Add" Margin="4,0,4,0"/>
+                    <Button Command="{Binding ClearTriggersCommand}" Content="Clear triggers"/>
+                    <ItemsControl ItemsSource="{Binding TriggerList}" Margin="8,0,0,0" VerticalAlignment="Center">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Text}" Margin="0,0,10,0" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource FgDim}"/></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </WrapPanel>
+                  <ListBox DockPanel.Dock="Bottom" ItemsSource="{Binding TriggerHits}" Height="60" FontFamily="{StaticResource Mono}" ToolTip="Trigger hits (newest first). Each is also a dashed line in the chart."/>
+                  <local:SignalChart History="{Binding History}" Series="{Binding Plotted}" WindowSeconds="{Binding ChartWindowSeconds}" End="{Binding ChartEnd}" Markers="{Binding Markers}" Revision="{Binding Revision}" Margin="0,0,0,4"/>
+                </DockPanel>
+                </Grid>
               </Grid>
             </DockPanel>
           </Border>

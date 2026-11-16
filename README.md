@@ -4,11 +4,11 @@ A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. The app is
 
 > ⚠ Writing module configuration can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
 
-## Status (v0.11.0 on master, 2026-11-15)
-- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused). Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
+## Status (v0.12.0 on master, 2026-11-15)
+- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers. Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
 - **Not yet verified on the truck** since v0.6.0: every version from v0.6.1 on is built and unit-tested on Windows and Linux by CI only. Run each version's "Windows + truck verify" list before tagging a release.
 - **Latest tagged release:** v0.6.0.
-- **Next:** Phase 2 charts (live signals over time) and replay. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
+- **Next:** Phase 2 bus monitor (read-only) and faster polling. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
 
 ## Layout
 ```
@@ -56,6 +56,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.9.0 | CI (windows-latest) build + unit tests | Mode 6, module ID grid (Phase 1); verify on Windows and the truck (see v0.9.0 release notes) |
 | Windows | v0.10.0 | CI (windows-latest) build + unit tests | Live-data browser (Phase 2); verify on Windows and the truck (see v0.10.0 release notes) |
 | Windows | v0.11.0 | CI (windows-latest) build + unit tests | Routines tab + session keep-alive; verify on Windows and the truck (see v0.11.0 release notes) |
+| Windows | v0.12.0 | CI (windows-latest) build + unit tests | Live-data charts, replay, triggers; verify on Windows and the truck (see v0.12.0 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
 Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.
