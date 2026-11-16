@@ -3,7 +3,7 @@ using ObdLink.Core.Obd;
 namespace ObdLink.Core.Dashboard;
 
 /// <summary>How one dashboard item is drawn. Tpms = the 4-tire top-view widget.</summary>
-public enum DisplayKind { Dial, Bar, Tile, Lamp, Tpms }
+public enum DisplayKind { Dial, Bar, Tile, Lamp, Tpms, Action }
 /// <summary>Card size. Saved by name in settings.json (Medium/Wide added in v0.3.3, so older files still load).</summary>
 public enum ItemSize { Small, Large, Medium, Wide }
 
@@ -14,7 +14,9 @@ public sealed class DashItem
     public DisplayKind Display { get; set; } = DisplayKind.Bar;
     public ItemSize Size { get; set; } = ItemSize.Small;
     public string Face { get; set; } = GaugeFaces.Analog;
-    public DashItem Clone() => new() { Key = Key, Display = Display, Size = Size, Face = Face };
+    /// <summary>Set for write cards (<see cref="DisplayKind.Action"/>, key "action:…"); null for gauges.</summary>
+    public DashAction? Action { get; set; }
+    public DashItem Clone() => new() { Key = Key, Display = Display, Size = Size, Face = Face, Action = Action?.Clone() };
 }
 
 public sealed class DashboardLayout
@@ -73,6 +75,14 @@ public sealed class DashboardLayout
         Items.Add(new DashItem { Key = key, Display = display }); return true;
     }
     public bool Remove(string key) => Items.RemoveAll(i => i.Key == key) > 0;
+    /// <summary>Adds a write card (validated first). Returns its key.</summary>
+    public string AddAction(DashAction action)
+    {
+        DashActions.Plan(action);
+        var key = DashActions.NewKey();
+        Items.Add(new DashItem { Key = key, Display = DisplayKind.Action, Size = ItemSize.Small, Action = action.Clone() });
+        return key;
+    }
 }
 
 public static class TpmsKeys
@@ -127,7 +137,7 @@ public static class DashCatalog
         {
             if (it.Key == TpmsKeys.Widget) foreach (var t in TpmsKeys.Tires) keys.Add(t);
             else if (it.Key == "gear") { keys.Add("gear"); if (estimateGear) { keys.Add("rpm"); keys.Add("speed"); } }
-            else if (it.Key == "dtcCount" || TpmsKeys.Retired.Contains(it.Key)) { }
+            else if (it.Key == "dtcCount" || TpmsKeys.Retired.Contains(it.Key) || DashActions.IsActionKey(it.Key)) { } // write cards are not polled
             else keys.Add(it.Key);
         }
         return keys;

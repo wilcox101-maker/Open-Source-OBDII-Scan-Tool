@@ -28,6 +28,8 @@ public static class Shortcuts
         new("console", "Ctrl+`", "Raw console", "Pages"),
         new("settings", "Ctrl+,", "Settings", "Pages"),
         new("dashboard", "Ctrl+Shift+G", "Open the dashboard window", "View"),
+        new("dashboard2", "Ctrl+Shift+2", "Open dashboard window 2", "View"),
+        new("dashboard3", "Ctrl+Shift+3", "Open dashboard window 3", "View"),
         new("page", "Alt+1..8", "Go to page 1-8 (Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings)", "Pages"),
         new("nextPage", "Ctrl+Tab", "Next page", "Pages"),
         new("prevPage", "Ctrl+Shift+Tab", "Previous page", "Pages"),

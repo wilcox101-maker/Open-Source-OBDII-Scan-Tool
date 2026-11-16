@@ -4,7 +4,7 @@
         Width="1100" Height="720" MinWidth="640" MinHeight="480" ShowInTaskbar="True" ResizeMode="CanResize" WindowStartupLocation="Manual">
   <DockPanel DataContext="{Binding Dashboard}">
             <DockPanel DockPanel.Dock="Top">
-              <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}"/>
+              <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}"/>
               <Border Style="{StaticResource ChipStyle}" VerticalAlignment="Center"><TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/></Border>
               <Button Command="{Binding PauseCommand}" ToolTip="Pause / resume (Ctrl+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
               <Button Command="{Binding RecordCommand}" ToolTip="Record every poll to Data\logs\dashboard-*.csv (Ctrl+Shift+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7C8;"/><TextBlock Text="{Binding RecordText}"/></StackPanel></Button>
@@ -15,16 +15,16 @@
               <ComboBox Width="210" ItemsSource="{Binding BackgroundChoices}" SelectedValue="{Binding BackgroundId}" SelectedValuePath="Id" DisplayMemberPath="Name" ToolTip="Material photo, None for the app theme, or a custom image. One picture covers the dashboard; it is not tiled. Saved in Data\settings.json. A custom image is copied into Data\backgrounds."/>
               <Button Command="{Binding PickBackgroundCommand}" ToolTip="Copy a PNG, JPEG, BMP or GIF into Data\backgrounds. The original file is left where it is."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B9;"/><TextBlock Text="Pick image"/></StackPanel></Button>
               <TextBlock Text="Layout:" VerticalAlignment="Center" Margin="8,0,3,0"/>
-              <ComboBox Width="120" ItemsSource="{Binding LayoutNames}" SelectedItem="{Binding ActiveLayout}" ToolTip="Saved dashboard layouts"/>
+              <ComboBox Width="140" ItemsSource="{Binding LayoutNames}" SelectedItem="{Binding ActiveLayout}" ToolTip="Saved dashboard layouts. Each of the three dashboard windows can show a different one (View → Dashboard 2 / 3)."/>
               <TextBlock Text="{Binding RateText}" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource FgDim}" FontSize="11"/>
               <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0"/>
             </DockPanel>
             <Border DockPanel.Dock="Top" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
-              <Border.Style><Style TargetType="Border" BasedOn="{StaticResource CardStyle}"><Style.Triggers><DataTrigger Binding="{Binding IsConnected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+              <Border.Style><Style TargetType="Border" BasedOn="{StaticResource CardStyle}"><Style.Triggers><DataTrigger Binding="{Binding Main.IsConnected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
               <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                  <Button Command="{Binding ConnectCommand}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
-                  <Button Command="{Binding IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
+                  <Button Command="{Binding Main.ConnectCommand}" ToolTip="Connect (F5)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE703;"/><TextBlock Text="Connect"/></StackPanel></Button>
+                  <Button Command="{Binding Main.IdentifyVehicleCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Identify vehicle (Ctrl+I)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE804;"/><TextBlock Text="Identify vehicle"/></StackPanel></Button>
                 </StackPanel>
                 <StackPanel>
                   <TextBlock Text="Not connected" FontWeight="SemiBold" FontSize="14"/>
@@ -43,7 +43,24 @@
                   <Button Command="{Binding SaveLayoutAsCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74E;"/><TextBlock Text="Save as"/></StackPanel></Button>
                   <Button Command="{Binding DeleteLayoutCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE74D;"/><TextBlock Text="Delete layout"/></StackPanel></Button>
                   <Button Command="{Binding ResetLayoutCommand}" ToolTip="Replace this layout's items with the built-in default"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Reset to default"/></StackPanel></Button>
+                  <Button Command="{Binding RenameLayoutCommand}" ToolTip="Rename this layout to the name typed in the box. Windows showing it follow."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8AC;"/><TextBlock Text="Rename"/></StackPanel></Button>
+                  <Button Command="{Binding ExportLayoutCommand}" ToolTip="Save this layout (gauges and write cards) to a .dashboard.json file"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export…"/></StackPanel></Button>
+                  <Button Command="{Binding ImportLayoutCommand}" ToolTip="Load a .dashboard.json layout as a new layout and show it in this window. Write cards in it are checked; a refused one rejects the file."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import…"/></StackPanel></Button>
                 </WrapPanel>
+                <WrapPanel Margin="0,6,0,0">
+                  <TextBlock Text="Add write card:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="3"/>
+                  <ComboBox Width="110" ItemsSource="{Binding ActionKinds}" SelectedItem="{Binding NewActionKind}" ToolTip="Routine = 31 01 (Run). OutputHold = 2F 03, released after 10 s, on the next press, or when the window closes. WriteDid = 2E with the old value read first and a read-back check."/>
+                  <TextBlock Text="Module 0x" VerticalAlignment="Center" Margin="8,3,0,3"/>
+                  <TextBox Width="44" VerticalContentAlignment="Center" Text="{Binding NewActionModule, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" ToolTip="Request CAN ID, 700-7FF (e.g. 7E0 PCM, 726 BCM)"/>
+                  <TextBlock Text="ID" VerticalAlignment="Center" Margin="8,3,3,3"/>
+                  <TextBox Width="52" VerticalContentAlignment="Center" Text="{Binding NewActionId, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" ToolTip="Routine ID or DID, 2 bytes hex"/>
+                  <TextBlock Text="Data" VerticalAlignment="Center" Margin="8,3,3,3"/>
+                  <TextBox Width="120" VerticalContentAlignment="Center" Text="{Binding NewActionData, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" ToolTip="Routine option (optional), output state, or DID data, hex"/>
+                  <TextBlock Text="Label" VerticalAlignment="Center" Margin="8,3,3,3"/>
+                  <TextBox Width="140" VerticalContentAlignment="Center" Text="{Binding NewActionLabel, UpdateSourceTrigger=PropertyChanged}"/>
+                  <Button Command="{Binding AddActionCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Adds a card. Nothing is sent until you press the card, confirm, and type RUN / HOLD / WRITE. Writes must be enabled in Settings."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE710;"/><TextBlock Text="Add card"/></StackPanel></Button>
+                </WrapPanel>
+                <TextBlock Margin="3,2,0,0" FontSize="11" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="Write cards send to the vehicle only when pressed, with writes enabled (Settings), the battery check, a confirmation and a typed phrase. Airbag deployment (E200-E2FF) and flashing routines (FF00/FF01) are refused; As-Built blocks (DE00-DEFF) go through the As-Built tab; identification DIDs (F180-F19F) are never written. This app does not know what a routine ID, output state or DID does on your module: use values from a source you trust. DEMO modules: routine 1234, output DID D100."/>
                 <TextBlock Margin="3,4,0,0" FontSize="11" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="Each card has Move left, Move right, Move up, and Move down. You can also drag a card by the Drag grip (or the gauge) and drop it on another card. Click a card, then Ctrl+Left/Right moves one place, Ctrl+Up/Down one row, Ctrl+Home/End jumps to first or last. Pick Dial / Bar / Tile / Lamp and a size (Small / Medium / Large / Wide). Reset to default restores the built-in layout. Changes are saved to Data\settings.json at once, including the width you arranged at. Gauge-height cards stack to the window only when a saved card is wider than the dashboard. Only the items on the dashboard are polled. Done locks the layout."/>
                 <TextBlock Margin="3,2,0,0" Foreground="{DynamicResource Warn}" Text="{Binding Hint}"/>
               </StackPanel>

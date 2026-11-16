@@ -74,6 +74,21 @@
         </Grid>
       </DockPanel>
     </DataTemplate>
+    <!-- v0.20.0 write card: label, what it sends, the button (Run… / Hold… / Release / Write…) and the last result. -->
+    <DataTemplate x:Key="ActionBody" DataType="{x:Type local:DashActionCardVm}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding Label}" Style="{StaticResource SectionTitle}" TextTrimming="CharacterEllipsis"/>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding Description}" FontSize="11" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Margin="0,2,0,6"/>
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <Button x:Name="Go" HorizontalAlignment="Left" Style="{StaticResource DangerButtonStyle}" Command="{Binding RunCommand}" IsEnabled="{Binding Valid}"
+                ToolTip="Sends only after writes are enabled (Settings), the battery check, a confirmation and the typed phrase">
+          <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="{Binding ButtonText}"/></StackPanel>
+        </Button>
+      </DockPanel>
+      <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding Holding}" Value="True"><Setter TargetName="Go" Property="Background" Value="{DynamicResource GaugeCrit}"/></DataTrigger>
+      </DataTemplate.Triggers>
+    </DataTemplate>
     <DataTemplate x:Key="DashItemCard" DataType="{x:Type local:DashItemVm}">
       <!-- Width stays on FlowWidth (v0.4.0): saved size, or the stacked width when the window is narrower than the widest card. Height is on BodySlot so the Move toolbar is not clipped. -->
       <Border x:Name="Card" Style="{StaticResource CardStyle}" Width="{Binding FlowWidth}" ToolTip="{Binding Gauge.Note}" AllowDrop="True"
@@ -108,6 +123,7 @@
         <DataTrigger Binding="{Binding Display}" Value="Dial"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource DialBody}"/><Setter TargetName="BodySlot" Property="Height" Value="250"/></DataTrigger>
         <DataTrigger Binding="{Binding Display}" Value="Tile"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TileBody}"/><Setter TargetName="BodySlot" Property="Height" Value="130"/></DataTrigger>
         <DataTrigger Binding="{Binding Display}" Value="Lamp"><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource LampBody}"/><Setter TargetName="BodySlot" Property="Height" Value="80"/></DataTrigger>
+        <DataTrigger Binding="{Binding Display}" Value="Action"><Setter TargetName="Body" Property="Content" Value="{Binding Action}"/><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource ActionBody}"/><Setter TargetName="BodySlot" Property="Height" Value="150"/></DataTrigger>
         <DataTrigger Binding="{Binding Display}" Value="Tpms"><Setter TargetName="Body" Property="Content" Value="{Binding Tpms}"/><Setter TargetName="Body" Property="ContentTemplate" Value="{StaticResource TpmsBody}"/><Setter TargetName="BodySlot" Property="Height" Value="290"/></DataTrigger>
         <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Dial"/></MultiDataTrigger.Conditions><Setter TargetName="BodySlot" Property="Height" Value="310"/></MultiDataTrigger>
         <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsLarge}" Value="True"/><Condition Binding="{Binding Display}" Value="Tile"/></MultiDataTrigger.Conditions><Setter TargetName="BodySlot" Property="Height" Value="180"/></MultiDataTrigger>

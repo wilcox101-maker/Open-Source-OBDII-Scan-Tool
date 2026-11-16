@@ -24,32 +24,37 @@ public partial class MainWindow : Window
         };
     }
     private readonly MainViewModel _vm;
-    private DashboardWindow? _dashboard;
-    private WindowState _dashboardRestore = WindowState.Normal;
+    // v0.20.0: up to three dashboard pop-outs (slots 1-3), one window object per slot.
+    private readonly DashboardWindow?[] _dashboards = new DashboardWindow?[ObdLink.Core.Dashboard.DashboardWindows.Count];
+    private readonly WindowState[] _dashboardRestore = Enumerable.Repeat(WindowState.Normal, ObdLink.Core.Dashboard.DashboardWindows.Count).ToArray();
 
-    private void OpenDashboard()
+    private void OpenDashboard(int slot)
     {
-        if (_dashboard != null)
+        if (slot < 1 || slot > _dashboards.Length) return;
+        int i = slot - 1;
+        if (_dashboards[i] is { } open)
         {
-            if (_dashboard.WindowState == WindowState.Minimized)
-                _dashboard.WindowState = _dashboardRestore;
-            _dashboard.Activate();
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = _dashboardRestore[i];
+            open.Activate();
             return;
         }
-        _dashboard = new DashboardWindow { DataContext = _vm };
-        _dashboard.StateChanged += (_, _) =>
+        var dash = _vm.Dashboards[i];
+        var w = new DashboardWindow { DataContext = new DashboardWindowContext(_vm, dash) };
+        w.StateChanged += (_, _) =>
         {
-            if (_dashboard is { WindowState: WindowState.Normal or WindowState.Maximized } w)
-                _dashboardRestore = w.WindowState;
+            if (w.WindowState is WindowState.Normal or WindowState.Maximized)
+                _dashboardRestore[i] = w.WindowState;
         };
-        _dashboard.Closed += (_, _) => { _dashboard = null; _vm.Dashboard.SetWindowOpen(false); };
-        _dashboard.Show();
+        w.Closed += (_, _) => { _dashboards[i] = null; dash.SetWindowOpen(false); };
+        _dashboards[i] = w;
+        w.Show();
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        _dashboard?.Close();
-        _vm.Dashboard.Stop();
+        foreach (var d in _dashboards.ToArray()) d?.Close();
+        _vm.DashboardPoller.Stop();
         base.OnClosing(e);
     }
     // ---- v0.3.2: rescan COM ports when a USB serial device (e.g. OBDLink EX) is plugged in or removed ----
@@ -109,6 +114,8 @@ public partial class MainWindow : Window
                 if (ObdLink.Core.Ui.Shortcuts.PageByNumber(p[5] - '0') is { } page) Go(page);
                 break;
             case "dashboard": Run(_vm.OpenDashboardCommand); break;
+            case "dashboard2": Run(_vm.OpenDashboard2Command); break;
+            case "dashboard3": Run(_vm.OpenDashboard3Command); break;
             case "connect": Run(_vm.ConnectCommand); break;
             case "disconnect": Run(_vm.DisconnectCommand); break;
             case "identify": Run(_vm.IdentifyVehicleCommand); break;

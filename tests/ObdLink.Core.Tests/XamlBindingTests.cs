@@ -130,14 +130,14 @@ public class XamlBindingTests
     }
 
     [Theory]
-    [InlineData("MainWindow.xaml", 150)]
-    [InlineData("DashboardWindow.xaml", 5)]   // its DataContext is the MainViewModel (see DashboardWindow.xaml.cs)
-    public void Every_window_binding_resolves(string file, int minChecked)
+    [InlineData("MainWindow.xaml", 150, "MainViewModel")]
+    [InlineData("DashboardWindow.xaml", 5, "DashboardWindowContext")]   // v0.20.0: one context per dashboard window (see DashboardWindow.xaml.cs)
+    public void Every_window_binding_resolves(string file, int minChecked, string root)
     {
         var types = AppTypes();
-        Assert.True(types.ContainsKey("MainViewModel"));
+        Assert.True(types.ContainsKey(root));
         var doc = XDocument.Load(Path.Combine(Root(), "src", "ObdLink.App", file), LoadOptions.SetLineInfo);
-        var (n, errors) = Verify(doc, "MainViewModel", types);
+        var (n, errors) = Verify(doc, root, types);
         Assert.True(n >= minChecked, $"only {n} bindings checked in {file}; the walker is skipping too much");
         Assert.True(errors.Count == 0, string.Join("\n", errors));
     }

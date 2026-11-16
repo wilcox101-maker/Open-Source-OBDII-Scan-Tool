@@ -85,6 +85,8 @@ public sealed class AppSettings
             Dashboard.WindowPlacementSaved = false;
         Dashboard.TpmsLowKpa = Math.Clamp(Dashboard.TpmsLowKpa, 50, 600);
         Dashboard.RefreshMs = Math.Clamp(Dashboard.RefreshMs, 100, 5000);
+        foreach (var l in Dashboard.Layouts) l.Items.RemoveAll(i => (i.Display == ObdLink.Core.Dashboard.DisplayKind.Action || ObdLink.Core.Dashboard.DashActions.IsActionKey(i.Key)) && i.Action is null);
+        ObdLink.Core.Dashboard.DashboardWindows.Normalize(Dashboard);
         Adapter.TimeoutMs = Math.Clamp(Adapter.TimeoutMs, 50, 10000);
         LogRetentionDays = Math.Clamp(LogRetentionDays, 0, 3650);
         ModuleBuses ??= new();
@@ -177,6 +179,28 @@ public sealed class DashboardOptions
     /// <summary>Saved dashboard layouts (v0.2.1). Empty = built from <see cref="Gauges"/> (v0.2.0 settings) or the default.</summary>
     public List<ObdLink.Core.Dashboard.DashboardLayout> Layouts { get; set; } = new();
     public string ActiveLayout { get; set; } = ObdLink.Core.Dashboard.DashboardLayout.DefaultName;
+    /// <summary>v0.20.0: the three dashboard pop-out windows. Slot 1 is migrated from the single-window fields above.</summary>
+    public List<ObdLink.Core.Dashboard.DashboardWindowState> Windows { get; set; } = new();
+    /// <summary>Points window <paramref name="slot"/> at a saved layout. Window 1 also sets <see cref="ActiveLayout"/>.</summary>
+    public void SetLayout(int slot, string name)
+    {
+        if (Layouts.All(l => l.Name != name)) throw new ArgumentException($"No layout named '{name}'", nameof(name));
+        Window(slot).Layout = name;
+        if (slot == 1) ActiveLayout = name;
+    }
+    /// <summary>State of window <paramref name="slot"/> (1-3), creating the window list if needed.</summary>
+    public ObdLink.Core.Dashboard.DashboardWindowState Window(int slot)
+    {
+        if (Windows.Count != ObdLink.Core.Dashboard.DashboardWindows.Count) ObdLink.Core.Dashboard.DashboardWindows.Normalize(this);
+        return Windows.First(w => w.Slot == slot);
+    }
+    /// <summary>The layout window <paramref name="slot"/> shows.</summary>
+    public ObdLink.Core.Dashboard.DashboardLayout LayoutFor(int slot)
+    {
+        if (slot == 1) return Current();
+        var name = Window(slot).Layout;
+        return Layouts.FirstOrDefault(l => l.Name == name) ?? Current();
+    }
     /// <summary>The active layout, creating the default one if needed.</summary>
     public ObdLink.Core.Dashboard.DashboardLayout Current()
     {
