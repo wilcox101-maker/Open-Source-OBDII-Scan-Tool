@@ -1,3 +1,21 @@
+## v0.14.0
+
+**Faster OBD-II live data. Read-only.** Includes v0.13.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.14.0.zip`** (normal Intel/AMD PCs).
+
+- The dashboard and Live Data now ask for **up to six OBD-II PIDs in one request** (SAE J1979 multi-PID Mode 01 on CAN) instead of one request per PID. With 6 signals that is one round trip instead of six, so each signal updates more often at the same refresh setting.
+- A PID that does not come back in a batch is read on its own in the same cycle, so no value is lost. If batches come back incomplete three times in a row (an ECU without multi-PID support), the app goes back to one PID per request for that polling run.
+- Settings → Dashboard → **Ask for up to 6 OBD-II PIDs per request** (on by default) turns it off. It applies the next time polling starts.
+- Ford enhanced (Mode 22) DIDs are still read one at a time: multi-DID support on Ford modules is unverified.
+
+Internal: `J1979.ParseMultiPid`, `DashboardEngine.BatchObd` / `Mode01Requests`; simulator answers multi-PID requests (and can imitate an ECU that answers only the first PID).
+
+### Windows + truck verify
+1. DEMO: Live Data, pick rpm / speed / coolant / throttle / MAF / IAT, Start. In Adapter traffic, requests look like `010C0D11...` (several PIDs) and values update as before.
+2. DEMO: untick the new setting, restart Live Data: one PID per request (`010C`, `010D`, …) and the same values.
+3. Truck: same six signals with the setting on, then off. Compare the Samples column after 60 s each way (on should be clearly higher) and check the values agree with FORScan. If the Events log says "polling PIDs one at a time from now on", the PCM did not answer multi-PID requests; note it.
+
 ## v0.13.0
 
 **Phase 2: bus monitor. Read-only: nothing is transmitted.** Includes v0.12.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

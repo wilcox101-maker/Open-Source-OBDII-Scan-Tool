@@ -1,16 +1,16 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.13.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.14.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.13.0)
+## Where we are (v0.14.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
 | Connect / adapters | ELM327, OBDLink, J2534 | OBDLink MX+ / EX (STN); plain ELM327 on HS-CAN only | J2534 pass-thru |
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
-| Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); dashboard | Wider Ford DID catalog; faster polling |
+| Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); dashboard | Wider Ford DID catalog; faster Mode 22 polling |
 | Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused) | On-demand self-test UI and per-module routine IDs (catalog data); output state control UI (2F, plus 85 / 28 are in Core with restore leases, bench-first) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
@@ -57,7 +57,7 @@ release notes. Nothing that writes is called done until it has been verified on 
 ### Phase 2: Live data and logging
 1. **Done in v0.10.0:** live-data browser — pick any supported OBD-II PID or Ford enhanced DID, watch it live with running min/max/avg and sample count. Reuses the dashboard's poll engine (services 01/22 only). The enhanced-DID catalog is the editable `ford-enhanced-pids.json`.
 2. CSV export **done in v0.10.0** (per-cycle, base units). **Done in v0.12.0:** multi-signal charts (one lane per signal, own scale, up to 8), CSV replay at 0.5-16x, threshold triggers with hysteresis (chart markers + log).
-3. Faster polling: STN batch requests where supported; per-signal rates in `PollScheduler`.
+3. Faster polling: **done in v0.14.0** for OBD-II: J1979 multi-PID Mode 01 requests (up to 6 PIDs per request, automatic fallback). Still open: per-signal rates chosen by the user; Ford Mode 22 multi-DID (unverified on Ford modules).
 4. **Done in v0.13.0:** bus monitor (read-only): silent passive capture (ATCSM1 + ATMA) on HS-CAN, MS-CAN and HS-CAN2 with
    per-ID count, rate and changed-bit marks, a software ID filter (all / diag 7xx / ID / id/mask) and a CSV frame log.
    BUFFER FULL restarts the monitor and is counted. Sending, replaying or periodic frames are separate, state-changing

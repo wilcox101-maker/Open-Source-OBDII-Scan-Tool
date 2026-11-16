@@ -124,7 +124,7 @@ public sealed class LiveDataViewModel : ObservableObject
 
         BuildRows(picked);
 
-        _engine = new DashboardEngine(ch);
+        _engine = new DashboardEngine(ch) { BatchObd = _settings().Dashboard.BatchObdRequests };
         _engine.Scheduler.BaseMs = Math.Max(50, _settings().Dashboard.RefreshMs);
         await _bus.WaitAsync();
         try { await _engine.DiscoverAsync(); } finally { _bus.Release(); }

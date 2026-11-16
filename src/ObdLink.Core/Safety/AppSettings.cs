@@ -146,6 +146,8 @@ public sealed class DashboardOptions
     public static readonly string[] DefaultGauges = { "rpm", "speed", "fuel", "coolant", "iat", "load", "throttle", "maf", "voltage", "stft1", "ltft1", "timing", "baro", "oiltemp", "ambient" };
     /// <summary>Poll period for the fastest (priority 0) gauges, ms. Slower gauges run at 2x / 8x this.</summary>
     public int RefreshMs { get; set; } = 250;
+    /// <summary>v0.14.0: ask for up to six OBD-II PIDs per request (J1979 multi-PID). Falls back by itself on ECUs that do not support it.</summary>
+    public bool BatchObdRequests { get; set; } = true;
     public List<string> Gauges { get; set; } = DefaultGauges.ToList();
     public bool FordEnhancedPids { get; set; } = true;
     /// <summary>Gear estimate from RPM/speed when the Ford gear DID does not answer.</summary>
