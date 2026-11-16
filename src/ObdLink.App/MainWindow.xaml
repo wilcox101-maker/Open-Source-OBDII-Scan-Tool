@@ -424,6 +424,14 @@
                 <TextBlock Text="Module:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="3,0,6,0"/>
                 <ComboBox ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" DisplayMemberPath="PickerText" ToolTip="{Binding SelectedModule.Tooltip}" MinWidth="420"/>
               </DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="2,6,2,2">
+                <TextBlock Text="Service procedure:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="3,0,6,0"/>
+                <Button DockPanel.Dock="Right" Command="{Binding Routines.RunProcedureCommand}" Style="{StaticResource DangerButtonStyle}" Margin="6,0,0,0" ToolTip="Needs writes enabled, battery check and the typed phrase (UNVERIFIED unless the procedure was verified on this model). Procedures without known identifiers can't be run."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Run procedure…"/></StackPanel></Button>
+                <ComboBox ItemsSource="{Binding Routines.Procedures}" SelectedItem="{Binding Routines.SelectedProcedure}" DisplayMemberPath="Name" MinWidth="320" ToolTip="From docs/SERVICE-PROCEDURES.md. Picking one selects its module."/>
+              </DockPanel>
+              <ScrollViewer DockPanel.Dock="Top" MaxHeight="150" VerticalScrollBarVisibility="Auto" Margin="4,2,4,4">
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding Routines.ProcedureText}"/>
+              </ScrollViewer>
               <WrapPanel DockPanel.Dock="Top" Margin="0,4,0,4">
                 <Button Command="{Binding Routines.ExtendedSessionCommand}" Margin="0,0,4,0" ToolTip="10 03. Allowed in read-only mode. The app then sends 3E 80 every 2 s so the module stays in it."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8AB;"/><TextBlock Text="Extended session (10 03)"/></StackPanel></Button>
                 <Button Command="{Binding Routines.DefaultSessionCommand}" Margin="0,0,12,0" ToolTip="10 01: back to the default session (keep-alive stops)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72B;"/><TextBlock Text="Default session (10 01)"/></StackPanel></Button>
