@@ -4,7 +4,8 @@ Generated for OBDLink Diag v0.6.0 by tools/GenerateBackgrounds/generate.py.
 These JPEG files were generated for this app. They are original generated
 pictures of material surfaces. They are not photographs of a vehicle cabin,
 not Ford Motor Company marketing photos, and not files copied from the web.
-They ship with this project under the MIT license (see LICENSE).
+They ship with this project under the project's license, the PolyForm Noncommercial License 1.0.0 (see LICENSE).
+Until 2026-11-16 the project, these files included, was MIT-licensed.
 
 These files contain no vehicle badges or wordmarks.
 
@@ -15,34 +16,34 @@ wood-grain.jpg
   Display name: Fine wood grain
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
 
 brushed-aluminum.jpg
   Display name: Brushed aluminum
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
 
 gloss-black.jpg
   Display name: High-gloss black
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
 
 diamond-plate.jpg
   Display name: Diamond-plate metal
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
 
 carbon-fiber.jpg
   Display name: Carbon fiber
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
 
 sports-leather.jpg
   Display name: Sports-car leather
   How obtained: image generated for this app by tools/GenerateBackgrounds/generate.py
   Author: OBDLink Diag project (Dale Wilcox)
-  License: MIT. Redistribution inside this MIT-licensed project is allowed.
+  License: PolyForm Noncommercial License 1.0.0 (the project license). Redistribution inside this project is allowed.
