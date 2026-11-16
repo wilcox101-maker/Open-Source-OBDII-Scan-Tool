@@ -51,7 +51,8 @@ public sealed record FlashJournalEntry(
 /// <summary>What the journal says about a job: whether one is open, for which image and module, and where it stopped.</summary>
 public sealed record FlashJournalState(
     bool Exists, bool Open, string? ImageSha256, uint? TxId, string? BackupRef, string? LastPhase,
-    int SegmentsDone, long BytesAcked, FlashJournalEntry? LastFault, int Attempts, int WrongKeys = 0, DateTimeOffset? LockedAt = null)
+    int SegmentsDone, long BytesAcked, FlashJournalEntry? LastFault, int Attempts, bool ReachedProgramming = false, bool ReachedReset = false,
+    int WrongKeys = 0, DateTimeOffset? LockedAt = null)
 {
     public static readonly FlashJournalState None = new(false, false, null, null, null, null, 0, 0, null, 0);
 
@@ -65,12 +66,13 @@ public sealed record FlashJournalState(
         FlashJournalEntry? fault = null;
         int wrongKeys = 0;
         DateTimeOffset? lockedAt = null;
+        bool programming = false, reset = false;
         foreach (var e in entries)
         {
             exists = true;
             switch (e.Kind)
             {
-                case FlashJournalKind.Started: open = true; sha = e.ImageSha256; tx = e.TxId; attempts = 1; segsDone = 0; bytes = 0; fault = null; break;
+                case FlashJournalKind.Started: open = true; sha = e.ImageSha256; tx = e.TxId; attempts = 1; segsDone = 0; bytes = 0; fault = null; backup = null; programming = reset = false; break;
                 case FlashJournalKind.Resumed: attempts++; segsDone = 0; bytes = 0; break; // a resume restarts the download from the erase
                 case FlashJournalKind.Restarted: segsDone = 0; bytes = 0; break;
                 case FlashJournalKind.Security:
@@ -82,14 +84,21 @@ public sealed record FlashJournalState(
                     }
                     break;
                 case FlashJournalKind.Backup: backup = e.Detail; break;
-                case FlashJournalKind.Phase: phase = e.Phase; break;
+                case FlashJournalKind.Phase:
+                    phase = e.Phase;
+                    if (Enum.TryParse<FlashPhase>(e.Phase, out var p))
+                    {
+                        if (p >= FlashPhase.ProgrammingSession) programming = true;   // from the first 10 02 on, the module may be in its bootloader
+                        if (p >= FlashPhase.Reset) reset = true;                      // download and check finished in some attempt
+                    }
+                    break;
                 case FlashJournalKind.SegmentDone: segsDone++; break;
                 case FlashJournalKind.BlockAcked: if (e.Offset is long o) bytes = Math.Max(bytes, o); break;
                 case FlashJournalKind.Fault or FlashJournalKind.Interrupted: fault = e; break;
                 case FlashJournalKind.Completed or FlashJournalKind.Abandoned: open = false; break;
             }
         }
-        return new(exists, open, sha, tx, backup, phase, segsDone, bytes, fault, attempts, wrongKeys, lockedAt);
+        return new(exists, open, sha, tx, backup, phase, segsDone, bytes, fault, attempts, programming, reset, wrongKeys, lockedAt);
     }
 }
 

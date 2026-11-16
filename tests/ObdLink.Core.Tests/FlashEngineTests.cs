@@ -826,4 +826,25 @@ public class FlashEngineTests
         var ok = await FlashPreflight.RunAsync(new UdsClient(ecu, 0x7E0), new FlashPlan { TxId = 0x7E0, Image = exe, Sbl = Sbl() }, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx);
         Assert.Contains(ok.Items, i => i.Name == "Secondary bootloader" && i.Status == PreflightStatus.Pass);
     }
+
+    [Fact]
+    public async Task SecurityHold_DoesNotBlockConfirmingAFinishedModule()
+    {
+        // The flash finished but the link dropped at the reset; afterwards a wrong key was recorded for this module. Resume only
+        // reads the part number (no seed), so the hold must not stop it.
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        var (eng, uds, journal, _) = Make(ecu, img);
+        await eng.RunAsync(uds);
+        var t = DateTimeOffset.UtcNow;
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Started, ImageSha256: img.Sha256, TxId: 0x7E0));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Backup, Detail: "b"));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Phase, Phase: nameof(FlashPhase.Reset)));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Security, Detail: FlashSecurity.WrongKey));
+        Assert.NotNull(eng.SecurityHold);
+        int before = ecu.Calls.Count;
+        var r = await eng.RunAsync(uds);
+        Assert.True(r.PartNumberConfirmed);
+        Assert.DoesNotContain(ecu.Calls.Skip(before), c => c[0] is 0x10 or 0x27 or 0x31 or 0x34 or 0x36);
+    }
 }

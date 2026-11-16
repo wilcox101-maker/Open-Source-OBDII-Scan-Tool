@@ -93,7 +93,10 @@ public sealed class FlashEngine
         if (ReadVoltage is null) throw new FlashFailedException("Flashing needs a battery voltage reading; none is available.", "Start", false);
         if (!resume && Backup is null) throw new FlashFailedException("Flashing needs a backup step; none was supplied.", "Start", false);
         if (uds.Gate is { ReadOnly: true }) throw new FlashFailedException("Read-only mode is on. Turn on writes for this session before flashing.", "Start", false);
-        if (SecurityHold is string hold) throw new FlashFailedException(hold, "Start", resume, new FlashFault(FlashFaultAction.Security, "security hold"));
+        // A security hold blocks anything that would send a seed. A resume past the reset may only need the part-number check, so it
+        // is checked again right before the programming session instead.
+        if (!(resume && st.ReachedReset) && SecurityHold is string hold)
+            throw new FlashFailedException(hold, "Start", resume, new FlashFault(FlashFaultAction.Security, "security hold"));
         if (FlashImageChecks.Layout(_plan) is string layout) throw new FlashFailedException($"The flash file cannot be sent safely: {layout}.", "Start", resume);
         if (uds.TargetTxId != _plan.TxId) throw new ArgumentException($"Client targets 0x{uds.TargetTxId:X3}, plan targets 0x{_plan.TxId:X3}", nameof(uds));
 
@@ -104,7 +107,31 @@ public sealed class FlashEngine
         {
             SetPhase(FlashPhase.Preflight, resume ? $"resuming open job (attempt {st.Attempts + 1})" : "checking battery");
             await EnsureVoltageAsync(waitIfLow: resume);
-            if (resume) Write(FlashJournalKind.Resumed, detail: $"attempt {st.Attempts + 1}");
+            if (resume)
+            {
+                // A job interrupted after the reset may already run the new software: check before erasing anything again.
+                if (st.ReachedReset && ReadModulePart is not null && _plan.Image.SoftwarePartNumber is string wantPart)
+                {
+                    string? now = null;
+                    try { now = await ReadModulePart(uds, none); }
+                    catch (Exception ex) when (ex is not OperationCanceledException) { Log.Information("Flash resume: part number not readable ({Err}); flashing again", ex.Message); }
+                    if (now is not null && Normalize(now).Contains(Normalize(wantPart), StringComparison.Ordinal))
+                    {
+                        string done = $"Module already reports {now}: the flash finished before the link was lost. Nothing was sent again.";
+                        Write(FlashJournalKind.Completed, detail: done);
+                        SetPhase(FlashPhase.Done, done);
+                        return new FlashResult(true, now, 0, sw.Elapsed, st.Attempts, done);
+                    }
+                }
+                Write(FlashJournalKind.Resumed, detail: $"attempt {st.Attempts + 1}");
+                // A job stopped before its backup was saved, while the module was still running its application: back up now.
+                if (st.BackupRef is null && !st.ReachedProgramming && Backup is not null)
+                {
+                    SetPhase(FlashPhase.Backup, "saving backup (missing from the interrupted job)");
+                    Write(FlashJournalKind.Backup, detail: await Backup(none));
+                }
+                else if (st.BackupRef is null) Log.Warning("Flash resume: the job has no backup and the module may be in its bootloader (no backup possible)");
+            }
             else
             {
                 Write(FlashJournalKind.Started, detail: _plan.Image.Name, sha: _plan.Image.Sha256, tx: _plan.TxId);
@@ -118,6 +145,7 @@ public sealed class FlashEngine
                 stop.ThrowIfCancellationRequested();
             }
 
+            if (SecurityHold is string held) throw new FlashFailedException(held, "Start", resume, new FlashFault(FlashFaultAction.Security, "security hold"));
             inBootloader = true; // from the first programming-session request on, the module may be in its bootloader
             for (int round = 0; ; round++)
             {

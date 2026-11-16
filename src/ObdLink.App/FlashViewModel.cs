@@ -220,8 +220,9 @@ public sealed class FlashViewModel : ObservableObject
     {
         var (m, plan) = Target();
         var uds = Client(m, plan);
+        bool open = FlashJournalState.From(Journal(m).ReadAll()).Open;   // an open job: recovery checks (the module may be in its bootloader)
         FlashPreflightReport? rep = null;
-        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart));
+        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart, resume: open));
         Preflight.Clear();
         foreach (var i in rep!.Items) Preflight.Add(i);
         int warn = rep.Warnings.Count(), fail = rep.Items.Count(i => i.Status == PreflightStatus.Fail);
@@ -241,12 +242,13 @@ public sealed class FlashViewModel : ObservableObject
         if (!resume && st.Open) throw new InvalidOperationException("This module has an open flash job. Resume it (same file) or abandon it first.");
         if (resume && st.ImageSha256 != plan.Image.Sha256) throw new InvalidOperationException("The loaded file is not the one the open job started with. Open the same file to resume.");
         // Checked before the warnings and the typed FLASH, so the operator is not walked through them for a run the engine will refuse.
-        if (FlashSecurity.Hold(st, plan.Retry.LockoutHold, DateTimeOffset.UtcNow) is string hold) throw new InvalidOperationException(hold);
+        // (A resume past the reset may only confirm the part number, which sends no seed: the engine decides that case.)
+        if (!(resume && st.ReachedReset) && FlashSecurity.Hold(st, plan.Retry.LockoutHold, DateTimeOffset.UtcNow) is string hold) throw new InvalidOperationException(hold);
 
         // Hard preflight checks run again right before the confirmation, so a stale report can't be used.
         var uds = Client(m, plan);
         FlashPreflightReport? rep = null;
-        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart));
+        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart, resume: resume));
         Preflight.Clear(); foreach (var i in rep!.Items) Preflight.Add(i);
         if (!rep.CanFlash) throw new FlashPreflightException(rep);
         await _safety().RequireAsync(FlashWarnings.For(plan, _session()?.Profile));

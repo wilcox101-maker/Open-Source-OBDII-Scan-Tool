@@ -1,9 +1,9 @@
 ## v0.22.0
 
-**Flash hardening and dashboard undo.** Keep-alive and lost-session recovery came in v0.21.2; this release adds what is around them. Includes v0.21.2 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
+**Flash hardening and dashboard undo.** Keep-alive and lost-session recovery came in v0.21.2; this release adds what is around them. Includes v0.21.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
 
 - **Secondary bootloader (SBL).** Ford software usually ships with an SBL file (`sw_part_type = SBL`, `call = …`). Flash tab: **SBL file…** (or Open file… on an SBL file). After security access the SBL is downloaded to the module's RAM and started with routine 0x0301 and its call address, then the erase and download run as before, followed by commit routine 0x0304. The SBL is loaded again on every attempt. Routine IDs follow an open-source community Ford flasher [UNVERIFIED against Ford documentation]. The DEMO module now requires an SBL, and the DEMO image comes with one.
-- **Resume can't lock the module out.** Every security outcome is journaled per module, across jobs. After a rejected key (NRC 0x35) no further key is sent until you press **Clear security hold…**; after a lockout (0x36, or 0x37 that did not clear) no seed is requested for 10 minutes. The hold is checked before the warnings and the typed FLASH.
+- **Security lockout hold** (complements v0.21.3's recovery-safe resume). Every security outcome is journaled per module, across jobs. After a rejected key (NRC 0x35) no further key is sent until you press **Clear security hold…**; after a lockout (0x36, or 0x37 that did not clear) no seed is requested for 10 minutes. The hold is checked before the warnings and the typed FLASH.
 - **Failure before the erase resets the module back.** If a new job fails in the programming session, security access, the SBL stage, or on a first erase refused with a definite NRC, nothing was erased: the app sends ECU reset so the module runs its own software again, checks it answers, and closes the job (*Nothing was erased*). It never does this on a resume, or once anything may have been erased.
 - **Image checks** (preflight and engine): overlapping segments, segments outside the file's erase regions, addresses past 32 bits or too long for the address/length format, an SBL loaded as the image, an SBL without a call address: refused before anything is sent. Warnings: file without `ecu_address`; module and file part numbers with different vehicle-program prefixes; a Ford EXE/DATA file without an SBL.
 - **Check routine not supported** (FF01 answered 11/12/31): the flash continues to the reset; the module validates its software at reset.
@@ -17,6 +17,22 @@ Internal: `FlashImage.PartType/CallAddress/IsSbl`, `FlashPlan.Sbl/SblRoutineId/C
 2. Press **No SBL**, then Flash again: it stops with *Nothing was erased; the module was reset back to its normal software*. No open job remains.
 3. DEMO dashboard: add a WriteDid card for a DID the DEMO module answers on the Live Data page (not F180-F19F or DE00-DEFF). Write a new value, then **Undo…**: the old value comes back and the Undo button disappears. Press Undo on a fresh card: it is not shown (no write yet).
 4. Truck, read-only only: Flash → open a real Ford VBF set (SBL + strategy) → Run checks. Do not press Flash.
+
+## v0.21.3
+
+**Flashing: resume can't lock itself out, never re-flashes a finished module, and always has a backup.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended until the secondary bootloader (SBL) stage lands.
+
+- **Resume checks reach a stuck module.** Before, Resume re-ran the full checks and refused when the module did not answer TesterPresent, which is exactly how some modules behave while stuck in their bootloader. Now, on a resume, a programming-session request is tried: any answer (positive or negative) lets recovery continue, with a warning. A silent module fails with steps to follow (ignition off 10 s and on, charger, wired OBDLink EX, wait for the security delay, run the checks again) and no automatic retry loop. A new flash keeps the strict link check.
+- **No second flash of a finished module.** If the link dropped after the module was reset, Resume first reads the module's part number; when it already matches the file, the job is marked complete and nothing is erased or written.
+- **Backup before anything else.** A job interrupted before its backup was saved (the module was still running normally) takes the backup on Resume before entering programming.
+
+Internal: `FlashJournalState.ReachedProgramming / ReachedReset`, `FlashPreflight.RunAsync(resume:)`, engine resume path; simulator `IgnoreTesterPresentInBootloader`, `SimFlashFault.LinkDownAfter`. Tests `FlashRecoveryTests` (all 4 fail on the previous code).
+
+### Windows + truck verify
+1. **DEMO:** start a DEMO flash and pull the plug equivalent (Stop / Disconnect) mid-download; Resume finishes it.
+2. **DEMO:** Run checks on an open job: the Link row says the module answered (or the bootloader note), not a hard failure.
+3. **Truck:** none (no real-module flashing yet).
+
 ## v0.21.2
 
 **Flashing: the programming session survives pauses, and a lost session is recovered.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended: the secondary bootloader (SBL) stage is not built yet.

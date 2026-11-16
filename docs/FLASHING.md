@@ -42,6 +42,13 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 - **Session lost** (v0.21.2): 0x7E / 0x7F at any time, or 0x33 (and 0x24 on TransferData) after unlocking, mean the module left
   the programming session or lost security. The engine re-enters programming **from the erase** once (never writes into
   un-erased flash), redoing security (subject to the lockout hold) and the SBL; if it happens again the job stays open for resume.
+- **Recovery-safe resume** (v0.21.3):
+  - Resume checks: if a module ignores TesterPresent (a bootloader in its default session), a programming-session request is
+    tried; any answer lets recovery continue. A silent module fails the check with operator steps (ignition cycle, charger,
+    wired EX, security delay) instead of looping. A new flash keeps the strict link check.
+  - A job interrupted after the module reset is checked first: if the module already reports the file's part number, the job
+    is marked complete and nothing is erased or written again.
+  - A job interrupted before its backup was saved (module still in its application) takes the backup before anything else.
 - **Stop** only at safe points: before the programming session (module unchanged, job abandoned) or between segments (job open).
 - **No ECU reset or session exit after a failure once memory may have changed.** A module left in its bootloader can usually be flashed again.
 - **Failure before anything was erased** (programming session, security, SBL, or a first erase refused with a definite NRC) on a
