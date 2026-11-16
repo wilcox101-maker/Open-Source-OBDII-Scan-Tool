@@ -1,3 +1,20 @@
+## v0.23.3
+
+**Clearing DTCs keeps a copy first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **DTCs tab → Clear module DTCs** now reads the module's DTCs (19 02), each DTC's freeze frames (19 03 / 19 04) and extended data (19 06), and saves them to `dtc-snapshots\dtc-snapshot-<module>-<address>-<time>.txt` in the data folder, flushed to disk, **before** the clear. The confirmation shows what was saved and the file path. Same text as the DTC details dialog, with the DTC description.
+- If the copy is incomplete (the module would not list its DTCs, or details failed for some), a second confirmation says so and needs **CLEAR** typed.
+- Read-only mode refuses Clear before anything is read. The snapshot reads and the clear use the module's own bus only (no fallback).
+- Not covered: raw `14` / `04` typed in the Console tab (no snapshot there).
+
+Internal: `Dtc/DtcSnapshot` (`TakeAsync`, `Format`, `Save` with write-through, never overwrites); `DtcViewModel` takes the snapshot folder. Tests `DtcSnapshotTests` (4, simulator + a module that refuses or drops the link); the source-order scrub test pins gate → snapshot read → save → confirmation → clear (checked to fail with the gate removed).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → scan → select BCM → DTCs tab → Clear module DTCs: the confirmation lists "1 DTC(s), 1 freeze frame(s)" and a path; open the file: B1123-45 with DID 0xDD00. Say **No**: nothing is cleared, the file stays.
+2. **DEMO:** again, Yes: the clear is sent (the event log shows "cleared; snapshot <path>"). The DEMO module keeps its synthetic DTC after a clear, so this proves the order, not the erase. The first file is still there and a second one was added.
+3. **DEMO:** writes off → Clear module DTCs: refused (read-only), no file written.
+4. **Truck (Phase 1-2, optional):** before clearing a real code, check the saved file has its freeze frame. Clearing is the user's choice; this only keeps a copy.
+
 ## v0.23.2
 
 **BMS reset asks first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.

@@ -499,7 +499,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         Dtc = new DtcViewModel(DtcDatabase.LoadEmbedded(), EventLog, (n, f, p) => C(n, f, p), () => Ch,
             async () => { if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol(); },
             () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
-            (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info);
+            (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info,
+            Path.Combine(Paths.DataDir, "dtc-snapshots"));
         LiveData.Blocked = AdapterBlocked;
         RawConsole = new ConsoleViewModel(EventLog, (n, f, p) => C(n, f, p), () => _console);
         AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),
