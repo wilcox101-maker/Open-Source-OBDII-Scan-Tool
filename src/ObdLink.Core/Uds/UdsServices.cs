@@ -23,6 +23,19 @@ public static class UdsServices
     public static bool IsStateChanging(byte sid) => Array.IndexOf(StateChanging, sid) >= 0;
     public static bool HasSubFunction(byte sid) => Array.IndexOf(WithSubFunction, sid) >= 0;
 
+    /// <summary>
+    /// Requests that only undo a control service: 85 01 (DTC setting on), 28 00 xx (enable Rx and Tx), 2F did 00 [mask]
+    /// (return control to ECU). They are still state-changing as services, but they move the module back to normal operation,
+    /// so <see cref="UdsClient.RestoreAsync"/> lets them through a closed write gate. Nothing else qualifies.
+    /// </summary>
+    public static bool IsRestoreRequest(byte[] req) => req.Length switch
+    {
+        2 when req[0] == 0x85 => (req[1] & 0x7F) == 0x01,
+        3 when req[0] == 0x28 => (req[1] & 0x7F) == 0x00,
+        >= 4 when req[0] == 0x2F => req[3] == 0x00,
+        _ => false,
+    };
+
     /// <summary>True when the request sets the suppress-positive-response bit, so silence is the expected answer to success.</summary>
     public static bool SuppressesPositiveResponse(byte[] req) => req.Length >= 2 && HasSubFunction(req[0]) && (req[1] & 0x80) != 0;
 }

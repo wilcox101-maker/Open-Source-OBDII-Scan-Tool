@@ -155,12 +155,25 @@ public sealed class UdsClient
     /// After "response pending" (0x78): a receive-capable channel waits up to P2* for the final answer without re-sending;
     /// an ELM-style channel re-sends idempotent requests only, and otherwise reports NRC 0x78 so the caller can settle the outcome.
     /// </summary>
-    public async Task<byte[]> RequestAsync(byte[] req, CancellationToken ct = default)
+    public Task<byte[]> RequestAsync(byte[] req, CancellationToken ct = default) => SendAsync(req, gated: true, ct);
+
+    /// <summary>
+    /// Sends a request that only undoes a control service (<see cref="UdsServices.IsRestoreRequest"/>) even when the write gate is
+    /// closed, so switching to read-only mid-job can never leave DTC setting off, communication disabled or an output overridden.
+    /// Any other request is refused.
+    /// </summary>
+    public Task<byte[]> RestoreAsync(byte[] req, CancellationToken ct = default)
+    {
+        if (!UdsServices.IsRestoreRequest(req)) throw new ArgumentException($"{Convert.ToHexString(req)} is not a restore request (85 01, 28 00 xx, 2F did 00)", nameof(req));
+        return SendAsync(req, gated: false, ct);
+    }
+
+    private async Task<byte[]> SendAsync(byte[] req, bool gated, CancellationToken ct)
     {
         if (req.Length == 0) throw new ArgumentException("Empty UDS request", nameof(req));
         if (UdsRoutines.IsPyrotechnicRequest(req))
             throw new RoutineRefusedException((ushort)(req[2] << 8 | req[3]), UdsRoutines.RefusalReason((ushort)(req[2] << 8 | req[3]))!);
-        if (Gate is not null && UdsServices.IsStateChanging(req[0])) Gate.Require($"{UdsNrc.ServiceName(req[0])} (0x{req[0]:X2})");
+        if (gated && Gate is not null && UdsServices.IsStateChanging(req[0])) Gate.Require($"{UdsNrc.ServiceName(req[0])} (0x{req[0]:X2})");
         bool suppressed = UdsServices.SuppressesPositiveResponse(req);
         uint rx = ResponseId;
         await _ch.SetTargetAsync(TargetTxId, rx, ct);
