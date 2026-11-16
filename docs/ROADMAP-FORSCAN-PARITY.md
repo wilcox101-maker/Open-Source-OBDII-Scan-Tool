@@ -1,9 +1,7 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.10.0) with FORScan's feature groups, orders the work, and lists the
-decisions only Dale can make.
-
+This file compares what the app does today (v0.10.0) with FORScan's feature groups and orders the work.
 
 ## Where we are (v0.10.0)
 
@@ -17,7 +15,7 @@ decisions only Dale can make.
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
-| Programming | Module firmware, PMI (module replacement) | None | Out of scope for now (see decisions) |
+| Programming | Module firmware, PMI (module replacement) | None | Not started |
 | Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify | Battery-maintainer detection; session keep-alive during long jobs |
 
 ## Phases
