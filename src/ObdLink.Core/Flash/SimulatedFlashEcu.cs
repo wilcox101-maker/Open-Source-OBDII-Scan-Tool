@@ -55,6 +55,18 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool EraseResultsSupported { get; set; } = true;
     /// <summary>Largest TransferData message (SID + counter + data) reported in the 74 reply.</summary>
     public int MaxBlockLength { get; set; } = 0x102;
+    /// <summary>
+    /// Session timeout (ISO 14229-2 S3server). When set, a non-default session ends if no request arrives within it: back to the
+    /// default session, security locked, any open download dropped (the module stays in its bootloader). Time comes from <see cref="Now"/>.
+    /// </summary>
+    public TimeSpan? S3 { get; set; }
+    /// <summary>Clock for <see cref="S3"/> (tests pass a virtual clock that the engine's delay hook advances).</summary>
+    public Func<DateTime> Now { get; set; } = () => DateTime.UtcNow;
+    /// <summary>Session drops caused by <see cref="S3"/>.</summary>
+    public int SessionTimeouts { get; private set; }
+    /// <summary>Drops the session right now, as an S3 timeout would (for fault injection).</summary>
+    public void DropSession() { Session = 0x01; Unlocked = false; _dl = null; SessionTimeouts++; SblRunning = false; _ram.Clear(); }
+    private DateTime? _lastRequest;
 
     public List<byte[]> Calls { get; } = new();
     public int TransferBlocksWritten { get; private set; }
@@ -64,16 +76,12 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool InBootloader { get; private set; }
     public bool Unlocked { get; private set; }
     public bool ApplicationValid { get; private set; } = true;
-    /// <summary>S3 session timeout. When set, a non-default session ends once this much simulated time passes without a request
-    /// (see <see cref="Advance"/>). Null: sessions never time out.</summary>
-    public TimeSpan? S3 { get; set; }
     /// <summary>The next seed request(s) answer NRC 0x37 (required time delay not expired).</summary>
     public int SecurityDelaysLeft { get; set; }
     /// <summary>Wrong keys accepted before the module answers NRC 0x36 and locks.</summary>
     public int MaxKeyAttempts { get; set; } = 3;
     public int WrongKeys { get; private set; }
     public bool SecurityLocked { get; private set; }
-    public int SessionDrops { get; private set; }
     /// <summary>Ford-style: the erase is refused (NRC 0x22) until a secondary bootloader was downloaded to <see cref="SblRam"/> and started
     /// with routine 0x0301 and its call address.</summary>
     public bool RequiresSbl { get; set; }
@@ -84,20 +92,6 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool CheckRoutineSupported { get; set; } = true;
     public int Commits { get; private set; }
     private readonly Dictionary<uint, byte[]> _ram = new();
-    private TimeSpan _idle;
-
-    /// <summary>Simulated time passing with no request (tests route the engine's Delay hook here).</summary>
-    public void Advance(TimeSpan t)
-    {
-        _idle += t;
-        if (S3 is TimeSpan s3 && _idle > s3 && Session != 0x01) DropSession();
-    }
-
-    /// <summary>Back to the default session: unlock and any download in progress are lost; a module without valid software stays in its bootloader.</summary>
-    public void DropSession()
-    {
-        Session = 0x01; Unlocked = false; _dl = null; InBootloader = !ApplicationValid; SessionDrops++; SblRunning = false; _ram.Clear();
-    }
 
     protected readonly Queue<byte[]> Deferred = new();
     private readonly Dictionary<uint, byte[]> _memory = new();
@@ -118,8 +112,10 @@ public class SimulatedFlashEcu : IDiagChannel
         int index = Calls.Count;
         Calls.Add(request.ToArray());
         if (LinkDown) throw new IOException("The port is closed (simulated adapter unplugged)");
+        var now = Now();
+        if (S3 is TimeSpan s3 && Session != 0x01 && _lastRequest is DateTime last && now - last > s3) DropSession();
+        _lastRequest = now;
         var fault = Faults?.Invoke(request, index);
-        _idle = TimeSpan.Zero; // any request (TesterPresent included) restarts S3
         if (fault?.Kind == SimFlashFaultKind.SessionDrop) DropSession();
         switch (fault?.Kind)
         {
@@ -162,6 +158,8 @@ public class SimulatedFlashEcu : IDiagChannel
                 else if (InBootloader && s == 0x03) return Neg(0x10, 0x7E); // this bootloader has no extended session
                 Session = s;
                 return new byte[] { 0x50, s, 0x00, 0x32, 0x01, 0xF4 };
+            case 0x27 or 0x31 or 0x34 or 0x36 or 0x37 when InBootloader && Session != 0x02:
+                return Neg(sid, 0x7F); // serviceNotSupportedInActiveSession (bootloader dropped to its default session)
             case 0x27 when r.Length >= 2:
                 if (r[1] % 2 == 1)
                 {

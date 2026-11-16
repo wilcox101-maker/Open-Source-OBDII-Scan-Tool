@@ -68,11 +68,6 @@ public sealed class FlashRetryPolicy
     public TimeSpan SecurityDelay { get; init; } = TimeSpan.FromSeconds(10);
     /// <summary>Settle time after the final ECU reset before the software ID is read back.</summary>
     public TimeSpan PostResetDelay { get; init; } = TimeSpan.FromSeconds(3);
-    /// <summary>Longest quiet gap in the programming session: every wait is cut into slices this long with a TesterPresent between them,
-    /// well inside the usual 5 s S3 session timeout.</summary>
-    public TimeSpan KeepAliveEvery { get; init; } = TimeSpan.FromSeconds(2);
-    /// <summary>Times one run starts again from the session and erase after the module left the programming session.</summary>
-    public int SessionRestarts { get; init; } = 1;
     /// <summary>After a security lockout (NRC 0x36, or 0x37 that did not clear), no new seed is requested for this long.</summary>
     public TimeSpan LockoutHold { get; init; } = TimeSpan.FromMinutes(10);
 }

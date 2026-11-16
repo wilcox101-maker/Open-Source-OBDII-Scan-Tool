@@ -257,7 +257,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         _host.MarkAsBuilt(m, AsBuiltSupport.Supported);
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Write", res.Note); return; }
-        _host.Info("Write", $"{res.BytesChanged} byte(s) written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup of the previous contents: {res.BackupPath}");
+        _host.Info("Write", $"{res.BytesChanged} byte(s) written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup of the previous contents: {res.BackupPath}\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)m.Def.TxId)}");
     }
 
     private async Task RestoreAsync()
@@ -276,7 +276,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         catch (Exception ex) when (ex is InvalidDataException or PartialRestoreException) { await OfferCheckAfterFailureAsync(); throw; }
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Restore", res.Note); return; }
-        _host.Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}");
+        _host.Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)row.Def.TxId)}");
     }
 
     private async Task UndoAsync()
@@ -295,7 +295,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         catch (Exception ex) when (ex is InvalidDataException or PartialRestoreException) { await OfferCheckAfterFailureAsync(); throw; }
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Undo", res.Note); return; }
-        _host.Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}");
+        _host.Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)m.Def.TxId)}");
     }
 
     private async Task CompareAsync()

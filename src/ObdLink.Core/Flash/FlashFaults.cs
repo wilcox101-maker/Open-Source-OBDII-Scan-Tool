@@ -18,7 +18,10 @@ public enum FlashFaultAction
     Security,
     /// <summary>The adapter or port went away. Stop sending; recovery reconnects (same or other adapter) and resumes.</summary>
     LinkLost,
-    /// <summary>The module left the programming session (session timeout, reset): unlock and download state are gone. Start again from the session and erase.</summary>
+    /// <summary>
+    /// The module left the programming session or lost security (S3 timeout, a reset): 0x7E / 0x7F at any time, or 0x33 / (0x24 on
+    /// TransferData) after unlocking. The engine re-enters programming from the erase (never writes into un-erased flash).
+    /// </summary>
     SessionLost,
 }
 
@@ -64,6 +67,10 @@ public class FlashFailedException(string message, string phase, bool moduleMayBe
 /// <summary>The adapter link was lost or retries ran out mid-job. The job stays open in the journal; reconnect and call resume.</summary>
 public class FlashInterruptedException(string message, string phase, FlashFault fault, Exception? inner = null)
     : FlashFailedException(message, phase, true, fault, inner);
+
+/// <summary>The programming session or security was lost mid-job. Caught by the engine for an automatic re-entry; otherwise the job stays open for resume.</summary>
+public sealed class FlashSessionLostException(string message, string phase, FlashFault fault, Exception? inner = null)
+    : FlashInterruptedException(message, phase, fault, inner);
 
 /// <summary>A preflight check failed before anything was sent to the module.</summary>
 public sealed class FlashPreflightException(FlashPreflightReport report)

@@ -1,6 +1,6 @@
 # Module flashing (Phase 5)
 
-Status (v0.22.0): **Flash tab (v0.19.0) on the Core engine; SBL stage, keep-alive, lost-session restart and lockout hold added in v0.22.0. Run end to end on Windows 11 against the SYNTHETIC simulated module (DEMO-EX, 2026-11-16, see the README screenshots). Nothing here has flashed a real module.**
+Status (v0.22.0): **Flash tab (v0.19.0) on the Core engine; keep-alive and lost-session recovery in v0.21.2; SBL stage, lockout hold, early-failure reset and image checks in v0.22.0. Run end to end on Windows 11 against the SYNTHETIC simulated module (DEMO-EX, 2026-11-16, see the README screenshots). Nothing here has flashed a real module.**
 Code: `src/ObdLink.Core/Flash/` (engine), `src/ObdLink.App/FlashViewModel.cs` (tab). Tests: `tests/ObdLink.Core.Tests/FlashEngineTests.cs`.
 How to use the tab: `docs/GUIDE.md` → Flash. Check a real file offline first: `obdcli vbf-info --file x.vbf`.
 
@@ -36,21 +36,22 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 - **ELM/STN channels** can't keep listening after 0x78. The engine settles instead: resend (TransferData, exit), or poll 31 03
   (erase, check). If a module can't report routine results it waits a bounded time with keep-alives, and RequestDownload is
   retried while the module answers 0x21/0x22/0x70.
+- **Session kept alive during every wait** (v0.21.2): once the module is in the programming session, every pause (low battery,
+  the 0x37 security delay, retry back-offs, response-pending settles, routine polls) sends TesterPresent `3E 80` at least every
+  2 s, so S3 (5 s) never ends the session while the engine waits.
+- **Session lost** (v0.21.2): 0x7E / 0x7F at any time, or 0x33 (and 0x24 on TransferData) after unlocking, mean the module left
+  the programming session or lost security. The engine re-enters programming **from the erase** once (never writes into
+  un-erased flash), redoing security (subject to the lockout hold) and the SBL; if it happens again the job stays open for resume.
 - **Stop** only at safe points: before the programming session (module unchanged, job abandoned) or between segments (job open).
 - **No ECU reset or session exit after a failure once memory may have changed.** A module left in its bootloader can usually be flashed again.
 - **Failure before anything was erased** (programming session, security, SBL, or a first erase refused with a definite NRC) on a
   fresh job: the engine sends 11 01 so the module runs its own software again, checks that it answers, and closes the job as
   unchanged. On a resume it never does this (an earlier attempt may have erased).
-- **Keep-alive** (v0.22.0): inside the programming session every wait (retry backoff, response-pending settle, low-battery
-  pause, security delay, routine polling) is cut into 2 s slices with `3E 80` between them, inside the usual 5 s S3 timeout.
-- **Lost session** (v0.22.0): 0x7E/0x7F, 0x33 after security, or 0x24 to TransferData mean the module left the session. The
-  engine enters the session again, redoes security (subject to the hold) and the SBL, and restarts from the erase, once per run.
-  A second loss leaves the job open for Resume.
 - **Lockout hold** (v0.22.0): every SecurityAccess outcome is journaled per module, across jobs. After a rejected key (0x35) no
   new attempt is made until the operator clears the hold (Flash tab) — a wrong key sent again only spends the module's attempt
   counter. After 0x36, or 0x37 that did not clear after one 10 s wait, no seed is requested for 10 minutes. 0x37 on the seed is
   waited out once (no key was sent, so the counter is untouched).
-- **Image checks** (v0.21.1+): segments must not overlap, must fit the 32-bit space and the address/length format, and must lie
+- **Image checks** (v0.22.0): segments must not overlap, must fit the 32-bit space and the address/length format, and must lie
   inside the file's erase regions; an SBL needs a call address inside its own data. The engine refuses a bad layout before
   sending anything. A file without `ecu_address`, a different vehicle-program prefix in the part number, or a Ford EXE/DATA file
   without an SBL is a warning.

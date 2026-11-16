@@ -1,10 +1,8 @@
 ## v0.22.0
 
-**Flash hardening and dashboard undo.** Includes v0.21.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
+**Flash hardening and dashboard undo.** Keep-alive and lost-session recovery came in v0.21.2; this release adds what is around them. Includes v0.21.2 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
 
 - **Secondary bootloader (SBL).** Ford software usually ships with an SBL file (`sw_part_type = SBL`, `call = …`). Flash tab: **SBL file…** (or Open file… on an SBL file). After security access the SBL is downloaded to the module's RAM and started with routine 0x0301 and its call address, then the erase and download run as before, followed by commit routine 0x0304. The SBL is loaded again on every attempt. Routine IDs follow an open-source community Ford flasher [UNVERIFIED against Ford documentation]. The DEMO module now requires an SBL, and the DEMO image comes with one.
-- **Keep-alive.** Inside the programming session, every wait (retry backoff, response-pending settle, low-battery pause, the 10 s security delay, routine polling) now sends TesterPresent every 2 s. Before, a 10 s wait let the module's ~5 s session timer expire and the next step failed.
-- **Lost session.** 7F/7E (service not supported in this session), 33 after security, or 24 to TransferData mid-flash now mean "the module left the programming session": the app enters it again, redoes security and the SBL, and restarts from the erase, once per run. A second loss leaves the job open for Resume.
 - **Resume can't lock the module out.** Every security outcome is journaled per module, across jobs. After a rejected key (NRC 0x35) no further key is sent until you press **Clear security hold…**; after a lockout (0x36, or 0x37 that did not clear) no seed is requested for 10 minutes. The hold is checked before the warnings and the typed FLASH.
 - **Failure before the erase resets the module back.** If a new job fails in the programming session, security access, the SBL stage, or on a first erase refused with a definite NRC, nothing was erased: the app sends ECU reset so the module runs its own software again, checks it answers, and closes the job (*Nothing was erased*). It never does this on a resume, or once anything may have been erased.
 - **Image checks** (preflight and engine): overlapping segments, segments outside the file's erase regions, addresses past 32 bits or too long for the address/length format, an SBL loaded as the image, an SBL without a call address: refused before anything is sent. Warnings: file without `ecu_address`; module and file part numbers with different vehicle-program prefixes; a Ford EXE/DATA file without an SBL.
@@ -12,13 +10,41 @@
 - **Dashboard write-card undo.** After a DID write whose old value was read, the card shows **Undo…**: it re-reads the DID, refuses if it no longer holds what the card wrote, then writes the old value back (writes enabled, battery check, typed WRITE) and reads it back.
 - Test fix: a J2534 timing test failed about 1 run in 6 under parallel load (200 ms wait vs a reply due at 400 ms); the reply now comes at 1.5 s.
 
-Internal: `FlashImage.PartType/CallAddress/IsSbl`, `FlashPlan.Sbl/SblRoutineId/CommitRoutineId`, `FlashRetryPolicy.KeepAliveEvery/SessionRestarts/LockoutHold`, `FlashPhase.SecondaryBootloader`, `FlashFaultAction.SessionLost`, `SessionLostException`, journal kinds `Security`/`Restarted`, `FlashSecurity.Hold`, `FlashEngine.SecurityHold/ClearSecurityHold/Now`, `FlashImageChecks.Layout/SameProgram`; simulator `S3`/`Advance`, `SecurityDelaysLeft`, `MaxKeyAttempts`, `RequiresSbl`, `CheckRoutineSupported`, `SimFlashFault.SessionDrop`; `DashActions.UndoFor`, `DashWriteUndo`.
+Internal: `FlashImage.PartType/CallAddress/IsSbl`, `FlashPlan.Sbl/SblRoutineId/CommitRoutineId`, `FlashRetryPolicy.LockoutHold`, `FlashPhase.SecondaryBootloader`, journal kinds `Security`/`Restarted` (a session re-entry now resets the segment count), `FlashSecurity.Hold`, `FlashEngine.SecurityHold/ClearSecurityHold/Now`, `FlashImageChecks.Layout/SameProgram`; simulator `SecurityDelaysLeft`, `MaxKeyAttempts`, `RequiresSbl`, `CheckRoutineSupported`, `SimFlashFault.SessionDrop`; `DashActions.UndoFor`, `DashWriteUndo`.
 
 ### Windows verify (DEMO only; no truck flash)
 1. **DEMO image** on the Flash tab: the SBL line shows *DEMO SBL (synthetic).vbf … started at 0x00E00000*. Run checks: a *Secondary bootloader* row passes. Flash (writes on, type FLASH): the log shows *loading secondary bootloader*, then the erase and both segments; it finishes.
 2. Press **No SBL**, then Flash again: it stops with *Nothing was erased; the module was reset back to its normal software*. No open job remains.
 3. DEMO dashboard: add a WriteDid card for a DID the DEMO module answers on the Live Data page (not F180-F19F or DE00-DEFF). Write a new value, then **Undo…**: the old value comes back and the Undo button disappears. Press Undo on a fresh card: it is not shown (no write yet).
 4. Truck, read-only only: Flash → open a real Ford VBF set (SBL + strategy) → Run checks. Do not press Flash.
+## v0.21.2
+
+**Flashing: the programming session survives pauses, and a lost session is recovered.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended: the secondary bootloader (SBL) stage is not built yet.
+
+- **Keep-alive during every wait.** Once the module is in the programming session, each pause (battery below the window, the 0x37 security delay, retry back-offs, response-pending settles, routine polls) sends TesterPresent `3E 80` at least every 2 s. Before, a pause longer than the module's 5 s session timeout ended the session and the job failed.
+- **Session lost → re-enter from the erase.** NRC 0x7E / 0x7F, or 0x33 (and 0x24 on TransferData) after unlocking, now mean "the session or security was lost" instead of a fatal refusal. The engine re-enters the programming session, unlocks, erases and downloads again (once); if it happens again the job stays open so Resume can finish it.
+- Simulator: S3 session timeout on a virtual clock, programming services refused outside the programming session (0x7F), `DropSession()`.
+
+Internal: `FlashEngine.WaitAsync` / `KeepAliveInterval` / `MaxSessionRecoveries` / `ProgramAsync`, `FlashFaultAction.SessionLost`, `FlashSessionLostException`. Tests `FlashSessionTests` (30 s battery dip, security delay, one lost session → finishes, repeated → job open); 4 of 5 fail on the previous engine.
+
+### Windows + truck verify
+1. **DEMO (Phase 0):** run a DEMO flash (Flash tab, DEMO-EX). It completes as before.
+2. **DEMO:** during the download, watch the log for "paused: battery … (session kept alive)" if you lower the DEMO voltage; the flash continues after it recovers.
+3. **Truck:** none (real-module flashing waits for the SBL stage and a bench test).
+
+## v0.21.1
+
+**Configuration write safety brought to FORScan's level.** Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+- **PCM / TCM As-Built writes and restores need an extra typed confirmation (`POWERTRAIN`).** Their configuration can hold checksum-protected vehicle ID data (VIN, tire size, axle ratio) and transmission characterization, which FORScan only changes through dedicated functions that recalculate the checksums. This app has no such function yet, so a raw write there is spelled out first. Applies to every path (As-Built page, Options apply, restore, undo, recovery).
+- **After every verified write, restore or undo**, the result says what to do next: ignition off at least 30 s, on, Read again; and that U2100 / U2101 in other modules means the shared settings need a relearn (not in this app yet) or the backup restored.
+
+Internal: Core `AsBuiltWritePolicy` (`ExtraSteps`, `AfterWriteAdvice`), used by `AsBuiltService.WriteBlockAsync` / `RestoreAsync`; tests `AsBuiltWritePolicyTests`.
+
+### Windows + truck verify
+1. **DEMO:** write an As-Built block of the PCM (DEMO-EX, writes enabled): after WRITE the app asks to type POWERTRAIN; Cancel there → nothing written. Repeat and type it → written, and the result shows the ignition-cycle advice.
+2. **DEMO:** write a BCM block: no POWERTRAIN step; advice shown.
+3. **Truck (Phase 2):** after your one-block BCM test write, follow the advice (ignition cycle, Read again) and confirm the block kept the value.
 
 ## v0.21.0
 
