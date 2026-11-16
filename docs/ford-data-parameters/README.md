@@ -1,6 +1,6 @@
 # Ford data parameters (reference)
 
-> **Status: reference only, UNVERIFIED.** Ford data-parameter mnemonics (the names scan tools show for live data) with the value range each one reports. These rows carry **no DID numbers, byte layouts or scaling**, so the app cannot read them by name; a parameter becomes readable only when a verified DID + formula is added to `src/ObdLink.Core/Data/ford-enhanced-pids.json` (see `docs/ENHANCED-UDS.md`). Many entries are from older powertrains (EVR, DPFE, TFI era) and may not exist on a 2017 F-150. Descriptions are not published here (source text, see the index).
+> **Status: reference only, UNVERIFIED.** Ford data-parameter mnemonics (the names scan tools show for live data) with the value range each one reports. These rows carry **no DID numbers, byte layouts or scaling**, so the app cannot read them by name; a parameter becomes readable only when a verified DID + formula is added to `src/ObdLink.Core/Data/ford-enhanced-pids.json` (see `docs/ENHANCED-UDS.md`). Many entries are from older powertrains (EVR, DPFE, TFI era) and may not exist on a 2017 F-150. Descriptions and notes are as supplied with the list (not checked against a vehicle).
 
 1451 parameter rows in 8 module groups, from a parameter list supplied by the project owner (2026-11-16).
 
@@ -21,9 +21,12 @@
 - **Range**: the values or states the parameter reports (`not available` = the source gave none).
 - **Shares entry with**: other names the source documents together with this one (same range and meaning).
 - **Also under**: other module groups that list the same name.
+- **Description**: what the parameter shows, as supplied with the list.
+- **Notes**: data-quality flags from the list (e.g. a description that seems to belong to another parameter). Treat flagged rows with extra care.
 - PATS parameters may be located in any of these modules: HEC, ICM, PATS, PCM, SCIL, VIC.
 
-## What is not here and why
+Sensor reference tables (APP, DPFE, EBP, EVR, IAC, PFE, S/C, TR readings): [ford-params-reference-tables.md](ford-params-reference-tables.md).
 
-- **Descriptions and the sensor reference tables** (APP, DPFE, EBP, EVR, IAC, PFE, TR voltages) are kept in the private project notes until the source of the text is confirmed and it may be republished under this repository's license.
+## What is not here
+
 - **DIDs / scaling**: not in the source. Adding a parameter to the app needs a verified DID, byte count and formula (`ford-enhanced-pids.json`), checked on a truck like TPMS 2813-2816.

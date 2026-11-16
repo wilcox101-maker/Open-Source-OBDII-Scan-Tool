@@ -1,121 +1,121 @@
 # Ford data parameters: Generic Electronic Module (GEM)
 
-> **Status: reference only, UNVERIFIED.** Ford data-parameter mnemonics (the names scan tools show for live data) with the value range each one reports. These rows carry **no DID numbers, byte layouts or scaling**, so the app cannot read them by name; a parameter becomes readable only when a verified DID + formula is added to `src/ObdLink.Core/Data/ford-enhanced-pids.json` (see `docs/ENHANCED-UDS.md`). Many entries are from older powertrains (EVR, DPFE, TFI era) and may not exist on a 2017 F-150. Descriptions are not published here (source text, see the index).
+> **Status: reference only, UNVERIFIED.** Ford data-parameter mnemonics (the names scan tools show for live data) with the value range each one reports. These rows carry **no DID numbers, byte layouts or scaling**, so the app cannot read them by name; a parameter becomes readable only when a verified DID + formula is added to `src/ObdLink.Core/Data/ford-enhanced-pids.json` (see `docs/ENHANCED-UDS.md`). Many entries are from older powertrains (EVR, DPFE, TFI era) and may not exist on a 2017 F-150. Descriptions and notes are as supplied with the list (not checked against a vehicle).
 
 113 parameters. Index: [README.md](README.md).
 
-| Parameter | Range | Shares entry with | Also under |
-| --- | --- | --- | --- |
-| `4WDClutch(%)` | 0 to 100% |  |  |
-| `4WDClutchElec` | ON/OFF |  |  |
-| `4WDClutchPWM` | ON/OFF |  |  |
-| `4WDClutchStat` | ON/OFF |  |  |
-| `4WDHigh` | ON/OFF |  |  |
-| `4WDLOLED` | ON/OFF |  |  |
-| `4WDLow` | ON/OFF |  |  |
-| `4WDPlatePwr` | ON/OFF |  |  |
-| `4WDPlate_A` | OPEN/CLOSED | PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |
-| `4WDPlate_B` | OPEN/CLOSED | 4WDPlate_A, PLATE A, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |
-| `4WDPlate_C` | OPEN/CLOSED | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, PLATE C, 4WDPlate_D, PLATE D |  |
-| `4WDPlate_D` | OPEN/CLOSED | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, PLATE D |  |
-| `4WD_FrShftSp` | 0 to 255 MPH | 4WD_RrShftSp |  |
-| `4WD_RrShftSp` | 0 to 255 MPH | 4WD_FrShftSp |  |
-| `4WD_Switch` | AUTO/4HI/4LOW |  |  |
-| `A/C BLndoorPos` | OPEN/CLOSE |  |  |
-| `ABagCHIME` | ON/OFF |  |  |
-| `ACC DeLaY` | ON/OFF | AccessoryDly |  |
-| `AccessoryDly` | ON/OFF | ACC DeLaY |  |
-| `ACC_Pos` | YES/NO | RUN_Pos, IGN Run, START_Pos, OFF/LOCK_Pos, IGN O/L |  |
-| `ALarm EVent1-8` | see description |  |  |
-| `AUTOLMP` | ON/OFF |  |  |
-| `BATSAV` | ON/OFF | BattSaver |  |
-| `BattSaver` | ON/OFF | BATSAV |  |
-| `BOO SW` | ON/OFF | BOO_GEM |  |
-| `BOO_GEM` | ON/OFF | BOO SW |  |
-| `CCW_Shift_Mtr` | ON/OFF | CW_Shift_Mtr |  |
-| `ChimeReq` | ON/OFF | CHIMERQ |  |
-| `CHIMERQ` | ON/OFF | ChimeReq |  |
-| `ClutchLock` | ACTIVE/INACTV |  |  |
-| `COOLANT` | notOK/OK |  |  |
-| `CW_Shift_Mtr` | ON/OFF | CCW_Shift_Mtr |  |
-| `D DR SW` | CLOSED/OPEN | DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `D SBELT` | IN/OUT |  |  |
-| `DECKLID` | CLOSED/OPEN | D DR SW, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `DIM DEC` | NotAct/ActivE |  |  |
-| `DIM INC` | NotAct/ActivE |  |  |
-| `DoorAjarLamp` | ON/OFF | DoorAJR L |  |
-| `DoorAJR L` | ON/OFF | DoorAjarLamp |  |
-| `DoorLocK` | LOCK/UNLOCKN | DoorUnlock |  |
-| `DoorUnlock` | LOCK/UNLOCKN | DoorLocK |  |
-| `Dr DR SW` | CLOSED/OPEN | D DR SW, DECKLID, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `Dr SBELT` | IN/OUT |  |  |
-| `DTC CouNT` | 0 to 20 |  |  |
-| `FrWiperMd` | see description | RearWiperMd |  |
-| `HallPwr` | ON/OFF |  |  |
-| `HatchUnlkSw` | ON/OFF | LF_UnlockSw, RF_UnlockSw |  |
-| `HDLMPSW` | ON/OFF | HeaDLaMP |  |
-| `HeaDLaMP` | ON/OFF | HDLMPSW |  |
-| `HORN SW` | ON/OFF |  |  |
-| `IGN O/L` | YES/NO | ACC_Pos, RUN_Pos, IGN Run, START_Pos, OFF/LOCK_Pos |  |
-| `IGN Run` | YES/NO | ACC_Pos, RUN_Pos, START_Pos, OFF/LOCK_Pos, IGN O/L |  |
-| `IllumEntry` | ON/OFF |  |  |
-| `KeyInIgn` | ON/OFF |  |  |
-| `LFBeltFstnd` | ON/OFF |  |  |
-| `LFDoorAjar` | ON/OFF | LRDoorAjar, RFDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |
-| `LFWindowDn` | YES/NO |  |  |
-| `LFWindowMotr(A)` | 0 to 64 |  |  |
-| `LFWndwPeak(A)` | 0 to 64 |  |  |
-| `LF_PwrWndw` | ENABLE/DISABLE |  |  |
-| `LF_UnlockSw` | ON/OFF | HatchUnlkSw, RF_UnlockSw |  |
-| `LGATESW` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `LR TURN` | ON/OFF | RR TURN |  |
-| `LRDoor SWitch` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `LRDoorAjar` | ON/OFF | LFDoorAjar, RFDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |
-| `LRDR SW` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `LRDR Switch` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |
-| `NeuSafetySw` | ACTIVE/INACTV |  |  |
-| `NeuTowFcnLmp` | ON/OFF |  |  |
-| `NeutTowFcn` | ENABLE/DISABLE |  |  |
-| `NTRL SW` | NotAct/ActivE |  |  |
-| `OFF/LOCK_Pos` | YES/NO | ACC_Pos, RUN_Pos, IGN Run, START_Pos, IGN O/L |  |
-| `OverSpdWarn` | ENABLE/DISABLE |  |  |
-| `P DR SW` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, Pass DR SW, RRDoor SWitch |  |
-| `ParkLmpSw` | ON/OFF |  |  |
-| `Pass DR SW` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, RRDoor SWitch |  |
-| `PLATE A` | OPEN/CLOSED | 4WDPlate_A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |
-| `PLATE B` | OPEN/CLOSED | 4WDPlate_A, PLATE A, 4WDPlate_B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |
-| `PLATE C` | OPEN/CLOSED | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, 4WDPlate_D, PLATE D |  |
-| `PLATE D` | OPEN/CLOSED | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D |  |
-| `RearDefRly` | ON/OFF |  |  |
-| `RearDefSw` | ON/OFF |  |  |
-| `RearPosSense` | YES/NO |  |  |
-| `RearWasher` | ON/OFF |  |  |
-| `RearWASHSW` | ON/OFF |  |  |
-| `RearWiper` | ON/OFF |  |  |
-| `RearWiperDn` | ON/OFF | RearWiperUp |  |
-| `RearWiperMd` | see description | FrWiperMd |  |
-| `RearWiperUp` | ON/OFF | RearWiperDn |  |
-| `RearWPRUN` | ON/OFF |  |  |
-| `RevSel` | ON/OFF |  |  |
-| `RFDoorAjar` | ON/OFF | LFDoorAjar, LRDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |
-| `RF_UnlockSw` | ON/OFF | HatchUnlkSw, LF_UnlockSw |  |
-| `RR TURN` | ON/OFF | LR TURN |  |
-| `RR/SlidDr_Ajar` | ON/OFF | LFDoorAjar, LRDoorAjar, RFDoorAjar, Trunk/Htch_Ajar |  |
-| `RRDoor SWitch` | CLOSED/OPEN | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW |  |
-| `RUN_Pos` | YES/NO | ACC_Pos, IGN Run, START_Pos, OFF/LOCK_Pos, IGN O/L |  |
-| `SeatBeltLamp` | ON/OFF |  |  |
-| `SpdSensWipr` | ENABLE/DISABLE |  |  |
-| `START_Pos` | YES/NO | ACC_Pos, RUN_Pos, IGN Run, OFF/LOCK_Pos, IGN O/L |  |
-| `Trunk/Htch_Ajar` | ON/OFF | LFDoorAjar, LRDoorAjar, RFDoorAjar, RR/SlidDr_Ajar |  |
-| `VBatt(V)` | 0 to 25 V |  |  |
-| `VBatt_GEM(V)` | 0 to 25 V |  |  |
-| `VBatt_REM(V)` | 0 to 25 V |  |  |
-| `VSS_GEM` | 0 to 120 MPH |  |  |
-| `WasherPumpRly` | ON/OFF | WASHRLY |  |
-| `WasherPumpSw` | ON/OFF |  |  |
-| `WASHRLY` | ON/OFF | WasherPumpRly |  |
-| `WEAR OK` | YES/NO |  |  |
-| `WFLUID` | LOW/OK |  |  |
-| `Wiper2SpdRly` | ON/OFF |  |  |
-| `WiperPk-Pk(mS)` | 0 to 255 mS |  |  |
-| `WiperRunRly` | ON/OFF |  |  |
+| Parameter | Range | Description | Shares entry with | Also under | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `4WDClutch(%)` | 0 to 100% | Amount of transfer case clutch lockup that is commanded by the module. When both front and rear axles rotate at the same speed, 4WDClutch(%) should display 0 to 2%. |  |  |  |
+| `4WDClutchElec` | ON/OFF | Power available to the 4WD magnetic clutch and should read ON for about 1 second after shifting from 4WD to 2WD. |  |  |  |
+| `4WDClutchPWM` | ON/OFF | Reads ON when the GEM is controlling the transfer case clutch using pulse-width modulation (PWM). |  |  |  |
+| `4WDClutchStat` | ON/OFF | 4WD clutch output status. The module determines actual status of the A4WD magnetic clutch by monitoring the Torque ON Demand Relay output. 4WDClutchStat reads ON when commanded by the GEM/4X4 module. |  |  |  |
+| `4WDHigh` | ON/OFF | Reads ON when the GEM has commanded the transfer case to run in 4WD high mode. |  |  |  |
+| `4WDLOLED` | ON/OFF | Command status of the 4X4 Low indicator LED and reads ON when the 4WD low lamp is illuminated. |  |  |  |
+| `4WDLow` | ON/OFF | GEM command status to run the transfer case in 4WD low mode. Reads ON when the transfer case is running in 4WD low mode. |  |  |  |
+| `4WDPlatePwr` | ON/OFF | Power available to the transfer case shift motor contact plates that limit transfer case shift linkage travel and should read ON when shifting the transfer case between ranges. |  |  |  |
+| `4WDPlate_A` | OPEN/CLOSED | Status of various transfer case contact plates. | PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |  |
+| `4WDPlate_B` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |  |
+| `4WDPlate_C` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, PLATE C, 4WDPlate_D, PLATE D |  |  |
+| `4WDPlate_D` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, PLATE D |  |  |
+| `4WD_FrShftSp` | 0 to 255 MPH | Speeds in MPH for the front and rear transfer case drive shafts. Using the speeds of these two shafts, the GEM module calculates wheel slippage between the front and rear axles. The amount of wheel slippage is used to determine how much the GEM module applies the 4WD clutch. | 4WD_RrShftSp |  |  |
+| `4WD_RrShftSp` | 0 to 255 MPH | Speeds in MPH for the front and rear transfer case drive shafts. Using the speeds of these two shafts, the GEM module calculates wheel slippage between the front and rear axles. The amount of wheel slippage is used to determine how much the GEM module applies the 4WD clutch. | 4WD_FrShftSp |  |  |
+| `4WD_Switch` | AUTO/4HI/4LOW | GEM module input from the driver-operated 4WD switch. The switch controls transfer case operation. |  |  |  |
+| `A/C BLndoorPos` | OPEN/CLOSE | Commanded position of the A/C blend door. |  |  |  |
+| `ABagCHIME` | ON/OFF | Commanded status of the Air Bag Chime from the restraint module. ABagCHIME normally reads OFF and reads ON only if a short or open is detected in the Air Bag lamp circuit by the Restraint module. |  |  |  |
+| `ACC DeLaY` | ON/OFF | Actual status of the accessory power relay and read ON when the relay contacts are closed, allowing some accessories to be turned on after the ignition key has been switched off. | AccessoryDly |  |  |
+| `AccessoryDly` | ON/OFF | Actual status of the accessory power relay and read ON when the relay contacts are closed, allowing some accessories to be turned on after the ignition key has been switched off. | ACC DeLaY |  |  |
+| `ACC_Pos` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | RUN_Pos, IGN Run, START_Pos, OFF/LOCK_Pos, IGN O/L |  |  |
+| `ALarm EVent1-8` | see description | Trigger source for the last 8 perimeter alarm activations. Event # 1 is the oldest and # 8 is the newest. They continue to rotate from 8 to 1 as more events accumulate. The following descriptions may appear depending upon model and available options: DOOR, BATTERY, DECKLID, DRIVDOOR, DOODAJR, HOOD/TRNK, IGNITION, LRDOOR, NO EVNT, PANIC, PASS DOOR, RADIO, RR/SLI. |  |  |  |
+| `AUTOLMP` | ON/OFF | Status of the Automatic Headlamp switch. |  |  |  |
+| `BATSAV` | ON/OFF | Actual status of the battery saver relay and read ON when the relay contacts are closed, allowing some accessories to be turned on after the ignition key has been turned to the OFF position. When the battery saver relay contacts are closed, all the accessories operate. If an accessory is left on with the ignition key off, after approximately one hour the battery saver relay contacts open to shut off the accessories. | BattSaver |  |  |
+| `BattSaver` | ON/OFF | Actual status of the battery saver relay and read ON when the relay contacts are closed, allowing some accessories to be turned on after the ignition key has been turned to the OFF position. When the battery saver relay contacts are closed, all the accessories operate. If an accessory is left on with the ignition key off, after approximately one hour the battery saver relay contacts open to shut off the accessories. | BATSAV |  |  |
+| `BOO SW` | ON/OFF | Brake ON/OFF (BOO) pedal switch signal to the GEM module and read ON when the switch contacts are closed. | BOO_GEM |  |  |
+| `BOO_GEM` | ON/OFF | Brake ON/OFF (BOO) pedal switch signal to the GEM module and read ON when the switch contacts are closed. | BOO SW |  |  |
+| `CCW_Shift_Mtr` | ON/OFF | GEM commands to the counterclockwise (CCW and clockwise (CW shift motor relays on 4WD systems. The relays control the directional rotation of the shift motor inside the transfer case. These parameters read ON when the solenoid for the relay is energized, which closes the relay contacts. | CW_Shift_Mtr |  | Description text may be missing a closing parenthesis. |
+| `ChimeReq` | ON/OFF | Command status for the warning chime and read ON when the chimes sound. The module relies on inputs from the door switches, door key cylinder, headlight switch, and seatbelt buckle to determine when to activate the chime. | CHIMERQ |  |  |
+| `CHIMERQ` | ON/OFF | Command status for the warning chime and read ON when the chimes sound. The module relies on inputs from the door switches, door key cylinder, headlight switch, and seatbelt buckle to determine when to activate the chime. | ChimeReq |  |  |
+| `ClutchLock` | ACTIVE/INACTV | Status of the driver-operated clutch pedal switch on 4WD systems and reads ACTIVE when the switch contacts are closed. |  |  |  |
+| `COOLANT` | notOK/OK | Displays the coolant level. |  |  |  |
+| `CW_Shift_Mtr` | ON/OFF | GEM commands to the counterclockwise (CCW and clockwise (CW shift motor relays on 4WD systems. The relays control the directional rotation of the shift motor inside the transfer case. These parameters read ON when the solenoid for the relay is energized, which closes the relay contacts. | CCW_Shift_Mtr |  | Description text may be missing a closing parenthesis. |
+| `D DR SW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `D SBELT` | IN/OUT | Reads IN when the driver side seat belt buckle switch is engaged and the belt is buckled. |  |  |  |
+| `DECKLID` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `DIM DEC` | NotAct/ActivE | Status of the instrument cluster illumination control switch and should read ACTIVE when the OFF button is pressed. |  |  |  |
+| `DIM INC` | NotAct/ActivE | Status of the instrument cluster illumination control switch and should read ACTIVE when the MAX button is pressed. |  |  |  |
+| `DoorAjarLamp` | ON/OFF | Read ON when the door ajar lamp should be lit. | DoorAJR L |  |  |
+| `DoorAJR L` | ON/OFF | Read ON when the door ajar lamp should be lit. | DoorAjarLamp |  |  |
+| `DoorLocK` | LOCK/UNLOCKN | Command status for the door lock solenoids and reads LOCK when the module has commanded the solenoids to energize towards the lock position. | DoorUnlock |  |  |
+| `DoorUnlock` | LOCK/UNLOCKN | Command status for the door lock solenoids and reads LOCK when the module has commanded the solenoids to energize towards the lock position. | DoorLocK |  |  |
+| `Dr DR SW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `Dr SBELT` | IN/OUT | Reads IN when the passenger side seat belt buckle switch is engaged and the belt is buckled. |  |  |  |
+| `DTC CouNT` | 0 to 20 | Displays the number of diagnostic trouble codes stored in GEM module memory. |  |  |  |
+| `FrWiperMd` | see description | Display the position of the driver-operated front or rear windshield wiper switch. The GEM module uses this information to control the wiper and washer relays. Readings vary by model. The screen may display the selected switch range position or the switch operating status. The possible range positions include POS1, POS2, POS3, POS4, POS5, POS6, POS7, WASH. The possible operating states include INT, LOW, HIGH, OPEN, CKT. | RearWiperMd |  |  |
+| `HallPwr` | ON/OFF | Indicates whether the module is supplying a reference voltage to the transfer case Hall-effect switches on 4WD systems. |  |  |  |
+| `HatchUnlkSw` | ON/OFF | Status of the driver-operated door unlock switches and read ON when the switch contacts are closed. | LF_UnlockSw, RF_UnlockSw |  |  |
+| `HDLMPSW` | ON/OFF | Actual status of the headlamp switch and read ON when the switch contacts are closed and the headlamps are on. | HeaDLaMP |  |  |
+| `HeaDLaMP` | ON/OFF | Actual status of the headlamp switch and read ON when the switch contacts are closed and the headlamps are on. | HDLMPSW |  |  |
+| `HORN SW` | ON/OFF | Actual status of the horn switch and reads ON when the switch contacts are closed and the horn should be on. |  |  |  |
+| `IGN O/L` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | ACC_Pos, RUN_Pos, IGN Run, START_Pos, OFF/LOCK_Pos |  |  |
+| `IGN Run` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | ACC_Pos, RUN_Pos, START_Pos, OFF/LOCK_Pos, IGN O/L |  |  |
+| `IllumEntry` | ON/OFF | Indicates the presence of a request to turn on the illuminated entry lamps. A request to light the entry lamps may come from any one of the door ajar switches, and a special driver door handle switch whose contacts close when the handle is lifted. |  |  |  |
+| `KeyInIgn` | ON/OFF | Indicates if the key is in the ignition switch. |  |  |  |
+| `LFBeltFstnd` | ON/OFF | Indicates if the left front seat belt buckle is latched. |  |  |  |
+| `LFDoorAjar` | ON/OFF | Indicate whether door and trunk switches are open or closed. NO means the door is shut and switch contacts are closed. | LRDoorAjar, RFDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |  |
+| `LFWindowDn` | YES/NO | GEM command status for the left front window to roll down and reads YES when the window is rolling down. |  |  |  |
+| `LFWindowMotr(A)` | 0 to 64 | Amount of current through the left front window motor during use. |  |  |  |
+| `LFWndwPeak(A)` | 0 to 64 | Maximum amount of current drawn by the left front window motor after use. |  |  |  |
+| `LF_PwrWndw` | ENABLE/DISABLE | Status of the left front window one-touch down feature and reads ENABLE when this feature should be currently rolling the window down. |  |  |  |
+| `LF_UnlockSw` | ON/OFF | Status of the driver-operated door unlock switches and read ON when the switch contacts are closed. | HatchUnlkSw, RF_UnlockSw |  |  |
+| `LGATESW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `LR TURN` | ON/OFF | Commanded status of the left rear and right rear turn signal lamps. | RR TURN |  |  |
+| `LRDoor SWitch` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `LRDoorAjar` | ON/OFF | Indicate whether door and trunk switches are open or closed. NO means the door is shut and switch contacts are closed. | LFDoorAjar, RFDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |  |
+| `LRDR SW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `LRDR Switch` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `NeuSafetySw` | ACTIVE/INACTV | Status of the neutral safety switch on 4WD systems and reads ACTIVE when the switch contacts are closed. |  |  |  |
+| `NeuTowFcnLmp` | ON/OFF | Command status for the neutral tow indicator lamp on 4WD systems and reads ON when the lamp is lit and the Neutral Tow function is enabled. |  |  |  |
+| `NeutTowFcn` | ENABLE/DISABLE | Indicates if the transfer case is in neutral tow mode on 4WD systems and reads ENABLE when tow mode is in effect. Neutral tow prevents drive train damage when the vehicle is being towed. |  |  |  |
+| `NTRL SW` | NotAct/ActivE | Status of the neutral safety switch and reads ACTIVE when the switch contacts are closed. |  |  |  |
+| `OFF/LOCK_Pos` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | ACC_Pos, RUN_Pos, IGN Run, START_Pos, IGN O/L |  |  |
+| `OverSpdWarn` | ENABLE/DISABLE | Presence of a higher-than-normal wheel speed sensor signal and reads ENABLE only when one or more wheels exceeded maximum vehicle speed or a speed sensor circuit has shorted. |  |  |  |
+| `P DR SW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, Pass DR SW, RRDoor SWitch |  |  |
+| `ParkLmpSw` | ON/OFF | Status of the driver-operated park lamp switch and reads ON when the park lamp switch contacts are closed. |  |  |  |
+| `Pass DR SW` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, RRDoor SWitch |  |  |
+| `PLATE A` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |  |
+| `PLATE B` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, 4WDPlate_B, 4WDPlate_C, PLATE C, 4WDPlate_D, PLATE D |  |  |
+| `PLATE C` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, 4WDPlate_D, PLATE D |  |  |
+| `PLATE D` | OPEN/CLOSED | Status of various transfer case contact plates. | 4WDPlate_A, PLATE A, 4WDPlate_B, PLATE B, 4WDPlate_C, PLATE C, 4WDPlate_D |  |  |
+| `RearDefRly` | ON/OFF | Command status to the rear window defroster relay and reads ON when the module is commanding the relay solenoid to energize and close the relay contacts. |  |  |  |
+| `RearDefSw` | ON/OFF | Status of the driver-operated rear window defroster switch and reads ON when the defroster switch contacts are closed. |  |  |  |
+| `RearPosSense` | YES/NO | Reads YES when the rear windshield wiper is in the PARK position. |  |  |  |
+| `RearWasher` | ON/OFF | Reads ON when the GEM is commanding the rear window washer to apply fluid to the rear window. |  |  |  |
+| `RearWASHSW` | ON/OFF | Actual status for the rear window washer switch and reads ON when the washer switch contacts are closed. |  |  |  |
+| `RearWiper` | ON/OFF | Command status for the rear window wiper and reads ON when the rear wiper is operating. |  |  |  |
+| `RearWiperDn` | ON/OFF | Module status for the rear wiper arm down or up command. • RearWiperDn = ON means the wiper should be moving down to home position. • RearWiperUp = ON means the wiper should be moving up. | RearWiperUp |  |  |
+| `RearWiperMd` | see description | Display the position of the driver-operated front or rear windshield wiper switch. The GEM module uses this information to control the wiper and washer relays. Readings vary by model. The screen may display the selected switch range position or the switch operating status. The possible range positions include POS1, POS2, POS3, POS4, POS5, POS6, POS7, WASH. The possible operating states include INT, LOW, HIGH, OPEN, CKT. | FrWiperMd |  |  |
+| `RearWiperUp` | ON/OFF | Module status for the rear wiper arm down or up command. • RearWiperDn = ON means the wiper should be moving down to home position. • RearWiperUp = ON means the wiper should be moving up. | RearWiperDn |  |  |
+| `RearWPRUN` | ON/OFF | Status for the rear window wiper switch and reads ON when the rear wiper switch is in the on position. |  |  |  |
+| `RevSel` | ON/OFF | Indicates whether the gear selector is in reverse on 4WD systems and reads ON when the gear selector is in reverse. |  |  |  |
+| `RFDoorAjar` | ON/OFF | Indicate whether door and trunk switches are open or closed. NO means the door is shut and switch contacts are closed. | LFDoorAjar, LRDoorAjar, RR/SlidDr_Ajar, Trunk/Htch_Ajar |  |  |
+| `RF_UnlockSw` | ON/OFF | Status of the driver-operated door unlock switches and read ON when the switch contacts are closed. | HatchUnlkSw, LF_UnlockSw |  |  |
+| `RR TURN` | ON/OFF | Commanded status of the left rear and right rear turn signal lamps. | LR TURN |  |  |
+| `RR/SlidDr_Ajar` | ON/OFF | Indicate whether door and trunk switches are open or closed. NO means the door is shut and switch contacts are closed. | LFDoorAjar, LRDoorAjar, RFDoorAjar, Trunk/Htch_Ajar |  |  |
+| `RRDoor SWitch` | CLOSED/OPEN | Indicate whether the indicated door and trunk switches are open or closed and read OPEN when the door is open and switch contacts are closed. | D DR SW, DECKLID, Dr DR SW, LGATESW, LRDR Switch, LRDoor SWitch, LRDR SW, P DR SW, Pass DR SW |  |  |
+| `RUN_Pos` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | ACC_Pos, IGN Run, START_Pos, OFF/LOCK_Pos, IGN O/L |  |  |
+| `SeatBeltLamp` | ON/OFF | GEM command status to the seat belt lamp indicator on the instrument panel and reads ON if the GEM has commanded the lamp to light. |  |  |  |
+| `SpdSensWipr` | ENABLE/DISABLE | Status of the windshield wiper mode that makes wiper motion vehicle speed sensitive and reads ENABLE when the wiping motion speed increases and decreases with vehicle speed. |  |  |  |
+| `START_Pos` | YES/NO | Current position of the ignition switch and read as follows: • ACC_Pos reads YES with the switch in accessory position. • START_Pos reads YES with the switch in cranking position. • RUN_Pos or IGN_Run reads YES with the switch in run position. • OFF/LOCK_Pos or IGN_O/L reads YES with the switch in lock position and reads NO when the ignition switch is in the off position or accessory position. | ACC_Pos, RUN_Pos, IGN Run, OFF/LOCK_Pos, IGN O/L |  |  |
+| `Trunk/Htch_Ajar` | ON/OFF | Indicate whether door and trunk switches are open or closed. NO means the door is shut and switch contacts are closed. | LFDoorAjar, LRDoorAjar, RFDoorAjar, RR/SlidDr_Ajar |  |  |
+| `VBatt(V)` | 0 to 25 V | Battery voltage. |  |  | Closing parenthesis restored in name. |
+| `VBatt_GEM(V)` | 0 to 25 V | Battery voltage supplied to the GEM module. |  |  | Closing parenthesis restored in name. |
+| `VBatt_REM(V)` | 0 to 25 V | Battery voltage supplied to the REM module. |  |  |  |
+| `VSS_GEM` | 0 to 120 MPH | Vehicle speed sensor (VSS signal being supplied to the GEM module in MPH. |  |  | Description text may be missing a closing parenthesis. |
+| `WasherPumpRly` | ON/OFF | Command status to the washer pump relay and read ON when the module has energized the relay solenoid to close the relay contacts. | WASHRLY |  |  |
+| `WasherPumpSw` | ON/OFF | Status of the driver-operated washer pump switch and reads ON when the switch contacts are closed. |  |  |  |
+| `WASHRLY` | ON/OFF | Command status to the washer pump relay and read ON when the module has energized the relay solenoid to close the relay contacts. | WasherPumpRly |  |  |
+| `WEAR OK` | YES/NO | Status of the brake pad wear switch and reads as follows: • YES when the switch contacts are closed • NO when the switch contacts are open The dash brake warning indicator illuminates when the switch contacts open. |  |  |  |
+| `WFLUID` | LOW/OK | Indicates whether the washer fluid level is LOW or OK. |  |  |  |
+| `Wiper2SpdRly` | ON/OFF | Status of the two-speed (higH wiper relay and reads ON when the relay contacts are closed, allowing the wipers to operate at high speed. |  |  | Description text may be missing a closing parenthesis. |
+| `WiperPk-Pk(mS)` | 0 to 255 mS | Windshield intermittent delay time. |  |  |  |
+| `WiperRunRly` | ON/OFF | Command status to the wiper run relay and reads ON when the module has energized the relay solenoid to close the relay contacts. |  |  |  |
