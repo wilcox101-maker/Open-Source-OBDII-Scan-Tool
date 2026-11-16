@@ -29,12 +29,27 @@ public static class DialogService
         return d is null || d.CheckAccess() ? f() : d.Invoke(f, DispatcherPriority.Normal);
     }
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr hWnd);
+    /// <summary>True while a modal dialog (message box or prompt) owns <paramref name="w"/>: Windows disables the owner for the dialog's lifetime.</summary>
+    private static bool ModalOpen(Window w)
+    {
+        var h = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+        return h != IntPtr.Zero && !IsWindowEnabled(h);
+    }
+
     /// <summary>Brings the main window back to the front after a modal closes or an external app was started.</summary>
     public static void ReActivate()
     {
         var w = Application.Current?.MainWindow;
         if (w is null || !w.IsLoaded) return;
-        w.Dispatcher.BeginInvoke(() => { if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal; w.Activate(); }, DispatcherPriority.ApplicationIdle);
+        w.Dispatcher.BeginInvoke(() =>
+        {
+            // v0.20.1: a dialog shown right after another one (warnings, then the typed FLASH/WRITE/RUN prompt) disables the main
+            // window. Activating it then would take keyboard focus from that dialog, so the typed phrase went nowhere.
+            if (ModalOpen(w)) return;
+            if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal;
+            w.Activate();
+        }, DispatcherPriority.ApplicationIdle);
     }
 
     public static MessageBoxResult Show(string text, string title, MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None) => OnUi(() =>

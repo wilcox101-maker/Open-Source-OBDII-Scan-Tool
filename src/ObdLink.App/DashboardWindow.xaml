@@ -3,7 +3,7 @@
         Title="Dashboard - OBDLink Diag" Icon="pack://application:,,,/OBDLinkDiag;component/Assets/icon-3.ico"
         Width="1100" Height="720" MinWidth="640" MinHeight="480" ShowInTaskbar="True" ResizeMode="CanResize" WindowStartupLocation="Manual">
   <DockPanel DataContext="{Binding Dashboard}">
-            <DockPanel DockPanel.Dock="Top">
+            <WrapPanel DockPanel.Dock="Top">
               <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}"/>
               <Border Style="{StaticResource ChipStyle}" VerticalAlignment="Center"><TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/></Border>
               <Button Command="{Binding PauseCommand}" ToolTip="Pause / resume (Ctrl+P)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE769;"/><TextBlock Text="Pause / resume"/></StackPanel></Button>
@@ -17,8 +17,8 @@
               <TextBlock Text="Layout:" VerticalAlignment="Center" Margin="8,0,3,0"/>
               <ComboBox Width="140" ItemsSource="{Binding LayoutNames}" SelectedItem="{Binding ActiveLayout}" ToolTip="Saved dashboard layouts. Each of the three dashboard windows can show a different one (View → Dashboard 2 / 3)."/>
               <TextBlock Text="{Binding RateText}" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource FgDim}" FontSize="11"/>
-              <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0"/>
-            </DockPanel>
+              <TextBlock Text="{Binding Info}" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" TextTrimming="CharacterEllipsis" FontSize="11" Margin="6,0" MaxWidth="520"/>
+            </WrapPanel>
             <Border DockPanel.Dock="Top" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
               <Border.Style><Style TargetType="Border" BasedOn="{StaticResource CardStyle}"><Style.Triggers><DataTrigger Binding="{Binding Main.IsConnected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
               <DockPanel>
