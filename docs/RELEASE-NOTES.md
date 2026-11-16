@@ -11,7 +11,7 @@ New **Routines** tab:
 - The app ships **no Ford routine IDs**. It does not know what a routine does; only run IDs from a source you trust.
 - DEMO modules accept routine **1234** only, and only in the extended session: Start → status 01 (running), first Results → 01, next Results → 00 55 (done), Stop → accepted.
 
-Internal: `UdsSessionHost` (one client per module per connection, keep-alive under the shared adapter lock), `UdsRoutines`, `RoutineCommand`; simulator: suppressed 3E 80 is silent (as on real modules), 31 routine 1234, ECU reset returns to the default session.
+Internal: `UdsSessionHost` (one client per module per connection, keep-alive under the shared adapter lock), `UdsRoutines`, `RoutineCommand`; Core only, no UI yet (bench-first): 85 ControlDTCSetting, 28 CommunicationControl and 2F InputOutputControl, each returning a lease that puts the module back (85 01 / 28 00 / 2F did 00, retried, allowed even after read-only is switched on); simulator: suppressed 3E 80 is silent (as on real modules), 31 routine 1234, ECU reset returns to the default session.
 
 ### Windows + truck verify
 1. DEMO, read-only ON: Routines tab, select PCM, Extended session → the list shows "session Extended confirmed (P2 50 ms, P2* 5000 ms)" and the line below says "Kept alive … 0x7E0 Extended". Adapter traffic shows `3E80` about every 2 s and nothing else while idle. Start… with ID 1234 → blocked by read-only mode, nothing sent.

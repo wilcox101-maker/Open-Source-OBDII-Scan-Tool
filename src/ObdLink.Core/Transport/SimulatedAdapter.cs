@@ -166,6 +166,9 @@ public sealed class SimulatedAdapter
         {
             0x3E => new byte[] { 0x7E, 0x00 },
             0x31 => Routine(tx, r),
+            0x85 => DtcSettingControl(tx, r),
+            0x28 => CommControl(tx, r),
+            0x2F => IoControl(tx, r),
             0x10 => SessionControl(tx, r),
             0x11 => EcuReset(tx, r),
             0x14 => new byte[] { 0x54 },
@@ -247,11 +250,72 @@ public sealed class SimulatedAdapter
     }
     private readonly HashSet<uint> _unlocked = new();
     /// <summary>A session change re-locks the module, as on real ECUs.</summary>
-    private byte[] SessionControl(uint tx, byte[] r) { _unlocked.Remove(tx); _session[tx] = (byte)(r[1] & 0x7F); return new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 }; }
+    private byte[] SessionControl(uint tx, byte[] r) { _unlocked.Remove(tx); _session[tx] = (byte)(r[1] & 0x7F); if (_session[tx] == 0x01) ResetControls(tx); return new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 }; }
     private readonly Dictionary<uint, byte> _session = new();
     /// <summary>A reset returns the module to the default session and locks it.</summary>
-    private byte[] EcuReset(uint tx, byte[] r) { _session.Remove(tx); _unlocked.Remove(tx); _routinePolls.Remove(tx); return new byte[] { 0x51, r.Length > 1 ? r[1] : (byte)0 }; }
+    private byte[] EcuReset(uint tx, byte[] r) { _session.Remove(tx); ResetControls(tx); _unlocked.Remove(tx); _routinePolls.Remove(tx); return new byte[] { 0x51, r.Length > 1 ? r[1] : (byte)0 }; }
     private readonly Dictionary<uint, int> _routinePolls = new();
+
+    /// <summary>Modules with DTC setting off (85 02), until 85 01, a default session or a reset.</summary>
+    public HashSet<uint> DtcSettingOff { get; } = new();
+    /// <summary>Modules with communication disabled (28 01/02/03), until 28 00, a default session or a reset.</summary>
+    public HashSet<uint> CommunicationDisabled { get; } = new();
+    /// <summary>Outputs the tester controls (2F 02/03): (module, DID) → state. Cleared by 2F 00, a default session or a reset.</summary>
+    public Dictionary<(uint Tx, ushort Did), byte[]> OverriddenOutputs { get; } = new();
+    /// <summary>SYNTHETIC output DID the DEMO modules accept for 2F (1 state byte). Not a Ford DID.</summary>
+    public const ushort DemoOutputDid = 0xD100;
+
+    private void ResetControls(uint tx)
+    {
+        DtcSettingOff.Remove(tx); CommunicationDisabled.Remove(tx);
+        foreach (var k in OverriddenOutputs.Keys.Where(k => k.Tx == tx).ToList()) OverriddenOutputs.Remove(k);
+    }
+    private bool Extended(uint tx) => _session.TryGetValue(tx, out var s) && s == 0x03;
+
+    /// <summary>SYNTHETIC 85: 01 on / 02 off, extended session only (NRC 0x7F otherwise).</summary>
+    private byte[] DtcSettingControl(uint tx, byte[] r)
+    {
+        if (r.Length < 2) return new byte[] { 0x7F, 0x85, 0x13 };
+        if (!Extended(tx)) return new byte[] { 0x7F, 0x85, 0x7F };
+        switch (r[1] & 0x7F)
+        {
+            case 0x01: DtcSettingOff.Remove(tx); break;
+            case 0x02: DtcSettingOff.Add(tx); break;
+            default: return new byte[] { 0x7F, 0x85, 0x12 };
+        }
+        return new byte[] { 0xC5, (byte)(r[1] & 0x7F) };
+    }
+
+    /// <summary>SYNTHETIC 28: control types 00-03, extended session only.</summary>
+    private byte[] CommControl(uint tx, byte[] r)
+    {
+        if (r.Length < 3) return new byte[] { 0x7F, 0x28, 0x13 };
+        if (!Extended(tx)) return new byte[] { 0x7F, 0x28, 0x7F };
+        byte t = (byte)(r[1] & 0x7F);
+        if (t > 0x03) return new byte[] { 0x7F, 0x28, 0x12 };
+        if (t == 0x00) CommunicationDisabled.Remove(tx); else CommunicationDisabled.Add(tx);
+        return new byte[] { 0x68, t };
+    }
+
+    /// <summary>SYNTHETIC 2F on <see cref="DemoOutputDid"/> only (NRC 0x31 otherwise), extended session only. Status = current state byte.</summary>
+    private byte[] IoControl(uint tx, byte[] r)
+    {
+        if (r.Length < 4) return new byte[] { 0x7F, 0x2F, 0x13 };
+        if (!Extended(tx)) return new byte[] { 0x7F, 0x2F, 0x7F };
+        ushort did = (ushort)(r[1] << 8 | r[2]);
+        if (did != DemoOutputDid) return new byte[] { 0x7F, 0x2F, 0x31 };
+        byte state;
+        switch (r[3])
+        {
+            case 0x00: case 0x01: OverriddenOutputs.Remove((tx, did)); state = 0x00; break;
+            case 0x02: state = OverriddenOutputs.TryGetValue((tx, did), out var cur) ? cur[0] : (byte)0x00; OverriddenOutputs[(tx, did)] = new[] { state }; break;
+            case 0x03:
+                if (r.Length < 5) return new byte[] { 0x7F, 0x2F, 0x13 };
+                state = r[4]; OverriddenOutputs[(tx, did)] = new[] { state }; break;
+            default: return new byte[] { 0x7F, 0x2F, 0x31 };
+        }
+        return new byte[] { 0x6F, r[1], r[2], r[3], state };
+    }
 
     /// <summary>SYNTHETIC routine identifier the DEMO modules accept. Not a Ford routine.</summary>
     public const ushort DemoRoutineId = 0x1234;
