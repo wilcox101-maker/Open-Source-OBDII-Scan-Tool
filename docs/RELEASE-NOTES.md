@@ -1,3 +1,18 @@
+## v0.23.11
+
+**Shared vehicle configuration needs a typed RELEARN (KB-R4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- Some BdyCM (body control module, 0x726) As-Built lines hold **shared vehicle configuration** (Ford "ECC"): the VIN, axle ratio / tire circumference, and steering side / gearbox type. Other modules (PCM, ABS, steering, cluster) learn these values. After a change, Ford's **Module Initialization / Relearn Vehicle Data** must run on them, or they set **U2100 / U2101** and keep using the old values (speedometer, ABS, steering assist). Source: FORScan "How to manage module configuration" (https://forum.forscan.org/viewtopic.php?p=59999). This app can't run that relearn yet.
+- Now an As-Built **write or restore that changes one of those lines** asks one more question: it names the lines and the risk, and you must type **RELEARN** to confirm you'll run the relearn with FORScan or a Ford tool right after. Anything else stops before the backup and the write. Changes to other lines and other modules are unaffected.
+- Which lines: 726-09-01, 09-02, 10-01, 10-02, 11-01 (VIN), 12-01 (axle ratio / tire circumference), 13-01 (steering side / gearbox), as both community-sheet BCM tabs describe them for the 2015–2020 F-150 [UNVERIFIED for other years].
+- Not yet: an automatic DTC snapshot of all modules before and after such a write (follow-up). Until then, read all module DTCs before and after by hand to see new U2100/U2101.
+
+Internal: `AsBuiltEccPolicy` (`Lines`, `Changed(before, after)`, `Steps`), called from `AsBuiltService.WriteBlockAsync` and `RestoreAsync` after the existing steps. Tests `AsBuiltEccTests` (6; removing the step from the write path fails 2, from the restore path 1).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → As-Built → BCM block 12 → change a digit in line 01 → Write: an extra step asks for RELEARN; Cancel → nothing written. Change only line 02 → no RELEARN step.
+2. **Truck:** don't change ECC lines until a relearn is available or you plan to run FORScan's relearn right after. Phase 2's one-block test should use a non-ECC block.
+
 ## v0.23.10
 
 **As-Built blocks above 99 are skipped and reported, not crashes (KB-R2).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

@@ -39,3 +39,50 @@ public static class AsBuiltWritePolicy
         + "(not available in this app yet) or restore this backup."
         + (IsPowertrain(module) ? " For the PCM / TCM also check for new powertrain DTCs before driving." : "");
 }
+
+/// <summary>
+/// KB-R4: shared vehicle configuration ("ECC", Enhanced Central Configuration) in the BdyCM. Other modules (PCM, ABS, PSCM, IPC,
+/// …) learn these values; after a change, Ford's "Module Initialization / Relearn Vehicle Data" must run on them, or they set
+/// U2100 / U2101 and keep using the old values (speedometer, ABS, steering assist). Source: FORScan "How to manage module
+/// configuration" (https://forum.forscan.org/viewtopic.php?p=59999). This app has no relearn yet, so a write or restore that
+/// changes one of these lines needs a typed RELEARN: the user confirms they'll run the relearn with another tool right after.
+/// <para>Which lines: the BdyCM lines both community-sheet BCM tabs (BdyCM-old for HU5T, JU5T) name as VIN, axle ratio / tire
+/// circumference and steering side / gearbox (community-db/f150-asbuilt). [UNVERIFIED for other model years; 2015-2020 F-150.]</para>
+/// </summary>
+public static class AsBuiltEccPolicy
+{
+    public const ushort BdyCm = 0x726;
+    public const string Phrase = "RELEARN";
+    public const string Source = "https://forum.forscan.org/viewtopic.php?p=59999";
+
+    /// <summary>ECC lines in the BdyCM, as BCD block/line bytes, with what they hold.</summary>
+    public static readonly IReadOnlyDictionary<(byte Block, byte Line), string> Lines = new Dictionary<(byte, byte), string>
+    {
+        [(0x09, 0x01)] = "VIN", [(0x09, 0x02)] = "VIN", [(0x10, 0x01)] = "VIN", [(0x10, 0x02)] = "VIN", [(0x11, 0x01)] = "VIN",
+        [(0x12, 0x01)] = "axle ratio / tire circumference",
+        [(0x13, 0x01)] = "steering side / gearbox type",
+    };
+
+    /// <summary>The ECC lines whose bytes differ between <paramref name="before"/> and <paramref name="after"/> (same module/block).</summary>
+    public static IReadOnlyList<(AsBuiltAddress Address, string What)> Changed(AsBuiltBlock before, AsBuiltBlock after)
+    {
+        if (before.Module != BdyCm) return Array.Empty<(AsBuiltAddress, string)>();
+        var old = before.Lines().ToDictionary(l => l.Address);
+        return after.Lines()
+            .Where(l => Lines.ContainsKey((l.Address.Block, l.Address.Line)) && (!old.TryGetValue(l.Address, out var o) || !o.Data.AsSpan().SequenceEqual(l.Data)))
+            .Select(l => (l.Address, Lines[(l.Address.Block, l.Address.Line)]))
+            .ToList();
+    }
+
+    /// <summary>The extra typed step when ECC lines change; none otherwise.</summary>
+    public static IEnumerable<ConfirmationStep> Steps(IReadOnlyList<(AsBuiltAddress Address, string What)> changed)
+    {
+        if (changed.Count == 0) yield break;
+        var list = string.Join(", ", changed.Select(c => $"{c.Address} ({c.What})"));
+        yield return new ConfirmationStep("Shared vehicle configuration (ECC)",
+            $"This changes shared vehicle configuration in the body control module: {list}.\n\n"
+            + "Other modules (PCM, ABS, steering, cluster) learn these values. Without Ford's \"Module Initialization / Relearn Vehicle Data\" "
+            + "they set U2100 / U2101 and keep using the old values (speedometer, ABS, steering assist). This app can't run that relearn yet.\n\n"
+            + $"Type {Phrase} only if you will run the relearn with FORScan or a Ford tool right after this. Source: {Source}", Phrase);
+    }
+}
