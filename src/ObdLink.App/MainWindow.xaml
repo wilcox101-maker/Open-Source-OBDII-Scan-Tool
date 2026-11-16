@@ -583,6 +583,7 @@
                 <DockPanel>
                   <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
                     <Button Command="{Binding AsBuiltPage.UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last write of the selected module, including one that did not finish (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
+                    <Button Command="{Binding AsBuiltPage.ReapplyAsBuiltCommand}" Margin="6,0,0,0" ToolTip="After a dealer software update or an OTA reload: shows which of your verified changes to this module were reverted, then writes them back (normal write checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Re-apply my changes…"/></StackPanel></Button>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Every write and restore with its outcome (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
                   </WrapPanel>
                   <DataGrid ItemsSource="{Binding AsBuiltPage.AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
