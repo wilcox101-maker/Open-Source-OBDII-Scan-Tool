@@ -78,7 +78,9 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="_Dashboard" InputGestureText="Ctrl+Shift+G" Command="{Binding OpenDashboardCommand}"/>
-        <MenuItem Header="Keep dashboard live while _closed" IsCheckable="True" IsChecked="{Binding Dashboard.KeepLiveWhileClosed}" ToolTip="Keep polling while the dashboard window is closed. Saved in Data\settings.json."/>
+        <MenuItem Header="Dashboard _2" InputGestureText="Ctrl+Shift+2" Command="{Binding OpenDashboard2Command}" ToolTip="A second dashboard window with its own layout, background and position"/>
+        <MenuItem Header="Dashboard _3" InputGestureText="Ctrl+Shift+3" Command="{Binding OpenDashboard3Command}" ToolTip="A third dashboard window with its own layout, background and position"/>
+        <MenuItem Header="Keep dashboard live while _closed" IsCheckable="True" IsChecked="{Binding Dashboard.KeepLiveWhileClosed}" ToolTip="Keep polling while every dashboard window is closed. Saved in Data\settings.json."/>
         <MenuItem Header="_Theme">
           <MenuItem Header="Light" Click="Theme_Click" Tag="Light"/>
           <MenuItem Header="Dark" Click="Theme_Click" Tag="Dark"/>

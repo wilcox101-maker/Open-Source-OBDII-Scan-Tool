@@ -14,8 +14,9 @@ public partial class DashboardWindow : Window
         Loaded += OnLoaded;
     }
 
-    private MainViewModel Vm => (MainViewModel)DataContext;
-    private DashboardViewModel Dash => Vm.Dashboard;
+    private DashboardWindowContext Ctx => (DashboardWindowContext)DataContext;
+    private MainViewModel Vm => Ctx.Main;
+    private DashboardViewModel Dash => Ctx.Dashboard;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -23,7 +24,9 @@ public partial class DashboardWindow : Window
         {
             if (ev.PropertyName is nameof(DashboardViewModel.BackgroundId) or nameof(DashboardViewModel.BackgroundFile) or nameof(DashboardViewModel.BackgroundFullPath))
                 ApplyDashBackground();
+            if (ev.PropertyName is nameof(DashboardViewModel.WindowTitle)) Title = Dash.WindowTitle;
         };
+        Title = Dash.WindowTitle;
         ApplyDashBackground();
         ApplyDashFlow();
         Dash.SetWindowOpen(true);
@@ -94,7 +97,7 @@ public partial class DashboardWindow : Window
     { _dragStart = e.GetPosition(this); _dragItem = (sender as FrameworkElement)?.DataContext as DashItemVm; }
     internal void DashItem_MouseMove(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed || _dragItem is null || DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
+        if (e.LeftButton != MouseButtonState.Pressed || _dragItem is null || DataContext is not DashboardWindowContext || !Dash.Customizing) return;
         if (e.OriginalSource is DependencyObject d && IsDashEditor(d)) return;
         var p = e.GetPosition(this);
         if (Math.Abs(p.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(p.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
@@ -113,7 +116,7 @@ public partial class DashboardWindow : Window
             _dropSrc = _dropDst = null;
             _dragKey = null;
             SetDashDropTargets(false);
-            if (src is not null && dst is not null && DataContext is MainViewModel owner) owner.Dashboard.MoveItemByKey(src, dst);
+            if (src is not null && dst is not null && DataContext is DashboardWindowContext) Dash.MoveItemByKey(src, dst);
         }
     }
     private string? DragSourceKey(IDataObject data)
@@ -129,7 +132,7 @@ public partial class DashboardWindow : Window
     }
     internal void DashItem_Drop(object sender, DragEventArgs e)
     {
-        if (DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
+        if (DataContext is not DashboardWindowContext || !Dash.Customizing) return;
         if ((sender as FrameworkElement)?.DataContext is not DashItemVm dst) return;
         var src = DragSourceKey(e.Data);
         if (src is null || src == dst.Key) return;
@@ -138,26 +141,26 @@ public partial class DashboardWindow : Window
     }
     internal void DashItem_DragOver(object sender, DragEventArgs e)
     {
-        var ok = DataContext is MainViewModel vm && vm.Dashboard.Customizing && DragSourceKey(e.Data) is not null;
+        var ok = DataContext is DashboardWindowContext && Dash.Customizing && DragSourceKey(e.Data) is not null;
         e.Effects = ok ? DragDropEffects.Move : DragDropEffects.None;
         e.Handled = true;
     }
     private void DashHost_DragOver(object sender, DragEventArgs e)
     {
-        var ok = DataContext is MainViewModel vm && vm.Dashboard.Customizing && DragSourceKey(e.Data) is not null;
+        var ok = DataContext is DashboardWindowContext && Dash.Customizing && DragSourceKey(e.Data) is not null;
         e.Effects = ok ? DragDropEffects.Move : DragDropEffects.None;
         e.Handled = true;
     }
     private void DashHost_Drop(object sender, DragEventArgs e)
     {
-        if (e.Handled || DataContext is not MainViewModel vm || !vm.Dashboard.Customizing) return;
+        if (e.Handled || DataContext is not DashboardWindowContext || !Dash.Customizing) return;
         var src = DragSourceKey(e.Data);
         if (src is null) return;
         var slots = SlotCenters();
         var p = e.GetPosition(DashItemsHost);
         int dest = ObdLink.Core.Dashboard.DashReorder.NearestIndex(slots, p.X, p.Y);
-        if (dest < 0 || dest >= vm.Dashboard.Items.Count) return;
-        _dropSrc = src; _dropDst = vm.Dashboard.Items[dest].Key;
+        if (dest < 0 || dest >= Dash.Items.Count) return;
+        _dropSrc = src; _dropDst = Dash.Items[dest].Key;
         e.Handled = true;
     }
     private void SetDashDropTargets(bool on)
@@ -175,8 +178,8 @@ public partial class DashboardWindow : Window
     }
     private void DashMove(FrameworkElement src, int delta)
     {
-        if (DataContext is not MainViewModel vm || !vm.Dashboard.Customizing || src.DataContext is not DashItemVm it) return;
-        if (!vm.Dashboard.MoveBy(it, delta)) return;
+        if (DataContext is not DashboardWindowContext || !Dash.Customizing || src.DataContext is not DashItemVm it) return;
+        if (!Dash.MoveBy(it, delta)) return;
         Dispatcher.BeginInvoke(() =>
         {
             if (DashItemsHost.ItemContainerGenerator.ContainerFromItem(it) is FrameworkElement c && FindChild<ButtonBase>(c) is { } b) b.Focus();
@@ -198,7 +201,7 @@ public partial class DashboardWindow : Window
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || sender is not FrameworkElement card) return;
         if (e.OriginalSource is DependencyObject src && (src is ComboBox || FindParent<ComboBox>(src) is not null || src is TextBoxBase)) return;
-        var n = (DataContext as MainViewModel)?.Dashboard.Items.Count ?? 0;
+        var n = (DataContext as DashboardWindowContext)?.Dashboard.Items.Count ?? 0;
         int? d = e.Key switch
         {
             Key.Up => VerticalDelta(card, -1),
@@ -210,14 +213,14 @@ public partial class DashboardWindow : Window
     }
     private int VerticalDelta(FrameworkElement src, int direction)
     {
-        if (DataContext is not MainViewModel vm || src.DataContext is not DashItemVm it) return direction;
-        return ObdLink.Core.Dashboard.DashReorder.VerticalDelta(SlotCenters(), vm.Dashboard.Items.IndexOf(it), direction, DashRowSize(FindCard(src) ?? src));
+        if (DataContext is not DashboardWindowContext || src.DataContext is not DashItemVm it) return direction;
+        return ObdLink.Core.Dashboard.DashReorder.VerticalDelta(SlotCenters(), Dash.Items.IndexOf(it), direction, DashRowSize(FindCard(src) ?? src));
     }
     private List<ObdLink.Core.Dashboard.DashReorder.Slot> SlotCenters()
     {
         var list = new List<ObdLink.Core.Dashboard.DashReorder.Slot>();
-        if (DataContext is not MainViewModel vm) return list;
-        foreach (var item in vm.Dashboard.Items)
+        if (DataContext is not DashboardWindowContext) return list;
+        foreach (var item in Dash.Items)
         {
             if (DashItemsHost.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement c && c.ActualWidth > 1 && c.ActualHeight > 1)
             {
@@ -252,4 +255,11 @@ public partial class DashboardWindow : Window
         for (var x = d; x != null; x = System.Windows.Media.VisualTreeHelper.GetParent(x) ?? LogicalTreeHelper.GetParent(x)) if (x is T t) return t;
         return null;
     }
+}
+
+/// <summary>v0.20.0: what one dashboard pop-out binds to: its own window view model and the main view model (connect / identify).</summary>
+public sealed class DashboardWindowContext(MainViewModel main, DashboardViewModel dashboard)
+{
+    public MainViewModel Main { get; } = main;
+    public DashboardViewModel Dashboard { get; } = dashboard;
 }

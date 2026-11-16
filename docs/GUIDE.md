@@ -141,7 +141,11 @@ Connect, open the **Vehicle** tab and click **Identify vehicle**. It is read-onl
 **Factory As-Built**: Ford's motorcraftservice.com needs a sign-in and a captcha, so the app cannot download it. **Get factory As-Built (Motorcraft)** opens the page in your browser and copies the VIN to the clipboard; download the `.ab` and click **Import downloaded .ab** (it is copied into `Data\asbuilt` and linked to the vehicle profile).
 
 ## Dashboard
-Open the dashboard window with **View → Dashboard**, the **Dashboard** button in the header (after the title), or **Ctrl+Shift+G**. There is one window. Doing any of those again brings that same window to the front, including when it was minimized. It is read-only and sends only Mode 01 and Mode 22 requests. The left rail no longer has a Dashboard page; the main window opens on Modules.
+Open the dashboard window with **View → Dashboard**, the **Dashboard** button in the header (after the title), or **Ctrl+Shift+G**. Doing any of those again brings that same window to the front, including when it was minimized. The gauges are read-only: they send only Mode 01 and Mode 22 requests. The left rail no longer has a Dashboard page; the main window opens on Modules.
+
+**Three dashboard windows (v0.20.0).** **View → Dashboard 2** (**Ctrl+Shift+2**) and **View → Dashboard 3** (**Ctrl+Shift+3**) open two more windows, for example one per monitor. Each window has its own layout (pick it in the **Layout** box), background and position; all three are saved in `Data\settings.json`. Layouts are shared: two windows can show the same one, and an edit shows in both. One poll loop feeds every open window and reads only what the open windows show, so a second window does not double the traffic. **Pause**, **Keep live** and **Record CSV** apply to all windows. In **Customize**: **Rename** the layout, **Export…** it to a `.dashboard.json` file, or **Import…** one as a new layout (it is checked first; a refused write card rejects the file).
+
+**Write cards (v0.20.0).** In Customize, **Add write card** puts a button on the dashboard that sends to the vehicle when pressed: **Routine** (31 01, type RUN), **OutputHold** (2F 03, type HOLD; the output returns to the module on the next press, after 10 s, when the card is removed or when the window closes), or **WriteDid** (2E, type WRITE; the current value is read and shown first, and read back after). Every press needs writes enabled (Settings), passes the battery check and a confirmation, and runs in the extended session on the module's bus. Refused on every path: airbag deployment routines (E200-E2FF), flashing routines (FF00/FF01, Flash tab only), As-Built blocks (DE00-DEFF, use the As-Built tab) and identification DIDs (F180-F19F). The app does not know what an ID does on your module: use values from a source you trust. DEMO modules accept routine 1234 and output DID D100.
 - RPM and speed are read most often. The other gauges are read less often, and the poll rate slows down if the bus is slow.
 - Lamps: MIL (check engine), DTCs (stored count), LINK, LOW V (battery under 11.8 V) and HOT (coolant over its warning limit).
 - Gear: the tile is titled **Gear (UNVERIFIED)**. Ford DID **1E12** is used when it answers; otherwise the gear is estimated from RPM, speed and 6R80 ratios. Either way the source line stays UNVERIFIED (warning color) until a truck pass matches the cluster through P, R, N, D and the forward gears. Do not mark 1E12 verified in the PID table before that.
@@ -190,6 +194,8 @@ Also under Help → Keyboard shortcuts (Shift+F1); menus show each shortcut next
 | Ctrl+` | Raw console |
 | Ctrl+, | Settings |
 | Ctrl+Shift+G | Open the dashboard window |
+| Ctrl+Shift+2 | Open dashboard window 2 |
+| Ctrl+Shift+3 | Open dashboard window 3 |
 | Alt+1..8 | Go to page 1-8 (Modules, DTCs, As-Built, Vehicle, Console, Logs, Guide, Settings) |
 | Ctrl+Tab | Next page |
 | Ctrl+Shift+Tab | Previous page |

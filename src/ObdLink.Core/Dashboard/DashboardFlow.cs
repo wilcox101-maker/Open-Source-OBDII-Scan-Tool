@@ -35,6 +35,7 @@ public static class DashboardFlow
             case DisplayKind.Tile: w = 180; h = 130; break;
             case DisplayKind.Lamp: w = 200; h = 80; break;
             case DisplayKind.Tpms: w = 300; h = 290; break;
+            case DisplayKind.Action: w = 300; h = 150; break;
         }
         if (size is ItemSize.Large or ItemSize.Wide)
         {
@@ -45,6 +46,7 @@ public static class DashboardFlow
                 case DisplayKind.Tile: w = 250; h = 180; break;
                 case DisplayKind.Lamp: w = 280; break;
                 case DisplayKind.Tpms: w = 380; h = 320; break;
+                case DisplayKind.Action: w = 440; h = 150; break;
             }
         }
         if (size == ItemSize.Medium) scale = 1.2;

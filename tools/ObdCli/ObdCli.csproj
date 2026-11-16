@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>obdcli</AssemblyName>
     <RootNamespace>ObdLink.Cli</RootNamespace>
-    <Version>0.19.0</Version>
+    <Version>0.20.0</Version>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\..\src\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
 </Project>

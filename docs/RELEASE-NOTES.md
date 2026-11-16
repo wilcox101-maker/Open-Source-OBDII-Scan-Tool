@@ -1,3 +1,23 @@
+## v0.20.0
+
+**Three dashboard pop-out windows with saved layouts and write cards.** Includes v0.19.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+- **Three windows.** View → Dashboard (Ctrl+Shift+G), **Dashboard 2** (Ctrl+Shift+2) and **Dashboard 3** (Ctrl+Shift+3). Each window has its own layout, background, arrange width and position, saved in `Data\settings.json`. The old single-window settings become window 1; windows 2 and 3 start with their own copy of the default layout ("Dashboard 2", "Dashboard 3").
+- **One poll loop for all of them.** It reads the union of what the open windows show (all three windows' items while Keep live runs with every window closed). A second or third window adds no duplicate requests. Pause, Keep live, Record CSV and the lamp row are shared.
+- **Layouts: read and write.** Pick any saved layout per window. In Customize: Save as, Rename, Delete, Reset, **Export…** (`.dashboard.json`) and **Import…** (added as a new layout; every write card in the file is validated and a refused one rejects the file). Two windows can show the same layout; an edit appears in both.
+- **Write cards.** Customize → Add write card. **Routine** (31 01, type RUN), **OutputHold** (2F 03, type HOLD; returned with 2F 00 on the next press, after 10 s, when the card is removed or when its window closes), **WriteDid** (2E, type WRITE; current value read and shown as old → new and logged, read back after). Every press: writes enabled, battery window, confirmation, typed phrase, extended session, the module's own bus, and the shared adapter lock (the gauges pause for it). Refused on every path: E200-E2FF (airbag deployment), FF00/FF01 (Flash tab only), DE00-DEFF (As-Built tab), F180-F19F (identification).
+- Labelled **Phase 3/4** for the truck: routines need an allow-listed source (verification plan); output holds are bench-first (Phase 4).
+
+Internal: `DashboardPoller` (shared loop, shared gauges) + per-window `DashboardViewModel`; `DashboardWindowContext`; Core `DashAction`/`DashActions`, `DashboardWindowState`/`DashboardWindows`, `DashboardLayoutFile`, `DisplayKind.Action`; `DashboardOptions.Window/LayoutFor/SetLayout`. `XamlBindingTests` checks the dashboard window against its new context.
+
+### Windows + truck verify
+1. DEMO-EX: open Dashboard, Dashboard 2 and Dashboard 3 (menu and shortcuts). Each opens once; repeating brings it to the front. Give each a different layout and background, move them to different places (or monitors), close all, restart, reopen: each comes back with its own layout, background and position.
+2. With all three open, the Logs show one "Polling:" line per change, not three loops. Close two: polling continues for the last one. Close all: Stopped (or Live with Keep live on).
+3. Window 2: Customize → Save as "Towing", Rename to "Tow", Export…, then Import… the file: it appears as "Tow (2)". Edit a layout shown in two windows: both update.
+4. DEMO, writes enabled: add a Routine card (module 7E0, ID 1234), press it, type RUN: the card shows the status. Add an OutputHold card (module 7E0, DID D100, data 01): press, type HOLD, the button turns to Release; it releases by itself after 10 s; hold again and close the window: the log shows the output returned. Writes off (read-only): every card is refused before anything is sent.
+5. Add cards with ID E201 (routine), FF00 (routine), DE00 (WriteDid) and F190 (WriteDid): each is refused with a reason. Hand-edit an exported file to E201 and import it: refused.
+6. Truck: open three windows on gauges only (read-only); note the poll rate with one vs three windows open. Do not press write cards on the truck until the matching phase passes.
+
 ## v0.19.0
 
 **Module flashing (Phase 5): Flash tab + Core flash engine.** Includes v0.18.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; **flashing has only run against a simulated module**. Not run by hand on Windows or on the truck. Unsigned. Ford products only.

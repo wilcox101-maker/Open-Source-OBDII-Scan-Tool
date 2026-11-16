@@ -4,6 +4,7 @@ using ObdLink.Core.IsoTp;
 using ObdLink.Core.Logging;
 using ObdLink.Core.Obd;
 using ObdLink.Core.Safety;
+using ObdLink.Core.Uds;
 using Serilog.Events;
 
 namespace ObdLink.App;
@@ -62,6 +63,8 @@ public sealed class DashItemVm : ObservableObject
     public GaugeVm Gauge { get; }
     public CatalogEntry? Entry { get; }
     public TpmsVm? Tpms { get; init; }
+    /// <summary>Set for write cards (<see cref="DisplayKind.Action"/>).</summary>
+    public DashActionCardVm? Action { get; init; }
     public RelayCommand MoveLeftCommand { get; }
     public RelayCommand MoveRightCommand { get; }
     public DashItemVm(DashboardViewModel owner, DashItem item, GaugeVm gauge, CatalogEntry? entry)
@@ -117,12 +120,15 @@ public sealed class TpmsVm : ObservableObject
     public void Refresh() => OnPropertyChanged(nameof(AnyLow));
 }
 
+
 /// <summary>
-/// Read-only live dashboard driven by a saved layout (Data\settings.json, Dashboard.Layouts). Polls ONLY the displayed items
-/// while the dashboard window is open (or Keep live is on), the adapter is connected, and the user pause flag is off,
-/// and only when no other command holds the bus lock. Sends services 01 and 22 only.
+/// v0.20.0: the one poll loop behind all three dashboard windows. Polls the union of the items shown in the open windows
+/// (all three windows' items when Keep live runs with every window closed), so three windows never mean three loops on one
+/// adapter. Owns the shared gauges (one <see cref="GaugeVm"/> per key, bound in every window that shows it), pause, CSV recording,
+/// the lamp row and the state text. Sends services 01 and 22 only, and only when no other command holds the bus lock.
+/// Write cards do not go through here: they run through <see cref="DashActionCardVm"/> under the write gate.
 /// </summary>
-public sealed class DashboardViewModel : ObservableObject
+public sealed class DashboardPoller : ObservableObject
 {
     private readonly IEventLog _log; private readonly Func<AppSettings> _settings; private readonly Func<ElmDiagChannel?> _ch; private readonly Action _save;
     private readonly Func<Task<double?>> _readAtrv; private readonly SemaphoreSlim _bus; private readonly string _logsDir; private readonly string _pidDir;
@@ -130,26 +136,14 @@ public sealed class DashboardViewModel : ObservableObject
     private bool _connected; private bool _loopFailed; private bool _stopping;
     private EnhancedPidTable _enhanced = new(); private readonly GearEstimator _gearDefault = new();
     private readonly Dictionary<string, GaugeVm> _gauges = new();
+    private readonly List<DashboardViewModel> _slots = new();
 
-    public ObservableCollection<DashItemVm> Items { get; } = new();
-    public ObservableCollection<CatalogEntry> Catalog { get; } = new();
-    public ObservableCollection<string> LayoutNames { get; } = new();
     public RelayCommand PauseCommand { get; }
     public RelayCommand RecordCommand { get; }
     public RelayCommand ResetStatsCommand { get; }
     public RelayCommand OpenPidTableCommand { get; }
-    public RelayCommand CustomizeCommand { get; }
-    public RelayCommand MoveUpCommand { get; }
-    public RelayCommand MoveDownCommand { get; }
-    public RelayCommand RemoveCommand { get; }
-    public RelayCommand AddCommand { get; }
-    public RelayCommand ResetLayoutCommand { get; }
-    public RelayCommand MoveLeftCommand { get; }
-    public RelayCommand MoveRightCommand { get; }
-    public RelayCommand SaveLayoutAsCommand { get; }
-    public RelayCommand DeleteLayoutCommand { get; }
 
-    public DashboardViewModel(IEventLog log, Func<AppSettings> settings, Func<ElmDiagChannel?> ch, Func<Task<double?>> readAtrv, SemaphoreSlim bus, string logsDir, string pidDir, Action save)
+    public DashboardPoller(IEventLog log, Func<AppSettings> settings, Func<ElmDiagChannel?> ch, Func<Task<double?>> readAtrv, SemaphoreSlim bus, string logsDir, string pidDir, Action save)
     {
         _log = log; _settings = settings; _ch = ch; _readAtrv = readAtrv; _bus = bus; _logsDir = logsDir; _pidDir = pidDir; _save = save;
         PauseCommand = new("Dashboard pause/resume", log, _ => { Paused = !Paused; });
@@ -160,174 +154,33 @@ public sealed class DashboardViewModel : ObservableObject
             var (_, path, _) = EnhancedPidTable.LoadOrCreate(_pidDir);
             DialogService.OpenExternal(path);
         });
-        CustomizeCommand = new("Dashboard customize on/off", log, _ => Customizing = !Customizing);
-        MoveUpCommand = new("Dashboard move item up", log, p => Move(p as DashItemVm, -1));
-        MoveDownCommand = new("Dashboard move item down", log, p => Move(p as DashItemVm, +1));
-        MoveLeftCommand = new("Dashboard move item left", log, p => Move(p as DashItemVm, -1));
-        MoveRightCommand = new("Dashboard move item right", log, p => Move(p as DashItemVm, +1));
-        RemoveCommand = new("Dashboard remove item", log, p => { if (p is DashItemVm it && Layout.Remove(it.Key)) { BuildGauges(); Changed("removed " + it.Key); } });
-        AddCommand = new("Dashboard add item", log, p =>
-        {
-            if ((p as CatalogEntry ?? SelectedCatalog) is { } c && Layout.Add(c.Key, c.DefaultDisplay)) { BuildGauges(); Changed("added " + c.Key); }
-        });
-        ResetLayoutCommand = new("Dashboard reset layout to default", log, _ =>
-        {
-            var d = DashboardLayout.Default(); Layout.Items = d.Items; BuildGauges(); Changed("reset layout " + Layout.Name);
-        });
-        SaveLayoutAsCommand = new("Dashboard save layout as", log, _ =>
-        {
-            var name = (NewLayoutName ?? "").Trim(); if (name.Length == 0) { Hint = "Type a name for the new layout first."; return; }
-            var d = _settings().Dashboard; d.Layouts.RemoveAll(l => l.Name == name); d.Layouts.Add(Layout.Clone(name)); d.ActiveLayout = name;
-            NewLayoutName = ""; RefreshLayoutNames(); BuildGauges(); Changed("saved layout " + name);
-        });
-        DeleteLayoutCommand = new("Dashboard delete layout", log, _ =>
-        {
-            var d = _settings().Dashboard; if (d.Layouts.Count <= 1) { Hint = "This is the only layout; use Reset to go back to the default."; return; }
-            d.Layouts.Remove(Layout); d.ActiveLayout = d.Layouts[0].Name; RefreshLayoutNames(); BuildGauges(); Changed("deleted layout");
-        });
-        PickBackgroundCommand = new("Dashboard pick background image", log, _ => PickBackground());
-        RefreshLayoutNames();
-        BuildGauges();
+        ReloadEnhanced();
     }
 
-    public RelayCommand PickBackgroundCommand { get; }
-    public IReadOnlyList<DashboardBackgroundChoice> BackgroundChoices => DashboardBackgrounds.Choices;
-    public string BackgroundId
+    internal void Register(DashboardViewModel slot) => _slots.Add(slot);
+    public IReadOnlyList<DashboardViewModel> Slots => _slots;
+    internal EnhancedPidTable Enhanced => _enhanced;
+    internal ISet<byte>? Supported => _engine?.Supported is { Count: > 0 } s ? s : null;
+
+    internal void ReloadEnhanced()
     {
-        get => _settings().Dashboard.Background;
-        set
-        {
-            var id = DashboardBackgrounds.Normalize(value);
-            var d = _settings().Dashboard;
-            if (id == DashboardBackgrounds.Custom && string.IsNullOrEmpty(d.BackgroundFile))
-            {
-                OnPropertyChanged();
-                PickBackground();
-                return;
-            }
-            if (id == d.Background) return;
-            d.Background = id;
-            _save();
-            NotifyBackground();
-            _log.UserAction("Dashboard background", ("id", id));
-        }
-    }
-    public string? BackgroundFile => _settings().Dashboard.BackgroundFile;
-    public string? BackgroundFullPath => DashboardBackgroundFiles.FullPath(_pidDir, BackgroundFile);
-    private double _hostMax = double.PositiveInfinity;
-    public double HostMaxWidth { get => _hostMax; private set => Set(ref _hostMax, value); }
-    private double _viewport;
-    private bool _stacking;
-    /// <summary>View-time layout. Does not rewrite the saved item list. Pins the wrap to the width last used in Customize when the window is at least that wide.</summary>
-    public void ApplyViewport(double availableWidth)
-    {
-        if (availableWidth > 1) _viewport = availableWidth;
-        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, _settings().Dashboard.ArrangeWidth, _stacking);
-        if (availableWidth > 1) _stacking = plan.Stacking;
-        for (int i = 0; i < Items.Count && i < plan.Widths.Length; i++) Items[i].FlowWidth = plan.Widths[i];
-        HostMaxWidth = plan.HostMaxWidth;
-    }
-    private void NotifyBackground()
-    {
-        OnPropertyChanged(nameof(BackgroundId));
-        OnPropertyChanged(nameof(BackgroundFile));
-        OnPropertyChanged(nameof(BackgroundFullPath));
-    }
-    private void PickBackground()
-    {
-        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, DashboardBackgroundFiles.Folder));
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif", InitialDirectory = dir, Title = "Dashboard background image" };
-        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
-        var name = DashboardBackgroundFiles.Import(_pidDir, dlg.FileName);
-        if (name is null)
-        {
-            DialogService.Info("Choose a PNG, JPEG, BMP or GIF image, 15 MB or smaller. The copy is stored in Data\\backgrounds.", "Dashboard background");
-            OnPropertyChanged(nameof(BackgroundId));
-            return;
-        }
-        var d = _settings().Dashboard;
-        d.BackgroundFile = name;
-        d.Background = DashboardBackgrounds.Custom;
-        _save();
-        NotifyBackground();
-        _log.UserAction("Dashboard background image", ("file", name));
+        (_enhanced, _, var err) = EnhancedPidTable.LoadOrCreate(_pidDir);
+        if (err != null) _log.Message(LogEventLevel.Warning, "Dashboard", $"Ford enhanced PID table unreadable ({err}); using built-in UNVERIFIED defaults");
     }
 
-    private DashboardLayout Layout => _settings().Dashboard.Current();
-    private bool _customizing; public bool Customizing
+    /// <summary>A layout changed in some window: other windows showing the same layout rebuild, and the poller re-reads its keys.</summary>
+    internal void LayoutChanged(DashboardViewModel from, string layoutName)
     {
-        get => _customizing;
-        set
-        {
-            if (!Set(ref _customizing, value)) return;
-            if (value) RefreshCatalog();
-            else if (_viewport > 1) { _settings().Dashboard.ArrangeWidth = _viewport; _save(); }
-            OnPropertyChanged(nameof(CustomizeText));
-        }
+        foreach (var s in _slots) if (!ReferenceEquals(s, from) && s.ActiveLayout == layoutName) s.BuildGauges();
+        _reconfigure = true;
     }
-    public string CustomizeText => Customizing ? "Done" : "Customize";
-    private CatalogEntry? _selCat; public CatalogEntry? SelectedCatalog { get => _selCat; set => Set(ref _selCat, value); }
-    private string? _newName; public string? NewLayoutName { get => _newName; set => Set(ref _newName, value); }
-    private string _hint = ""; public string Hint { get => _hint; set => Set(ref _hint, value); }
-    public string ActiveLayout
-    {
-        get => _settings().Dashboard.ActiveLayout;
-        set { if (value is null || value == ActiveLayout) return; _settings().Dashboard.ActiveLayout = value; BuildGauges(); Changed("active layout " + value); OnPropertyChanged(); }
-    }
-    private void RefreshLayoutNames() { LayoutNames.Clear(); foreach (var l in _settings().Dashboard.Layouts) LayoutNames.Add(l.Name); OnPropertyChanged(nameof(ActiveLayout)); }
+    internal void Reconfigure() => _reconfigure = true;
 
-    /// <summary>Called after any layout edit: persists settings (including the width the user arranged at) and makes the poller pick up the new item list.</summary>
-    internal void Changed(string what)
-    {
-        RememberArrangeWidth();
-        _save(); _reconfigure = true; Hint = ""; _log.UserAction("Dashboard layout: " + what);
-        if (Customizing) RefreshCatalog();
-        ApplyViewport(_viewport);
-    }
-    private void RememberArrangeWidth()
-    {
-        if (_viewport > 1) _settings().Dashboard.ArrangeWidth = _viewport;
-    }
-    private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
-    /// <summary>Keyboard / button move. No-op while Customize is off, so the saved layout stays put.</summary>
-    public bool MoveBy(DashItemVm? it, int delta)
-    {
-        if (it is null) return false;
-        var i = Items.IndexOf(it);
-        var to = DashReorder.Move(Layout, i, delta, Customizing);
-        if (to < 0) return false;
-        Items.Move(i, to);
-        Changed($"moved {it.Key} to position {to + 1}");
-        return true;
-    }
-    /// <summary>Drag-and-drop reorder by item key. The view-model object is not an OLE-safe drag payload.</summary>
-    public bool MoveItemByKey(string? srcKey, string? dstKey)
-    {
-        if (!Customizing) return false;
-        int a = IndexOfKey(srcKey), b = IndexOfKey(dstKey);
-        if (a < 0 || b < 0 || a == b) return false;
-        if (!DashReorder.Drop(Layout, srcKey, dstKey, true)) return false;
-        Items.Move(a, b);
-        Changed($"moved {srcKey} to position {b + 1}");
-        return true;
-    }
-    private int IndexOfKey(string? key)
-    {
-        if (key is null) return -1;
-        for (int i = 0; i < Items.Count; i++) if (Items[i].Key == key) return i;
-        return -1;
-    }
-    private void RefreshCatalog()
-    {
-        Catalog.Clear();
-        var sup = _engine?.Supported is { Count: > 0 } s ? s : null;
-        foreach (var c in DashCatalog.Build(_enhanced, sup).Where(c => Layout.Items.All(i => i.Key != c.Key))) Catalog.Add(c);
-        SelectedCatalog = Catalog.FirstOrDefault();
-    }
-
-    private GaugeVm MakeGauge(string key, AppSettings s)
+    /// <summary>The shared gauge for a key (one instance per key across all windows).</summary>
+    internal GaugeVm Gauge(string key)
     {
         if (_gauges.TryGetValue(key, out var have)) return have;
+        var s = _settings();
         GaugeVm g;
         var tpmsLow = s.Dashboard.TpmsLowKpa;
         if (J1979.Get(key) is { } d)
@@ -351,42 +204,14 @@ public sealed class DashboardViewModel : ObservableObject
         return _gauges[key] = g;
     }
 
-    /// <summary>(Re)builds the visible items from the active layout. Keeps min/max stats of gauges that stay.</summary>
-    public void BuildGauges()
-    {
-        var s = _settings();
-        (_enhanced, _, var err) = EnhancedPidTable.LoadOrCreate(_pidDir);
-        if (err != null) _log.Message(LogEventLevel.Warning, "Dashboard", $"Ford enhanced PID table unreadable ({err}); using built-in UNVERIFIED defaults");
-        var catalog = DashCatalog.Build(_enhanced).ToDictionary(c => c.Key);
-        Items.Clear();
-        foreach (var it in Layout.Items)
-        {
-            catalog.TryGetValue(it.Key, out var entry);
-            if (entry != null && !entry.Displays.Contains(it.Display)) it.Display = entry.DefaultDisplay;
-            if (it.Key == TpmsKeys.Widget)
-            {
-                var t = new TpmsVm { LF = MakeGauge("tpms_lf", s), RF = MakeGauge("tpms_rf", s), RR = MakeGauge("tpms_rr", s), LR = MakeGauge("tpms_lr", s) };
-                var verified = entry?.Verified == true;
-                var holder = new GaugeVm
-                {
-                    Key = "tpms", Title = verified ? "Tire pressures" : "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile,
-                    Note = verified ? "BCM 726 DIDs 2813-2816 (verified)" : "BCM 726 DIDs 2813-2816 (UNVERIFIED)", Units = s.Units,
-                };
-                Items.Add(new DashItemVm(this, it, holder, entry) { Tpms = t });
-            }
-            else Items.Add(new DashItemVm(this, it, MakeGauge(it.Key, s), entry));
-        }
-        _reconfigure = true;
-        ApplyViewport(_viewport);
-    }
-    private IEnumerable<GaugeVm> Shown => Items.SelectMany(i => i.Tpms?.All ?? new[] { i.Gauge });
+    private IEnumerable<GaugeVm> Shown => _slots.SelectMany(s => s.ShownGauges).Distinct();
     public void ApplyUnits() { var u = _settings().Units; foreach (var g in _gauges.Values) { g.Units = u; g.Refresh(); } }
-    /// <summary>Threshold changes from the Settings page (TPMS low, overheat, low voltage).</summary>
-    public void ApplyThresholds() { _gauges.Clear(); BuildGauges(); }
+    /// <summary>Threshold changes from the Settings page (TPMS low, overheat, low voltage): every window rebuilds its gauges.</summary>
+    public void ApplyThresholds() { _gauges.Clear(); foreach (var s in _slots) s.BuildGauges(); }
 
     private bool _paused; public bool Paused { get => _paused; set { if (Set(ref _paused, value)) { OnPropertyChanged(nameof(StateText)); _log.UserAction("Dashboard " + (value ? "paused" : "resumed")); } } }
     private bool _active; public bool Active { get => _active; private set { if (Set(ref _active, value)) OnPropertyChanged(nameof(StateText)); } }
-    public bool WindowOpen { get; private set; }
+    public bool AnyWindowOpen => _slots.Any(s => s.WindowOpen);
     public bool Engaged { get; private set; }
     public bool KeepLiveWhileClosed
     {
@@ -398,11 +223,11 @@ public sealed class DashboardViewModel : ObservableObject
             d.KeepLiveWhileClosed = value;
             OnPropertyChanged();
             _save();
-            Update(WindowOpen, _connected);
+            Update(_connected);
         }
     }
-    private string _info = "Connect (a DEMO port works), then open the dashboard window."; public string Info { get => _info; private set => Set(ref _info, value); }
-    public string StateText => DashboardSession.StateText(_connected, WindowOpen, KeepLiveWhileClosed, Paused, Engaged, _loopFailed);
+    private string _info = "Connect (a DEMO port works), then open a dashboard window."; public string Info { get => _info; private set => Set(ref _info, value); }
+    public string StateText => DashboardSession.StateText(_connected, AnyWindowOpen, KeepLiveWhileClosed, Paused, Engaged, _loopFailed);
     public bool Recording => _rec != null;
     public string RecordText => _rec is null ? "Record CSV" : "Stop recording";
     private string _gear = "--"; public string Gear { get => _gear; private set { if (Set(ref _gear, value) && _gauges.TryGetValue("gear", out var g)) { g.TextOverride = value; g.Refresh(); } } }
@@ -415,36 +240,15 @@ public sealed class DashboardViewModel : ObservableObject
     private bool _link; public bool LinkOk { get => _link; private set => Set(ref _link, value); }
     private string _rate = ""; public string RateText { get => _rate; private set => Set(ref _rate, value); }
 
-    /// <summary>Called when the dashboard window opens or closes, and whenever the connection changes.</summary>
-    public void SetWindowOpen(bool open)
+    /// <summary>A window opened or closed: re-evaluate whether to poll and which keys.</summary>
+    internal void WindowChanged(bool opened)
     {
-        WindowOpen = open;
-        if (open) Engaged = true;
-        Update(open, _connected);
+        if (opened) Engaged = true;
+        _reconfigure = true;
+        Update(_connected);
     }
 
     /// <summary>Process exit. Cancels polling even when Keep live is on, and closes an open CSV recorder.</summary>
-    public DashboardWindowPlacement.PlacementRequest SavedPlacement
-    {
-        get
-        {
-            var d = _settings().Dashboard;
-            return new(d.WindowPlacementSaved, d.WindowLeft, d.WindowTop, d.WindowWidth, d.WindowHeight, d.WindowMaximized);
-        }
-    }
-
-    public void CapturePlacement(double left, double top, double width, double height, bool maximized)
-    {
-        var d = _settings().Dashboard;
-        d.WindowLeft = left;
-        d.WindowTop = top;
-        d.WindowWidth = width;
-        d.WindowHeight = height;
-        d.WindowMaximized = maximized;
-        d.WindowPlacementSaved = true;
-        _save();
-    }
-
     public void Stop()
     {
         _stopping = true;
@@ -452,13 +256,13 @@ public sealed class DashboardViewModel : ObservableObject
         if (_rec != null) { _rec.Dispose(); _rec = null; OnPropertyChanged(nameof(Recording)); OnPropertyChanged(nameof(RecordText)); }
     }
 
-    public void Update(bool windowOpen, bool connected)
+    /// <summary>Called whenever the connection changes and when a window opens or closes.</summary>
+    public void Update(bool connected)
     {
         if (_stopping) return;
-        WindowOpen = windowOpen;
         _connected = connected;
         LinkOk = connected;
-        var run = DashboardSession.ShouldRun(connected, windowOpen, KeepLiveWhileClosed);
+        var run = DashboardSession.ShouldRun(connected, AnyWindowOpen, KeepLiveWhileClosed);
         if (run && _cts is null)
         {
             Engaged = true;
@@ -470,15 +274,22 @@ public sealed class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(StateText));
     }
 
+    /// <summary>Layouts to poll: the open windows', or every window's while Keep live runs with all of them closed.</summary>
+    private IEnumerable<DashboardLayout> PolledLayouts()
+    {
+        var open = _slots.Where(s => s.WindowOpen).ToList();
+        return (open.Count > 0 ? open : _slots).Select(s => s.Layout);
+    }
+
     private void Configure(AppSettings s)
     {
-        var keys = DashCatalog.PollKeys(Layout, s.Dashboard.EstimateGear);
-        if (keys.Contains("voltage") || keys.Contains("atrv")) { } // atrv is read separately below
+        var keys = new HashSet<string>();
+        foreach (var l in PolledLayouts()) keys.UnionWith(DashCatalog.PollKeys(l, s.Dashboard.EstimateGear));
         var enh = s.Dashboard.FordEnhancedPids ? _enhanced.Pids.Where(p => keys.Contains(p.Key)) : Enumerable.Empty<EnhancedPid>();
         _engine!.Configure(keys, enh);
         foreach (var g in Shown)
-            g.Unsupported = g.Key is not ("gear" or "atrv" or "mil" or "dtcCount" or "tpms") && _engine.Scheduler.Items.All(i => i.Key != g.Key);
-        Info = $"{_engine.Supported.Count} Mode 01 PIDs supported; polling {_engine.Scheduler.Items.Count} displayed items (read-only: services 01 and 22).";
+            g.Unsupported = g.Key is not ("gear" or "atrv" or "mil" or "dtcCount" or "tpms") && !DashActions.IsActionKey(g.Key) && _engine.Scheduler.Items.All(i => i.Key != g.Key);
+        Info = $"{_engine.Supported.Count} Mode 01 PIDs supported; polling {_engine.Scheduler.Items.Count} items for {_slots.Count(x => x.WindowOpen)} open window(s) (read-only: services 01 and 22).";
         _log.Message(LogEventLevel.Information, "Dashboard", Info + " Polling: " + string.Join(" ", _engine.Scheduler.Items.Select(i => i.Key)) + "; supported: " + string.Join(" ", _engine.Supported.Select(p => p.ToString("X2"))));
         _reconfigure = false;
     }
@@ -510,7 +321,7 @@ public sealed class DashboardViewModel : ObservableObject
                 await Task.Delay(Math.Max(50, s.Dashboard.RefreshMs / 2), ct);
                 if (_reconfigure) { Configure(s); good.Clear(); }
                 if (Paused) continue;
-                if (!await _bus.WaitAsync(0, ct)) continue; // another command is using the adapter
+                if (!await _bus.WaitAsync(0, ct)) continue; // another command (or a write card) is using the adapter
                 Dictionary<string, double> v;
                 try
                 {
@@ -525,7 +336,7 @@ public sealed class DashboardViewModel : ObservableObject
                 if (++cycles % 20 == 0) RateText = $"×{_engine.Scheduler.Factor:0.0} rate factor · fast PIDs every {_engine.Scheduler.BaseMs * _engine.Scheduler.Factor:0} ms";
             }
         }
-        catch (OperationCanceledException) { /* normal stop (window closed or disconnected) */ }
+        catch (OperationCanceledException) { /* normal stop (windows closed or disconnected) */ }
         catch (Exception ex)
         {
             _loopFailed = true;
@@ -545,7 +356,7 @@ public sealed class DashboardViewModel : ObservableObject
         if (v.Count == 0) return;
         var s = _settings();
         foreach (var (k, x) in v) if (_gauges.TryGetValue(k, out var g)) g.Update(x);
-        foreach (var t in Items.Select(i => i.Tpms).OfType<TpmsVm>()) t.Refresh();
+        foreach (var t in _slots.SelectMany(sl => sl.Items).Select(i => i.Tpms).OfType<TpmsVm>()) t.Refresh();
         if (v.TryGetValue("mil", out var mil)) MilOn = mil > 0;
         if (v.TryGetValue("dtcCount", out var n)) DtcCount = (int)n;
         if (v.TryGetValue("coolant", out var ct)) Overheat = ct >= s.Dashboard.OverheatC;
@@ -581,10 +392,401 @@ public sealed class DashboardViewModel : ObservableObject
         if (_rec != null) { var p = _rec.Path; _rec.Dispose(); _rec = null; _log.Message(LogEventLevel.Information, "Dashboard", $"Recording saved {p}"); }
         else
         {
-            var cols = DashCatalog.PollKeys(Layout, true).Concat(new[] { "atrv", "gear", "mil", "dtcCount" }).Distinct().ToList();
+            var cols = PolledLayouts().SelectMany(l => DashCatalog.PollKeys(l, true)).Concat(new[] { "atrv", "gear", "mil", "dtcCount" }).Distinct().ToList();
             _rec = new DashboardCsvRecorder(_logsDir, cols, DateTime.Now);
             _log.Message(LogEventLevel.Information, "Dashboard", $"Recording to {_rec.Path} (values in metric/base units)");
         }
         OnPropertyChanged(nameof(Recording)); OnPropertyChanged(nameof(RecordText));
+    }
+}
+
+/// <summary>What a write card needs from the app: run code on a module under the bus lock (bus routing and session included), the safety guard, and module names.</summary>
+public sealed record DashActionHost(Func<uint, Func<UdsClient, Task>, Task> OnModule, Func<SafetyGuard> Safety, Func<uint, string> ModuleName, Action<string, Exception> Err);
+
+/// <summary>
+/// One dashboard pop-out window (slot 1-3): its layout (shared pool, chosen per window), background, arrange width, placement,
+/// Customize mode, layout file import/export and write cards. Live values, pause, Keep live, recording and the lamp row come
+/// from the shared <see cref="DashboardPoller"/> and are re-exposed here so the window binds to one object.
+/// </summary>
+public sealed class DashboardViewModel : ObservableObject
+{
+    private readonly DashboardPoller _poller; private readonly IEventLog _log; private readonly Func<AppSettings> _settings; private readonly Action _save;
+    private readonly string _pidDir; private readonly DashActionHost? _host;
+    private static readonly string[] Relayed =
+    {
+        nameof(StateText), nameof(Info), nameof(RateText), nameof(MilOn), nameof(DtcCount), nameof(LowVoltage), nameof(Overheat), nameof(LowTire),
+        nameof(LinkOk), nameof(Recording), nameof(RecordText), nameof(Gear), nameof(GearSource), nameof(Paused), nameof(KeepLiveWhileClosed), nameof(Active),
+    };
+
+    public int Slot { get; }
+    public string Title => Slot == 1 ? "Dashboard" : $"Dashboard {Slot}";
+    public string WindowTitle => $"{Title} ({ActiveLayout}) - OBDLink Diag";
+    public DashboardPoller Poller => _poller;
+    public ObservableCollection<DashItemVm> Items { get; } = new();
+    public ObservableCollection<CatalogEntry> Catalog { get; } = new();
+    public ObservableCollection<string> LayoutNames { get; } = new();
+    public RelayCommand PauseCommand => _poller.PauseCommand;
+    public RelayCommand RecordCommand => _poller.RecordCommand;
+    public RelayCommand ResetStatsCommand => _poller.ResetStatsCommand;
+    public RelayCommand OpenPidTableCommand => _poller.OpenPidTableCommand;
+    public RelayCommand CustomizeCommand { get; }
+    public RelayCommand MoveUpCommand { get; }
+    public RelayCommand MoveDownCommand { get; }
+    public RelayCommand RemoveCommand { get; }
+    public RelayCommand AddCommand { get; }
+    public RelayCommand ResetLayoutCommand { get; }
+    public RelayCommand MoveLeftCommand { get; }
+    public RelayCommand MoveRightCommand { get; }
+    public RelayCommand SaveLayoutAsCommand { get; }
+    public RelayCommand DeleteLayoutCommand { get; }
+    public RelayCommand RenameLayoutCommand { get; }
+    public RelayCommand ExportLayoutCommand { get; }
+    public RelayCommand ImportLayoutCommand { get; }
+    public RelayCommand AddActionCommand { get; }
+
+    public DashboardViewModel(DashboardPoller poller, int slot, IEventLog log, Func<AppSettings> settings, string pidDir, Action save, DashActionHost? host = null)
+    {
+        _poller = poller; Slot = slot; _log = log; _settings = settings; _pidDir = pidDir; _save = save; _host = host;
+        poller.Register(this);
+        poller.PropertyChanged += (_, e) => { if (e.PropertyName is string n && Relayed.Contains(n)) OnPropertyChanged(n); };
+        string L(string what) => $"Dashboard {Slot} {what}";
+        CustomizeCommand = new(L("customize on/off"), log, _ => Customizing = !Customizing);
+        MoveUpCommand = new(L("move item up"), log, p => Move(p as DashItemVm, -1));
+        MoveDownCommand = new(L("move item down"), log, p => Move(p as DashItemVm, +1));
+        MoveLeftCommand = new(L("move item left"), log, p => Move(p as DashItemVm, -1));
+        MoveRightCommand = new(L("move item right"), log, p => Move(p as DashItemVm, +1));
+        RemoveCommand = new(L("remove item"), log, p => { if (p is DashItemVm it && Layout.Remove(it.Key)) { _ = it.Action?.ReleaseAsync("card removed"); BuildGauges(); Changed("removed " + it.Key); } });
+        AddCommand = new(L("add item"), log, p =>
+        {
+            if ((p as CatalogEntry ?? SelectedCatalog) is { } c && Layout.Add(c.Key, c.DefaultDisplay)) { BuildGauges(); Changed("added " + c.Key); }
+        });
+        ResetLayoutCommand = new(L("reset layout to default"), log, _ =>
+        {
+            var d = DashboardLayout.Default(); Layout.Items = d.Items; BuildGauges(); Changed("reset layout " + Layout.Name);
+        });
+        SaveLayoutAsCommand = new(L("save layout as"), log, _ =>
+        {
+            var name = (NewLayoutName ?? "").Trim(); if (name.Length == 0) { Hint = "Type a name for the new layout first."; return; }
+            var d = _settings().Dashboard; var copy = Layout.Clone(name);
+            d.Layouts.RemoveAll(l => l.Name == name); d.Layouts.Add(copy); d.SetLayout(Slot, name);
+            NewLayoutName = ""; RefreshAllLayoutNames(); BuildGauges(); Changed("saved layout " + name);
+        });
+        DeleteLayoutCommand = new(L("delete layout"), log, _ =>
+        {
+            var d = _settings().Dashboard; if (d.Layouts.Count <= 1) { Hint = "This is the only layout; use Reset to go back to the default."; return; }
+            var gone = Layout.Name;
+            d.Layouts.Remove(Layout);
+            foreach (var w in d.Windows.Where(w => w.Layout == gone)) d.SetLayout(w.Slot, d.Layouts[0].Name);
+            RefreshAllLayoutNames(); foreach (var s in _poller.Slots) s.BuildGauges(); Changed("deleted layout " + gone);
+        });
+        RenameLayoutCommand = new(L("rename layout"), log, _ =>
+        {
+            var name = (NewLayoutName ?? "").Trim(); var d = _settings().Dashboard;
+            if (name.Length == 0) { Hint = "Type the new name first."; return; }
+            if (d.Layouts.Any(l => l.Name == name)) { Hint = $"A layout named '{name}' already exists."; return; }
+            var old = Layout.Name; Layout.Name = name;
+            foreach (var w in d.Windows.Where(w => w.Layout == old)) d.SetLayout(w.Slot, name);
+            NewLayoutName = ""; RefreshAllLayoutNames(); Changed($"renamed layout {old} to {name}");
+        });
+        ExportLayoutCommand = new(L("export layout"), log, _ => ExportLayout());
+        ImportLayoutCommand = new(L("import layout"), log, _ => ImportLayout());
+        AddActionCommand = new(L("add write card"), log, _ => AddAction());
+        PickBackgroundCommand = new(L("pick background image"), log, _ => PickBackground());
+        RefreshLayoutNames();
+        BuildGauges();
+    }
+
+    // ---- shared state, re-exposed for the window ----
+    public string StateText => _poller.StateText;
+    public string Info => _poller.Info;
+    public string RateText => _poller.RateText;
+    public bool MilOn => _poller.MilOn;
+    public int DtcCount => _poller.DtcCount;
+    public bool LowVoltage => _poller.LowVoltage;
+    public bool Overheat => _poller.Overheat;
+    public bool LowTire => _poller.LowTire;
+    public bool LinkOk => _poller.LinkOk;
+    public bool Recording => _poller.Recording;
+    public string RecordText => _poller.RecordText;
+    public string Gear => _poller.Gear;
+    public string GearSource => _poller.GearSource;
+    public bool Active => _poller.Active;
+    public bool Paused { get => _poller.Paused; set => _poller.Paused = value; }
+    public bool KeepLiveWhileClosed { get => _poller.KeepLiveWhileClosed; set => _poller.KeepLiveWhileClosed = value; }
+    public void ApplyUnits() => _poller.ApplyUnits();
+    public void ApplyThresholds() => _poller.ApplyThresholds();
+
+    // ---- per-window background ----
+    private DashboardWindowState Win => _settings().Dashboard.Window(Slot);
+    public RelayCommand PickBackgroundCommand { get; }
+    public IReadOnlyList<DashboardBackgroundChoice> BackgroundChoices => DashboardBackgrounds.Choices;
+    public string BackgroundId
+    {
+        get => Win.Background;
+        set
+        {
+            var id = DashboardBackgrounds.Normalize(value);
+            var w = Win;
+            if (id == DashboardBackgrounds.Custom && string.IsNullOrEmpty(w.BackgroundFile))
+            {
+                OnPropertyChanged();
+                PickBackground();
+                return;
+            }
+            if (id == w.Background) return;
+            w.Background = id;
+            if (Slot == 1) _settings().Dashboard.Background = id; // older builds read the single-window field
+            _save();
+            NotifyBackground();
+            _log.UserAction($"Dashboard {Slot} background", ("id", id));
+        }
+    }
+    public string? BackgroundFile => Win.BackgroundFile;
+    public string? BackgroundFullPath => DashboardBackgroundFiles.FullPath(_pidDir, BackgroundFile);
+    private double _hostMax = double.PositiveInfinity;
+    public double HostMaxWidth { get => _hostMax; private set => Set(ref _hostMax, value); }
+    private double _viewport;
+    private bool _stacking;
+    /// <summary>View-time layout. Does not rewrite the saved item list. Pins the wrap to the width last used in Customize when the window is at least that wide.</summary>
+    public void ApplyViewport(double availableWidth)
+    {
+        if (availableWidth > 1) _viewport = availableWidth;
+        var plan = DashboardFlow.Plan(Items.Select(i => (i.Display, i.Size)).ToList(), _viewport, Win.ArrangeWidth, _stacking);
+        if (availableWidth > 1) _stacking = plan.Stacking;
+        for (int i = 0; i < Items.Count && i < plan.Widths.Length; i++) Items[i].FlowWidth = plan.Widths[i];
+        HostMaxWidth = plan.HostMaxWidth;
+    }
+    private void NotifyBackground()
+    {
+        OnPropertyChanged(nameof(BackgroundId));
+        OnPropertyChanged(nameof(BackgroundFile));
+        OnPropertyChanged(nameof(BackgroundFullPath));
+    }
+    private void PickBackground()
+    {
+        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, DashboardBackgroundFiles.Folder));
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif", InitialDirectory = dir, Title = $"{Title} background image" };
+        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
+        var name = DashboardBackgroundFiles.Import(_pidDir, dlg.FileName);
+        if (name is null)
+        {
+            DialogService.Info("Choose a PNG, JPEG, BMP or GIF image, 15 MB or smaller. The copy is stored in Data\\backgrounds.", "Dashboard background");
+            OnPropertyChanged(nameof(BackgroundId));
+            return;
+        }
+        var w = Win;
+        w.BackgroundFile = name;
+        w.Background = DashboardBackgrounds.Custom;
+        if (Slot == 1) { _settings().Dashboard.BackgroundFile = name; _settings().Dashboard.Background = DashboardBackgrounds.Custom; }
+        _save();
+        NotifyBackground();
+        _log.UserAction($"Dashboard {Slot} background image", ("file", name));
+    }
+
+    // ---- layout ----
+    internal DashboardLayout Layout => _settings().Dashboard.LayoutFor(Slot);
+    private bool _customizing; public bool Customizing
+    {
+        get => _customizing;
+        set
+        {
+            if (!Set(ref _customizing, value)) return;
+            if (value) RefreshCatalog();
+            else if (_viewport > 1) { Win.ArrangeWidth = _viewport; _save(); }
+            OnPropertyChanged(nameof(CustomizeText));
+        }
+    }
+    public string CustomizeText => Customizing ? "Done" : "Customize";
+    private CatalogEntry? _selCat; public CatalogEntry? SelectedCatalog { get => _selCat; set => Set(ref _selCat, value); }
+    private string? _newName; public string? NewLayoutName { get => _newName; set => Set(ref _newName, value); }
+    private string _hint = ""; public string Hint { get => _hint; set => Set(ref _hint, value); }
+    public string ActiveLayout
+    {
+        get => Win.Layout;
+        set
+        {
+            if (value is null || value == ActiveLayout) return;
+            _settings().Dashboard.SetLayout(Slot, value);
+            BuildGauges(); Changed("active layout " + value);
+            OnPropertyChanged(); OnPropertyChanged(nameof(WindowTitle));
+        }
+    }
+    private void RefreshLayoutNames()
+    {
+        LayoutNames.Clear(); foreach (var l in _settings().Dashboard.Layouts) LayoutNames.Add(l.Name);
+        OnPropertyChanged(nameof(ActiveLayout)); OnPropertyChanged(nameof(WindowTitle));
+    }
+    private void RefreshAllLayoutNames() { foreach (var s in _poller.Slots) s.RefreshLayoutNames(); }
+
+    /// <summary>Called after any layout edit: persists settings (including the width the user arranged at) and makes the poller pick up the new item list.</summary>
+    internal void Changed(string what)
+    {
+        RememberArrangeWidth();
+        _save(); _poller.LayoutChanged(this, Layout.Name); Hint = ""; _log.UserAction($"Dashboard {Slot} layout: " + what);
+        if (Customizing) RefreshCatalog();
+        ApplyViewport(_viewport);
+    }
+    private void RememberArrangeWidth()
+    {
+        if (_viewport > 1) Win.ArrangeWidth = _viewport;
+    }
+    private void Move(DashItemVm? it, int delta) => MoveBy(it, delta);
+    /// <summary>Keyboard / button move. No-op while Customize is off, so the saved layout stays put.</summary>
+    public bool MoveBy(DashItemVm? it, int delta)
+    {
+        if (it is null) return false;
+        var i = Items.IndexOf(it);
+        var to = DashReorder.Move(Layout, i, delta, Customizing);
+        if (to < 0) return false;
+        Items.Move(i, to);
+        Changed($"moved {it.Key} to position {to + 1}");
+        return true;
+    }
+    /// <summary>Drag-and-drop reorder by item key. The view-model object is not an OLE-safe drag payload.</summary>
+    public bool MoveItemByKey(string? srcKey, string? dstKey)
+    {
+        if (!Customizing) return false;
+        int a = IndexOfKey(srcKey), b = IndexOfKey(dstKey);
+        if (a < 0 || b < 0 || a == b) return false;
+        if (!DashReorder.Drop(Layout, srcKey, dstKey, true)) return false;
+        Items.Move(a, b);
+        Changed($"moved {srcKey} to position {b + 1}");
+        return true;
+    }
+    private int IndexOfKey(string? key)
+    {
+        if (key is null) return -1;
+        for (int i = 0; i < Items.Count; i++) if (Items[i].Key == key) return i;
+        return -1;
+    }
+    private void RefreshCatalog()
+    {
+        Catalog.Clear();
+        foreach (var c in DashCatalog.Build(_poller.Enhanced, _poller.Supported).Where(c => Layout.Items.All(i => i.Key != c.Key))) Catalog.Add(c);
+        SelectedCatalog = Catalog.FirstOrDefault();
+    }
+
+    /// <summary>Gauges shown in this window (the TPMS widget counts as its four tires). Write cards are not gauges.</summary>
+    internal IEnumerable<GaugeVm> ShownGauges => Items.Where(i => i.Action is null).SelectMany(i => i.Tpms?.All ?? new[] { i.Gauge });
+
+    /// <summary>(Re)builds the visible items from this window's layout. Gauges are shared, so min/max stats survive.</summary>
+    public void BuildGauges()
+    {
+        _poller.ReloadEnhanced();
+        var s = _settings();
+        var catalog = DashCatalog.Build(_poller.Enhanced).ToDictionary(c => c.Key);
+        foreach (var old in Items) if (old.Action is { } card && Layout.Items.All(i => i.Key != old.Key)) _ = card.ReleaseAsync("card no longer on the layout");
+        var keep = Items.Where(i => i.Action is not null).ToDictionary(i => i.Key, i => i.Action!);
+        Items.Clear();
+        foreach (var it in Layout.Items)
+        {
+            if (it.Display == DisplayKind.Action || it.Action is not null)
+            {
+                var card = keep.TryGetValue(it.Key, out var existing) && ReferenceEquals(existing.Item, it) ? existing : new DashActionCardVm(it, _host, _log);
+                var holder = new GaugeVm { Key = it.Key, Title = card.Label, Kind = GaugeKind.Tile, Note = card.Description, Units = s.Units };
+                Items.Add(new DashItemVm(this, it, holder, null) { Action = card });
+                continue;
+            }
+            catalog.TryGetValue(it.Key, out var entry);
+            if (entry != null && !entry.Displays.Contains(it.Display)) it.Display = entry.DefaultDisplay;
+            if (it.Key == TpmsKeys.Widget)
+            {
+                var t = new TpmsVm { LF = _poller.Gauge("tpms_lf"), RF = _poller.Gauge("tpms_rf"), RR = _poller.Gauge("tpms_rr"), LR = _poller.Gauge("tpms_lr") };
+                var verified = entry?.Verified == true;
+                var holder = new GaugeVm
+                {
+                    Key = "tpms", Title = verified ? "Tire pressures" : "Tire pressures (UNVERIFIED)", Kind = GaugeKind.Tile,
+                    Note = verified ? "BCM 726 DIDs 2813-2816 (verified)" : "BCM 726 DIDs 2813-2816 (UNVERIFIED)", Units = s.Units,
+                };
+                Items.Add(new DashItemVm(this, it, holder, entry) { Tpms = t });
+            }
+            else Items.Add(new DashItemVm(this, it, _poller.Gauge(it.Key), entry));
+        }
+        _poller.Reconfigure();
+        ApplyViewport(_viewport);
+    }
+
+    // ---- layout files ----
+    private void ExportLayout()
+    {
+        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, "exports"));
+        var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "Dashboard layout (*.dashboard.json)|*.dashboard.json", InitialDirectory = dir, FileName = ObdLink.Core.Security.SafePaths.Token(Layout.Name) + ".dashboard.json", Title = "Export dashboard layout" };
+        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
+        System.IO.File.WriteAllText(dlg.FileName, DashboardLayoutFile.Export(Layout));
+        Hint = $"Exported '{Layout.Name}' to {System.IO.Path.GetFileName(dlg.FileName)}.";
+        _log.UserAction($"Dashboard {Slot} exported layout", ("layout", Layout.Name), ("file", System.IO.Path.GetFileName(dlg.FileName)));
+    }
+
+    private void ImportLayout()
+    {
+        var dir = ObdLink.Core.Storage.AppPaths.Ensure(System.IO.Path.Combine(_pidDir, "exports"));
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Dashboard layout (*.dashboard.json;*.json)|*.dashboard.json;*.json", InitialDirectory = dir, Title = "Import dashboard layout" };
+        if (DialogService.ShowFileDialog(dlg) != true || string.IsNullOrEmpty(dlg.FileName)) return;
+        var info = new System.IO.FileInfo(dlg.FileName);
+        if (info.Length > 1_000_000) { Hint = "That file is larger than 1 MB; a layout file is a few KB."; return; }
+        DashboardLayout l;
+        try { l = DashboardLayoutFile.Import(System.IO.File.ReadAllText(dlg.FileName), _settings().Dashboard.Layouts.Select(x => x.Name)); }
+        catch (FormatException ex) { Hint = ex.Message; return; }
+        var d = _settings().Dashboard;
+        d.Layouts.Add(l); d.SetLayout(Slot, l.Name);
+        RefreshAllLayoutNames(); BuildGauges();
+        int cards = l.Items.Count(i => i.Action is not null);
+        Changed($"imported layout {l.Name} ({l.Items.Count} items, {cards} write card(s))");
+        Hint = $"Imported '{l.Name}'." + (cards > 0 ? $" It has {cards} write card(s): check what each one sends before using it." : "");
+    }
+
+    // ---- write cards ----
+    public DashActionKind[] ActionKinds { get; } = Enum.GetValues<DashActionKind>();
+    private DashActionKind _newKind = DashActionKind.Routine; public DashActionKind NewActionKind { get => _newKind; set => Set(ref _newKind, value); }
+    private string _newModule = "7E0"; public string NewActionModule { get => _newModule; set => Set(ref _newModule, value); }
+    private string _newId = ""; public string NewActionId { get => _newId; set => Set(ref _newId, value); }
+    private string _newData = ""; public string NewActionData { get => _newData; set => Set(ref _newData, value); }
+    private string _newLabel = ""; public string NewActionLabel { get => _newLabel; set => Set(ref _newLabel, value); }
+
+    private void AddAction()
+    {
+        var a = new DashAction { Kind = NewActionKind, Module = NewActionModule, Id = NewActionId, Data = NewActionData, Label = NewActionLabel.Trim() };
+        try
+        {
+            var plan = DashActions.Plan(a);
+            if (a.Label.Length == 0) a.Label = plan.Summary;
+            Layout.AddAction(a);
+        }
+        catch (Exception ex) when (ex is FormatException or RoutineRefusedException) { Hint = ex.Message; return; }
+        NewActionId = ""; NewActionData = ""; NewActionLabel = "";
+        BuildGauges(); Changed($"added write card {a.Kind} {a.Module} {a.Id}");
+    }
+
+    // ---- window ----
+    public bool WindowOpen { get; private set; }
+
+    /// <summary>Called when this window opens or closes. Closing releases any output this window holds.</summary>
+    public void SetWindowOpen(bool open)
+    {
+        WindowOpen = open;
+        if (!open) foreach (var c in Items.Select(i => i.Action).OfType<DashActionCardVm>()) _ = c.ReleaseAsync("dashboard window closed");
+        _poller.WindowChanged(open);
+        OnPropertyChanged(nameof(StateText));
+    }
+
+    public DashboardWindowPlacement.PlacementRequest SavedPlacement
+    {
+        get
+        {
+            var w = Win;
+            return new(w.WindowPlacementSaved, w.WindowLeft, w.WindowTop, w.WindowWidth, w.WindowHeight, w.WindowMaximized);
+        }
+    }
+
+    public void CapturePlacement(double left, double top, double width, double height, bool maximized)
+    {
+        var w = Win;
+        w.WindowLeft = left;
+        w.WindowTop = top;
+        w.WindowWidth = width;
+        w.WindowHeight = height;
+        w.WindowMaximized = maximized;
+        w.WindowPlacementSaved = true;
+        _save();
     }
 }

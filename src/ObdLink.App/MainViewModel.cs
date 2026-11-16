@@ -5,6 +5,7 @@ using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using ObdLink.Core.AsBuilt;
+using ObdLink.Core.Dashboard;
 using ObdLink.Core.Dtc;
 using ObdLink.Core.Elm;
 using ObdLink.Core.IsoTp;
@@ -155,7 +156,11 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     private CancellationTokenSource? _batchCts;
     private string _tab = "Modules"; public string SelectedTab { get => _tab; set { if (value == "Dashboard") value = "Modules"; if (Set(ref _tab, value) && !string.IsNullOrEmpty(value)) { EventLog.UserAction("Tab changed", ("tab", value)); SyncDashboard(); } } }
     private readonly SemaphoreSlim _bus = new(1, 1);
+    /// <summary>Dashboard window 1 (the Settings page and View menu bind here).</summary>
     public DashboardViewModel Dashboard { get; }
+    /// <summary>v0.20.0: the three dashboard pop-out windows (1-3), fed by one <see cref="DashboardPoller"/>.</summary>
+    public IReadOnlyList<DashboardViewModel> Dashboards { get; }
+    public DashboardPoller DashboardPoller { get; }
     public LiveDataViewModel LiveData { get; }
     public RoutinesViewModel Routines { get; }
     /// <summary>Flash tab (Phase 5): module flashing through <see cref="ObdLink.Core.Flash.FlashEngine"/>.</summary>
@@ -173,9 +178,28 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     /// <summary>Per-module UDS clients for this connection; keeps non-default sessions alive (3E 80) under <see cref="_bus"/>.</summary>
     private UdsSessionHost? _sessions;
     private CancellationTokenSource? _keepAlive;
-    private void SyncDashboard() => Dashboard?.Update(Dashboard.WindowOpen, IsConnected && _ch != null);
+    private void SyncDashboard() => DashboardPoller?.Update(IsConnected && _ch != null);
     public RelayCommand OpenDashboardCommand { get; }
-    public event Action? DashboardOpenRequested;
+    public RelayCommand OpenDashboard2Command { get; }
+    public RelayCommand OpenDashboard3Command { get; }
+    /// <summary>Asks the main window to open (or bring to front) dashboard window 1, 2 or 3.</summary>
+    public event Action<int>? DashboardOpenRequested;
+
+    /// <summary>
+    /// v0.20.0 dashboard write cards: runs <paramref name="f"/> on module <paramref name="tx"/> holding the shared adapter lock, on the
+    /// module's bus, with the connection's per-module UDS client (write gate, seed/key, session keep-alive). No bus fallback for writes.
+    /// </summary>
+    private async Task RunOnModuleAsync(uint tx, Func<UdsClient, Task> f)
+    {
+        if (AdapterBlocked() is string why) throw new InvalidOperationException(why);
+        var host = _sessions ?? throw new InvalidOperationException("Not connected - click Connect first (use a DEMO port to try without a vehicle)");
+        var m = Modules.FirstOrDefault(r => r.Def.TxId == tx)
+            ?? throw new InvalidOperationException($"Module 0x{tx:X3} is not in this vehicle's module list. Pick the vehicle or scan first.");
+        await _bus.WaitAsync();
+        try { await OnBus(m, () => f(host.Client(m)), false); }
+        finally { _bus.Release(); }
+    }
+    private string ModuleName(uint tx) => Modules.FirstOrDefault(r => r.Def.TxId == tx) is { } m ? $"{m.Label} (0x{tx:X3})" : $"module 0x{tx:X3}";
     private string _bottomTab = "Events"; public string SelectedLogTab { get => _bottomTab; set { if (Set(ref _bottomTab, value) && !string.IsNullOrEmpty(value)) EventLog.UserAction("Log tab changed", ("tab", value)); } }
 
     private ConnectionStatus _conn = ConnectionStatus.Disconnected;
@@ -461,7 +485,11 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         foreach (var lp in new[] { EventsPanel, MessagesPanel, TrafficPanel }) if (lp != null) lp.RedactOnExport = _settings.RedactVinsDefault;
         try { ThemeManager.Apply(_settings.Theme); }
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
-        Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
+        DashboardPoller = new DashboardPoller(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
+        var actionHost = new DashActionHost(RunOnModuleAsync, Safety, ModuleName, Err);
+        Dashboards = Enumerable.Range(1, DashboardWindows.Count)
+            .Select(slot => new DashboardViewModel(DashboardPoller, slot, EventLog, () => _settings, Paths.DataDir, SaveSettings, actionHost)).ToList();
+        Dashboard = Dashboards[0];
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
         Flash = new FlashViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, () => _session,
@@ -476,7 +504,9 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),
             () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups, AsBuiltCan);
         AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList());
-        OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
+        OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke(1));
+        OpenDashboard2Command = new("Open dashboard 2", EventLog, _ => DashboardOpenRequested?.Invoke(2));
+        OpenDashboard3Command = new("Open dashboard 3", EventLog, _ => DashboardOpenRequested?.Invoke(3));
         InitFirmwareCommands(Err);
         InitSeedKey(Err);
         CheckUpdatesCommand = new AsyncCommand("Check for updates", EventLog, () => CheckForUpdatesAsync(true), Err);
