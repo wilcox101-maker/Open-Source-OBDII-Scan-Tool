@@ -44,7 +44,7 @@ View → **Dashboard** (Ctrl+Shift+G), **Dashboard 2** (Ctrl+Shift+2) and **Dash
 
 Engine, error handling and what is still UNVERIFIED for real Ford modules: `docs/FLASHING.md`. Check a real VBF offline first with `obdcli vbf-info --file x.vbf`.
 
-## What works today (v0.21.3, 2026-11-16)
+## What works today (v0.21.4, 2026-11-16)
 
 How far each area has been checked. **CI** = built and unit-tested by GitHub Actions on Windows and Linux (simulators only). **DEMO run** = run by hand on Windows against the built-in simulator. **Truck** = checked on Dale's 2017 F-150.
 
@@ -79,7 +79,7 @@ Not built, by decision: airbag/pretensioner deployment routines (E200-E2FF) and 
 | `docs/CLI.md` | `obdcli` reference |
 | `PLAN.md` | Original design plan (v0.1, historical) |
 
-## Status (v0.21.3 on master, 2026-11-16)
+## Status (v0.21.4 on master, 2026-11-16)
 - **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers, v0.13.0 read-only bus monitor (HS/MS/HS2, per-ID rates and changed bits, CSV), v0.14.0 multi-PID OBD-II polling (up to 6 PIDs per request), v0.15.0 As-Built options by name (community sheet → grid → normal safe write), v0.16.0 As-Built change history and undo, v0.17.0 `obdcli` command line (read-only, `docs/CLI.md`), v0.18.0 J2534 pass-thru devices in `obdcli` (VCM II / Mongoose / clones; x86 build for 32-bit drivers), v0.19.0 Flash tab and journaled flash engine (EX and MX+, tested on a simulated module only; `docs/FLASHING.md`), v0.20.0 three dashboard pop-out windows with per-window layouts, layout export/import and gated write cards, v0.20.1 dashboard and dialog fixes found while taking the screenshots, v0.21.0 As-Built write journal and recovery of writes that did not finish (pulled adapter, crash, read-back mismatch). Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
 - **Not yet verified on the truck** since v0.6.0: every version from v0.6.1 on is built and unit-tested on Windows and Linux by CI only. Run each version's "Windows + truck verify" list before tagging a release.
 - **Latest tagged release:** v0.6.0.
@@ -142,7 +142,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.18.0 | CI (windows-latest) build + unit tests | J2534 devices in obdcli; verify with a J2534 device (see v0.18.0 release notes) |
 | Windows | v0.19.0 | CI (windows-latest) build + unit tests | Flash tab; DEMO flash + truck preflight only (see v0.19.0 release notes) |
 | Windows 11 (DLN-DALEW2) | v0.20.0 | DEMO-EX, driven by automation for the README screenshots | Module scan, three dashboard windows, write cards added (not pressed), DEMO flash end to end. Not a full v0.20.0 verify pass |
-| Windows | v0.21.3 | CI (windows-latest) build + unit tests | Flash resume reaches a stuck bootloader, no re-flash of a finished module, backup on resume (see v0.21.3 release notes) |
+| Windows | v0.21.4 | CI (windows-latest) build + unit tests | Flash bus quieting and restore (see v0.21.4 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
 Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.

@@ -40,6 +40,12 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 - **Session lost** (v0.21.2): 0x7E / 0x7F at any time, or 0x33 (and 0x24 on TransferData) after unlocking, mean the module left
   the programming session or lost security. The engine re-enters programming **from the erase** once (never writes into
   un-erased flash); if it happens again the job stays open for resume.
+- **Bus quieting** (v0.21.4, on in the app): before the programming session every module on the target's bus gets functional
+  (0x7DF) `10 83`, `85 82`, `28 83 01` (extended session, DTC setting off, normal messages off), kept quiet by functional
+  `3E 80` at least every 2 s, including during the download. Afterwards `28 80 01` and `85 81` are sent (they pass a closed write
+  gate); `10 81` only after a successful flash, so a failed flash never pulls the target out of its programming session. If the
+  link drops, the modules recover on their own when S3 (5 s) expires. All requests are suppressed (no reply to check), so a
+  module that refuses just keeps talking. Modules on another bus (MS-CAN) are not reached. [UNVERIFIED on Ford hardware]
 - **Recovery-safe resume** (v0.21.3):
   - Resume checks: if a module ignores TesterPresent (a bootloader in its default session), a programming-session request is
     tried; any answer lets recovery continue. A silent module fails the check with operator steps (ignition cycle, charger,
