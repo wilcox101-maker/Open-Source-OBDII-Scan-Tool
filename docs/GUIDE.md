@@ -1,5 +1,7 @@
 # FORScan / As-Built programming guide (community)
 
+> This app is a **Scan / Diagnose / Repair (SDR)** tool for **personal use only, on your own Ford vehicle** (README, "Intended use"). No security keys or algorithms are included; anything that needs SecurityAccess uses a seed/key plug-in you supply.
+
 Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/. All credit goes to Livnitup. This is a summary for Ford trucks. Read the original for full detail. Tips are community-reported (UNVERIFIED on Dale's truck).
 
 ## Portable app, supported Windows
