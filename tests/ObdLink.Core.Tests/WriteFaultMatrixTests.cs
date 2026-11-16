@@ -124,6 +124,25 @@ public class WriteFaultMatrixTests
         Assert.Equal(Old, sim.Dids[0x726][0xDE00]);
     }
 
+    [Theory]
+    [InlineData(0x1234, true, RoutineOutcome.Accepted)]   // the DEMO routine, in the extended session
+    [InlineData(0x5678, true, RoutineOutcome.Refused)]    // NRC 0x31: does not exist, nothing ran
+    [InlineData(0x1234, false, RoutineOutcome.Refused)]   // NRC 0x7F: not in this session, nothing ran
+    public async Task Routine_start_against_the_simulator_is_journaled(ushort rid, bool extended, string outcome)
+    {
+        var (_, _, ch) = await AsBuiltServiceSafetyTests.Connect();
+        var uds = new UdsClient(ch, 0x726);
+        if (extended) await uds.DiagnosticSessionControlAsync(UdsSession.Extended);
+        var dir = Path.Combine(Path.GetTempPath(), "x3r_" + Guid.NewGuid().ToString("N"));
+        var j = new RoutineJournal(dir);
+        try { await j.RecordAsync("start", 0x726, "BCM", rid, null, () => uds.StartRoutineAsync(rid)); }
+        catch (UdsNegativeResponseException) when (outcome == RoutineOutcome.Refused) { /* expected refusal */ }
+        var lines = j.ReadAll();
+        Assert.Equal(new[] { RoutineOutcome.Pending, outcome }, lines.Select(l => l.Outcome));
+        Assert.Empty(j.Unfinished());
+        Directory.Delete(dir, true);
+    }
+
     [Fact]
     public void Every_fault_has_an_expectation() => Assert.All(Enum.GetValues<Fault>(), f => Expected(f));
 }
