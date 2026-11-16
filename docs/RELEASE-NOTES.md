@@ -1,3 +1,22 @@
+## v0.18.0
+
+**J2534 pass-thru devices in `obdcli`.** Includes v0.17.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or with a J2534 device. Unsigned. Ford products only.
+
+**Download:** the app as before (`ObdLinkApp-win-x64-v0.18.0.zip`; no app change apart from the version), plus `obdcli-win-x64` and the new **`obdcli-win-x86`** (for 32-bit J2534 drivers, which is most of them).
+
+- `obdcli j2534-list` lists the J2534 v04.04 devices registered on the PC (both registry views), the driver's CPU type, and whether this build can load it.
+- `--j2534 NAME|DLL` runs `info`, `scan`, `dtcs`, `live` and `asbuilt-read` through a J2534 device (genuine VCM II / VCMM, Mongoose-class, clones, a DIY device). `--j2534-demo` simulates one.
+- Buses: HS-CAN on pins 6/14 (ISO 15765). MS-CAN and HS-CAN2 use J2534-2 pin selection (ISO15765_PS on pins 3/11). A device without it reaches HS-CAN only, and `info` says so.
+- Through J2534, a module's "response pending" (0x78) is waited out instead of the request being sent again, which the ELM text interface cannot do. Long multi-frame replies get up to 5 s once their first frame arrives.
+- Still read-only toward the vehicle. `monitor` needs an ELM327/STN adapter for now. The app itself does not use J2534 yet.
+
+Internal: Core `J2534/` (constants checked against the Drew Technologies j2534_v0404.h header, `J2534DiagChannel`, `NativeJ2534Api` with Windows-ABI marshalling tested against a compiled stub driver, registry discovery, PE bitness check, `SimulatedJ2534Api`). `ModuleScanner` accepts a bus-select function.
+
+### Windows + device verify
+1. `obdcli --j2534-demo scan` lists the same modules as `obdcli --demo scan`, with ACM 727 found on MS-CAN.
+2. With a J2534 device installed: `obdcli-win-x86\obdcli j2534-list` shows it (CPU type X86 for most drivers) with no "needs the x86 build" note. The x64 build adds that note for a 32-bit driver.
+3. Truck with the J2534 device (FORScan and the app closed): `obdcli info --j2534 "<name>"` shows versions, battery, and whether MS-CAN is available. Then `scan`, `dtcs --module all`, and `asbuilt-read --module 726`. Compare with the OBDLink results.
+
 ## v0.17.0
 
 **Command line: `obdcli` (read-only toward the vehicle).** Includes v0.16.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

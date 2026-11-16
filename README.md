@@ -4,8 +4,8 @@ A Windows diagnostic app for the **OBDLink MX+** (STN-based) adapter. The app is
 
 > ⚠ Writing module configuration can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
 
-## Status (v0.17.0 on master, 2026-11-15)
-- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers, v0.13.0 read-only bus monitor (HS/MS/HS2, per-ID rates and changed bits, CSV), v0.14.0 multi-PID OBD-II polling (up to 6 PIDs per request), v0.15.0 As-Built options by name (community sheet → grid → normal safe write), v0.16.0 As-Built change history and undo, v0.17.0 `obdcli` command line (read-only, `docs/CLI.md`). Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
+## Status (v0.18.0 on master, 2026-11-15)
+- **On master:** v0.6.1 write-safety fixes, v0.7.0 seed/key plug-ins (none shipped), v0.8.0 DTC detail, v0.9.0 Mode 6 and module IDs, v0.10.0 live-data browser (read-only, services 01/22), v0.11.0 Routines tab (UDS 31 start/stop/results behind write mode, session keep-alive; airbag deployment and flashing routines always refused), v0.12.0 live-data charts, CSV replay and threshold triggers, v0.13.0 read-only bus monitor (HS/MS/HS2, per-ID rates and changed bits, CSV), v0.14.0 multi-PID OBD-II polling (up to 6 PIDs per request), v0.15.0 As-Built options by name (community sheet → grid → normal safe write), v0.16.0 As-Built change history and undo, v0.17.0 `obdcli` command line (read-only, `docs/CLI.md`), v0.18.0 J2534 pass-thru devices in `obdcli` (VCM II / Mongoose / clones; x86 build for 32-bit drivers). Bus routing moved into Core (`ObdLink.Core.Modules.BusRouter`), the first step of splitting `MainViewModel`. Details: `docs/RELEASE-NOTES.md`.
 - **Not yet verified on the truck** since v0.6.0: every version from v0.6.1 on is built and unit-tested on Windows and Linux by CI only. Run each version's "Windows + truck verify" list before tagging a release.
 - **Latest tagged release:** v0.6.0.
 - **Next:** MainViewModel split, J2534 transport. Plan and gaps: `docs/ROADMAP-FORSCAN-PARITY.md`.
@@ -62,6 +62,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.15.0 | CI (windows-latest) build + unit tests | As-Built options by name; verify on Windows and the truck (see v0.15.0 release notes) |
 | Windows | v0.16.0 | CI (windows-latest) build + unit tests | As-Built change history + undo; verify on Windows (see v0.16.0 release notes) |
 | Windows | v0.17.0 | CI (windows-latest) build + unit tests | obdcli command line; verify on Windows and the truck (see v0.17.0 release notes) |
+| Windows | v0.18.0 | CI (windows-latest) build + unit tests | J2534 in obdcli; verify with a J2534 device (see v0.18.0 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
 Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.

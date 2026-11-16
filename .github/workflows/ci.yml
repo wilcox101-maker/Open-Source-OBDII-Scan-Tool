@@ -36,6 +36,13 @@ jobs:
           name: obdcli-win-x64-${{ github.sha }}
           path: publish/obdcli-win-x64
           retention-days: 14
+      - name: Publish obdcli win-x86 (for 32-bit J2534 drivers)
+        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x86
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obdcli-win-x86-${{ github.sha }}
+          path: publish/obdcli-win-x86
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:

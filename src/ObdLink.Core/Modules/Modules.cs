@@ -68,10 +68,14 @@ public sealed record ScanResult(ModuleDefinition Module, bool Responded, string?
 /// <summary>Probes each CAN module with UDS TesterPresent (0x3E 00), falling back to 0x22 F190 (VIN DID, ISO 14229).</summary>
 public sealed class ModuleScanner
 {
-    private readonly AdapterSession _session;
+    private readonly AdapterSession? _session;
+    private readonly Func<Bus, CancellationToken, Task>? _selectBus;
     private readonly IDiagChannel _ch;
     private readonly BusProfile _profile;
     public ModuleScanner(AdapterSession s, IDiagChannel ch, BusProfile? profile = null) { _session = s; _ch = ch; _profile = profile ?? new BusProfile(); }
+
+    /// <summary>v0.18.0: for adapters that are not ELM/STN (J2534): <paramref name="selectBus"/> puts the channel on a Ford bus.</summary>
+    public ModuleScanner(Func<Bus, CancellationToken, Task> selectBus, IDiagChannel ch) { _selectBus = selectBus; _ch = ch; _profile = new BusProfile(); }
 
     public async Task<List<ScanResult>> ScanAsync(IEnumerable<ModuleDefinition> modules, IProgress<ScanResult>? progress = null, CancellationToken ct = default)
     {
@@ -83,10 +87,11 @@ public sealed class ModuleScanner
                 foreach (var m in grp) { var r = new ScanResult(m, false, "Bus not implemented [STUB]"); results.Add(r); progress?.Report(r); }
                 continue;
             }
-            if (grp.Key == Bus.HsCan2) await _session.SelectBusAsync(Bus.HsCan2, ct);
+            if (_selectBus is not null) await _selectBus(grp.Key, ct);
+            else if (grp.Key == Bus.HsCan2) await _session!.SelectBusAsync(Bus.HsCan2, ct);
             else
             {
-                await _session.SelectProtocolAsync((StnProtocol)(grp.Key == Bus.HsCan ? _profile.HsCanPreset : _profile.MsCanPreset), ct);
+                await _session!.SelectProtocolAsync((StnProtocol)(grp.Key == Bus.HsCan ? _profile.HsCanPreset : _profile.MsCanPreset), ct);
                 if (grp.Key == Bus.MsCan && _profile.MsCanBaudOverride is int b) await _session.Link.SendAsync($"STPBR {b}", ct: ct);
             }
             foreach (var m in grp)

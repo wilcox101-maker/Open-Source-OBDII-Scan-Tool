@@ -30,6 +30,8 @@ public sealed class SimulatedJ2534Api : IJ2534Api
     /// <summary>False imitates a J2534-1-only device: pin-switched protocols are refused.</summary>
     public bool PinSwitching { get; set; } = true;
     public uint VbattMillivolts { get; set; } = 12_600;
+    /// <summary>True: a multi-frame reply's first-frame indication is delivered at once (as a device does when the FF arrives), not with the reply.</summary>
+    public bool EarlyFirstFrame { get; set; }
     public List<(uint Channel, PassThruMsg Msg)> Written { get; } = new();
     public List<string> Calls { get; } = new();
     public IReadOnlyDictionary<uint, Channel> Channels { get { lock (_sync) return new Dictionary<uint, Channel>(_channels); } }
@@ -113,7 +115,7 @@ public sealed class SimulatedJ2534Api : IJ2534Api
                     // ISO 15765: a reply is received only when a flow-control filter matches its ID.
                     if (!ch.Filters.Values.Any(f => f.Type == J2534Filter.FlowControl && (r.RxId & f.Mask) == (f.Pattern & f.Mask))) continue;
                     var due = now.AddMilliseconds(r.DelayMs);
-                    if (r.Payload.Length > 7) _rx.Add((due, channelId, new PassThruMsg(ch.Protocol, J2534RxStatus.StartOfMessage, 0, 0, PassThruMsg.IdBytes(r.RxId))));
+                    if (r.Payload.Length > 7) _rx.Add((EarlyFirstFrame ? now : due, channelId, new PassThruMsg(ch.Protocol, J2534RxStatus.StartOfMessage, 0, 0, PassThruMsg.IdBytes(r.RxId))));
                     _rx.Add((due, channelId, new PassThruMsg(ch.Protocol, 0, 0, 0, PassThruMsg.IdBytes(r.RxId).Concat(r.Payload).ToArray())));
                 }
             }
@@ -139,6 +141,27 @@ public sealed class SimulatedJ2534Api : IJ2534Api
             }
         }
     }
+
+    /// <summary>
+    /// Answers like the ELM simulator's SYNTHETIC vehicle, so a J2534 demo shows the same modules, DTCs and DIDs as the DEMO
+    /// port. HS-CAN (ISO15765, 500k) reaches the simulator's HS modules and the functional OBD address; MS-CAN (ISO15765_PS
+    /// 125k on 3/11) reaches its MS modules. Other setups get no answer.
+    /// </summary>
+    public static Func<Channel, uint, byte[], IEnumerable<SimReply>> FromElmSimulator(Transport.SimulatedAdapter sim) => (ch, id, req) =>
+    {
+        bool hs = ch.Protocol == J2534Protocol.Iso15765 && ch.Baud == 500_000;
+        bool ms = ch.Protocol == J2534Protocol.Iso15765Ps && ch.Baud == 125_000 && ch.Pins == 0x030B;
+        if (!(hs && (id == 0x7DF || sim.PresentModules.Contains(id))) && !(ms && sim.MsCanModules.Contains(id))) return Array.Empty<SimReply>();
+        lock (sim)
+        {
+            sim.Respond(ms ? "STP 53" : "STP 33");
+            sim.Respond($"ATSH{id:X3}");
+            var text = sim.Respond(Convert.ToHexString(req));
+            if (text is null || text.StartsWith("NO DATA", StringComparison.Ordinal) || text == "?") return Array.Empty<SimReply>();
+            var lines = text.Split('\r', '\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+            return IsoTp.ElmDiagChannel.ParseFrames(lines, false).Select(d => new SimReply(d.SourceId, d.Payload)).ToList();
+        }
+    };
 
     public uint ReadVbattMillivolts(uint deviceId) => VbattMillivolts;
     public (string Firmware, string Dll, string Api) ReadVersion(uint deviceId) => ("SIM 1.0", "SIM 1.0", "04.04");

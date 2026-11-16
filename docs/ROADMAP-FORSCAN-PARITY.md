@@ -1,13 +1,13 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.17.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.18.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.17.0)
+## Where we are (v0.18.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
-| Connect / adapters | ELM327, OBDLink, J2534 | OBDLink MX+ / EX (STN); plain ELM327 on HS-CAN only; J2534 channel in Core (ISO 15765, HS / MS / HS2 via J2534-2 pin selection, device discovery) | J2534 in the app: native DLL loader, 32-bit helper process for 32-bit drivers, adapter picker |
+| Connect / adapters | ELM327, OBDLink, J2534 | OBDLink MX+ / EX (STN); plain ELM327 on HS-CAN only; J2534 (v0.18.0): Core channel (ISO 15765, HS / MS / HS2 via J2534-2 pin selection), native driver loader, device discovery, in `obdcli` (x86 build for 32-bit drivers) | J2534 in the app (adapter picker; connection layer not yet abstracted from ELM/STN); raw-CAN J2534 bus monitor |
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
 | Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); dashboard | Wider Ford DID catalog; faster Mode 22 polling |

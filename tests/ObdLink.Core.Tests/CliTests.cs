@@ -130,4 +130,57 @@ public class CliTests
             Assert.DoesNotContain(api, src);
         Assert.Contains("Gate = new WriteGate(() => true)", src); // and every UDS client it makes refuses state-changing services
     }
+
+    // ---- J2534 ----------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task J2534_demo_info()
+    {
+        var (code, o, _) = await Run("info", "--j2534-demo", "--json");
+        Assert.Equal(0, code);
+        var j = JsonDocument.Parse(o).RootElement;
+        Assert.Equal("J2534", j.GetProperty("transport").GetString());
+        Assert.True(j.GetProperty("msCan").GetBoolean());
+        Assert.Equal("04.04", j.GetProperty("api").GetString());
+    }
+
+    [Fact]
+    public async Task J2534_demo_scan_reaches_ms_can_by_pin_selection()
+    {
+        var (code, o, _) = await Run("--j2534-demo", "scan", "--json");
+        Assert.Equal(0, code);
+        var rows = JsonDocument.Parse(o).RootElement.EnumerateArray().ToList();
+        var acm = rows.Single(r => r.GetProperty("tx").GetString() == "727");
+        Assert.True(acm.GetProperty("responded").GetBoolean());
+        Assert.Equal("MsCan", acm.GetProperty("bus").GetString());
+        Assert.Contains(rows, r => r.GetProperty("tx").GetString() == "7E0" && r.GetProperty("responded").GetBoolean());
+    }
+
+    [Fact]
+    public async Task J2534_demo_dtcs_and_asbuilt()
+    {
+        var (dc, dout, _) = await Run("dtcs", "--j2534-demo", "--module", "727", "--json");
+        Assert.Equal(0, dc);
+        Assert.Equal("727", Assert.Single(JsonDocument.Parse(dout).RootElement.EnumerateArray()).GetProperty("tx").GetString());
+        var (ac, aout, _) = await Run("asbuilt-read", "--j2534-demo", "--module", "726", "--json");
+        Assert.Equal(0, ac);
+        Assert.Equal(8, JsonDocument.Parse(aout).RootElement.GetProperty("blocks").GetInt32());
+    }
+
+    [Fact]
+    public async Task J2534_monitor_is_not_available_yet()
+    {
+        var (code, _, e) = await Run("monitor", "--j2534-demo");
+        Assert.Equal(1, code);
+        Assert.Contains("ELM327/STN", e);
+    }
+
+    [Fact]
+    public async Task J2534_list_runs_anywhere_and_an_unknown_device_is_an_error()
+    {
+        Assert.Equal(0, (await Run("j2534-list")).Code);
+        var (code, _, e) = await Run("info", "--j2534", "no-such-device-xyz");
+        Assert.Equal(1, code);
+        Assert.Contains("j2534-list", e);
+    }
 }
