@@ -1,17 +1,17 @@
-## v0.23.13
+## v0.23.14
 
-**IPMB (camera module) writes need a typed IPMB; its backups are flagged (KB-R6).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+**Module software vs the factory record, offline (W5 v1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
 
-- The community FORScan guide for the 2015+ F-150 (Livnitup, https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/) says **FORScan can't back up or restore the IPMB** (Image Processing Module B: forward camera / lane keeping, 0x7B1) correctly. This app's IPMB backup/restore has never been tested either.
-- An As-Built **write or restore of the IPMB** now asks one more question and needs **IPMB** typed; anything else stops before the backup and the write.
-- A **backup** of the IPMB (single module or "all modules") adds a note: keep the file, but don't count on a restore giving back a working camera configuration.
-- Dale's 2017 F-150 has no IPMB in its 20-module list; this matters for other trucks.
+- When **Identify vehicle** has read the modules and the vehicle's **factory .ab** (Motorcraft As-Built record) is loaded, the vehicle text now ends with a check of each module's **software / strategy (F188)**, **core assembly (F111)** and **assembly part number (F113)** against the record: how many match, and one line for each that **differs**, isn't in the record, or wasn't read. Serial numbers and the VIN are never compared.
+- It reports **differences only**. It doesn't say which version is newer or whether an update is available: on Dale's 2017 F-150 the record has PCM HL3A-14C204-**BDC** while the truck has **BDB**, and why is unknown. The line reads: *PCM (0x7E0): installed software / strategy (F188) differs from the factory record (installed HL3A-14C204-BDB, record BDC).*
+- **Offline**: compares two things you already have; nothing is downloaded. A "latest known calibration from Ford" check would need a redistributable source and isn't built.
+- Only runs when the .ab's VIN matches the identified vehicle (or either VIN is masked).
 
-Internal: `AsBuiltWritePolicy.Ipmb / IpmbPhrase / IpmbSource / BackupNote`; `ExtraSteps` adds the IPMB step; `AsBuiltPageViewModel` shows `BackupNote` after single and batch backups. Tests: 2 in `AsBuiltWritePolicyTests` (removing the step fails one).
+Internal: `Vehicles/CalibrationCheck` (`Compare` for live `ModuleIdentity` lists and for FORScan profiles, `Report`, `CalibrationStatus`); `MainViewModel.DescribeProfile` appends the report. Tests `CalibrationCheckTests` (5) on Dale's redacted FORScan profile + factory .ab fixtures: one difference (PCM F188 BDB vs BDC), live-ID mapping, no direction words, no network code; rewording to "a newer calibration is available" fails them.
 
 ### Windows + truck verify
-1. **DEMO:** if the DEMO vehicle lists an IPMB: As-Built → IPMB → change a digit → Write: the IPMB step appears; Cancel → nothing written. Back up IPMB: the result shows the note.
-2. **Truck:** none (no IPMB on Dale's truck).
+1. **DEMO:** Identify vehicle, then Import downloaded .ab (any factory .ab): the vehicle text ends with "Software vs factory record (offline): …".
+2. **Truck (Phase 1, read-only):** Identify vehicle with Dale's factory .ab loaded: expect exactly one difference, PCM F188 installed BDB vs record BDC, and everything else matching.
 
 ## v0.23.13
 
