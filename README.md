@@ -91,6 +91,7 @@ Not built, by decision: airbag/pretensioner deployment routines (E200-E2FF) and 
 | `docs/FLASHING.md` | Flash engine, error handling, what is UNVERIFIED for real Ford modules |
 | `docs/ADAPTERS.md` | OBDLink EX / MX+ detection, buses, timeouts, other adapters |
 | `docs/CLI.md` | `obdcli` reference |
+| `docs/CAPTURE-CHECKLIST.md` | One-page checklist for a capture session (FORScan through `obdcli proxy`) |
 | `PLAN.md` | Original design plan (v0.1, historical) |
 
 ## Status (v0.23.13 on master, 2026-11-16)
