@@ -92,6 +92,6 @@ table reset, DPF regeneration (diesel only), camera/radar calibrations.
 - No license server and no time-limited keys.
 
 ## Engineering prerequisites (do before phase 3)
-- Move the remaining command logic out of `MainViewModel` (about 1,460 lines) into Core services, as v0.6.1 did for As-Built write/restore, so it is testable. Started: bus routing is now `ObdLink.Core.Modules.BusRouter` (PR #13), and the live-data catalog and aggregator are in Core (v0.10.0).
+- Move the remaining command logic out of `MainViewModel` (about 1,460 lines) into Core services, as v0.6.1 did for As-Built write/restore, so it is testable. Started: bus routing is now `ObdLink.Core.Modules.BusRouter` (PR #13), the live-data catalog and aggregator are in Core (v0.10.0), and the module scan with alternate-bus retries is `ModuleScanFlow` (PR #29).
 - Replace host-side ISO-TP transmit with STN `STPX` if a bench capture shows the adapter handles flow control itself.
 - Hardware-in-the-loop check list: a bench harness (spare BCM or an ECU simulator) for every write-type feature before it touches the truck.

@@ -1005,42 +1005,24 @@ public sealed class MainViewModel : ObservableObject
     private async Task ScanAsync()
     {
         if (_session is null) throw new InvalidOperationException("Not connected");
+        var session = _session;
         var byTx = Modules.ToDictionary(r => r.Def.TxId);
-        var first = Modules.Select(r => ModuleBusMemory.ForScan(r.Def, r.Bus)).ToList();
-        var res = await new ModuleScanner(_session, Ch).ScanAsync(first,
-            new Progress<ScanResult>(r => { if (byTx.TryGetValue(r.Module.TxId, out var row)) row.Found = r.Responded ? "YES" : "no"; }));
-        // v0.3.2: modules that did not answer get one try on each other Ford bus (EX / MX+ only).
-        // The remembered bus was already used. ModuleReplies.Alternates is the fallback when Remaining is empty.
-        if (CanSwitchBus)
+        // v0.17.0: scan + alternate-bus retries live in Core (ModuleScanFlow, tested); this method only updates the grid.
+        var outcomes = await ModuleScanFlow.RunAsync((mods, p, ct) => new ModuleScanner(session, Ch).ScanAsync(mods, p, ct),
+            Modules.Select(r => new ScanTarget(r.Def, r.Bus)).ToList(), CanSwitchBus,
+            new Progress<ScanResult>(r => { if (byTx.TryGetValue(r.Module.TxId, out var row)) row.Found = r.Responded ? "YES" : "no"; }),
+            msg => EventLog.Message(LogEventLevel.Information, "Scan modules", msg));
+        foreach (var o in outcomes)
         {
-            var jobs = new List<(uint Tx, Bus Alt, ModuleDefinition Def)>();
-            foreach (var miss in res.Where(r => !r.Responded && r.Module.HasAddress && r.Module.Bus is Bus.HsCan or Bus.MsCan or Bus.HsCan2))
-            {
-                if (!byTx.TryGetValue(miss.Module.TxId, out var row)) continue;
-                var next = ModuleBusMemory.Remaining(miss.Module.Bus, row.Def.Bus);
-                if (next.Length == 0) next = ModuleReplies.Alternates(miss.Module.Bus);
-                foreach (var alt in next) jobs.Add((miss.Module.TxId, alt, miss.Module with { Bus = alt }));
-            }
-            foreach (var bus in new[] { Bus.HsCan, Bus.HsCan2, Bus.MsCan })
-            {
-                var retry = jobs.Where(j => j.Alt == bus && byTx.TryGetValue(j.Tx, out var rw) && rw.Found != "YES").Select(j => j.Def).ToList();
-                if (retry.Count == 0) continue;
-                foreach (var r in await new ModuleScanner(_session, Ch).ScanAsync(retry))
-                    if (r.Responded && byTx.TryGetValue(r.Module.TxId, out var row) && row.Found != "YES")
-                    {
-                        row.Found = "YES";
-                        var alt = r.Module.Bus;
-                        row.BusOverride = alt == row.Def.Bus ? null : alt;
-                        EventLog.Message(LogEventLevel.Information, "Scan modules", $"{row.Acronym} 0x{row.Address} answered on {ModuleReplies.BusName(alt)}");
-                    }
-            }
+            if (!byTx.TryGetValue(o.Table.TxId, out var row)) continue;
+            row.Found = o.Responded ? "YES" : "no";
+            if (o.FoundByRetry && o.AnsweredOn is Bus alt) row.BusOverride = alt == row.Def.Bus ? null : alt;
         }
         foreach (var row in Modules.Where(r => r.Found == "YES" && r.Def.HasAddress))
             NoteAnsweredBus(row, row.Bus);
         await ProbeAsBuiltAsync();
         await SelectDiagProtocol();
-        res = Modules.Select(r => new ScanResult(r.Def, r.Found == "YES", null)).ToList();
-        EventLog.Message(LogEventLevel.Information, "Scan modules", $"{res.Count(r => r.Responded)} of {res.Count} modules responded");
+        EventLog.Message(LogEventLevel.Information, "Scan modules", $"{outcomes.Count(r => r.Responded)} of {outcomes.Count} modules responded");
         RefreshBackups();
     }
 
