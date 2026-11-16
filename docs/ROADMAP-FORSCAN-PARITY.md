@@ -1,17 +1,17 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.18.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.20.1) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.18.0)
+## Where we are (v0.20.1)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
 | Connect / adapters | ELM327, OBDLink, J2534 | OBDLink MX+ / EX (STN); plain ELM327 on HS-CAN only; J2534 (v0.18.0): Core channel (ISO 15765, HS / MS / HS2 via J2534-2 pin selection), native driver loader, device discovery, in `obdcli` (x86 build for 32-bit drivers) | J2534 in the app (adapter picker; connection layer not yet abstracted from ELM/STN); raw-CAN J2534 bus monitor |
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
-| Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); dashboard | Wider Ford DID catalog; faster Mode 22 polling |
-| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused) | On-demand self-test UI and per-module routine IDs (catalog data); output state control UI (2F, plus 85 / 28 are in Core with restore leases, bench-first) |
+| Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); three dashboard pop-out windows with per-window layouts and layout files (v0.20.0) | Wider Ford DID catalog; faster Mode 22 polling |
+| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused); dashboard write cards (v0.20.0): routine start, output hold (2F with automatic release) and DID write, behind the write gate and a typed phrase | On-demand self-test UI and per-module routine IDs (catalog data); 2F output IDs per module (catalog data, bench-first); 85 / 28 UI (in Core with restore leases) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data; edit by option name from the 2015-2020 F-150 community sheet into the grid, then the normal safe write (v0.15.0) | Choose the sheet tab from the module part number; literal-digit "recipe" rows; central configuration (CCC), module reset/configuration after changes |
@@ -85,7 +85,9 @@ TPMS sensor relearn, BMS (battery monitor) reset, steering angle sensor calibrat
 table reset, DPF regeneration (diesel only), camera/radar calibrations.
 
 ### Phase 5: Beyond FORScan
-- Fully open and scriptable: **started in v0.17.0** — `obdcli` (`docs/CLI.md`): info, scan, DTCs, live data, bus monitor, As-Built read and offline option editing, read-only toward the vehicle, every command also against the simulator.
+- Fully open and scriptable: **started in v0.17.0** — `obdcli` (`docs/CLI.md`): info, scan, DTCs, live data, bus monitor, As-Built read and offline option editing, read-only toward the vehicle, every command also against the simulator. J2534 devices (v0.18.0); `vbf-info` checks a flash file offline (v0.19.0).
+- Module flashing that survives faults: **v0.19.0** journaled engine with same-counter block retry and resume on either adapter (`docs/FLASHING.md`), DEMO-tested only.
+- Shareable dashboards: **v0.20.0** layout files (`.dashboard.json`) validated on import, so a shared layout can't carry a refused write card.
 - Community database with sources and confidence on every entry, reviewable in pull requests.
 - Diff-first editing: every change shown as a before/after against the factory `.ab` from Motorcraft.
 - Simulator-first development: every feature runs against `SimulatedAdapter` and replayed real captures, so contributors don't need a truck.

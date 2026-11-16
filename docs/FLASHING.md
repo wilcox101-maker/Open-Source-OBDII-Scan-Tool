@@ -1,7 +1,8 @@
 # Module flashing (Phase 5)
 
-Status: **Core engine only, tested against a SYNTHETIC simulated module. Nothing here has flashed a real module.**
-Code: `src/ObdLink.Core/Flash/`. Tests: `tests/ObdLink.Core.Tests/FlashEngineTests.cs`.
+Status (v0.20.1): **Flash tab (v0.19.0) on the Core engine. Run end to end on Windows 11 against the SYNTHETIC simulated module (DEMO-EX, 2026-11-16, see the README screenshots). Nothing here has flashed a real module.**
+Code: `src/ObdLink.Core/Flash/` (engine), `src/ObdLink.App/FlashViewModel.cs` (tab). Tests: `tests/ObdLink.Core.Tests/FlashEngineTests.cs`.
+How to use the tab: `docs/GUIDE.md` → Flash. Check a real file offline first: `obdcli vbf-info --file x.vbf`.
 
 Policy (Dale, 2026-11-15): flashing is available on every supported adapter (OBDLink EX and MX+) with the usual warnings.
 The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is blocked by adapter type.
