@@ -1,8 +1,22 @@
-# OBDLink EX / MX+ Diagnostics for Ford (open source, MIT)
+# OBDLink EX / MX+ Scan / Diagnose / Repair (SDR) tool for Ford (source-available, PolyForm Noncommercial)
 
-A Windows diagnostic app for the **OBDLink EX** (USB) and **OBDLink MX+** (Bluetooth) STN-based adapters. The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built). It detects which adapter is connected and adjusts timeouts, buses and warnings to it. See `PLAN.md` for the design.
+A Windows **Scan / Diagnose / Repair (SDR)** tool for the **OBDLink EX** (USB) and **OBDLink MX+** (Bluetooth) STN-based adapters. It started as a diagnostic app and now covers all three steps:
+
+- **Scan:** find every module on HS-CAN, MS-CAN and HS-CAN2, read their identification, DTCs and live data, and watch the bus.
+- **Diagnose:** DTC status, freeze frames and extended data, OBD-II Mode 6 monitor results, charts, logging and triggers.
+- **Repair:** As-Built configuration with backup, read-back and undo; service procedures and routines; module flashing. Every repair feature stays behind write mode, which is off at every start.
+
+The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CAN + MS-CAN, As-Built). It detects which adapter is connected and adjusts timeouts, buses and warnings to it. See `PLAN.md` for the original design.
 
 > ⚠ Writing module configuration or flashing a module can make a vehicle inoperable. Back up first, keep a battery maintainer connected, and use this at your own risk.
+
+## Intended use: personal, on your own Ford
+
+- **For personal use only, on a Ford vehicle you own.** The project is built and tested for an owner working on their own vehicle. It is not intended for servicing other people's vehicles or for commercial shop use.
+- **No security keys or algorithms are included, now or later.** Features that need UDS SecurityAccess (0x27) use a seed/key plug-in that you supply yourself (Settings → Security access; template in `tools/SeedKeyPluginSample`). The project never ships, collects or stores keys or algorithms.
+- **Never built:** airbag/pyrotechnic deployment routines and immobilizer (anti-theft) bypass.
+- **License:** from 2026-11-16 the code is under the **PolyForm Noncommercial License 1.0.0** (`LICENSE`): personal and other noncommercial use, changes and sharing under the same terms are allowed; commercial use is not. The source stays public, but this is no longer an OSI "open source" license. Copies obtained earlier under the previous MIT license keep that license.
+- **Your own vehicle:** the license allows personal, noncommercial use; "on your own Ford" is the intended use this project is built and tested for, not an extra license term.
 
 ## Screenshots
 
@@ -153,6 +167,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.23.2 | CI (windows-latest) build + unit tests | BMS reset asks "Did you disconnect and re-connect battery recently?" first; No stops it (see v0.23.2 release notes) |
 | Windows | v0.23.3 | CI (windows-latest) build + unit tests | Clear module DTCs saves every DTC with its freeze frames and extended data to a file first (see v0.23.3 release notes) |
 | Windows | v0.23.4 | CI (windows-latest) build + unit tests | As-Built writes and service procedures return the module to the default session (10 01) when done (see v0.23.4 release notes) |
+| Windows | v0.23.5 | CI (windows-latest) build + unit tests | Close refused mid-flash; held outputs released before exit (see v0.23.5 release notes) |
 | Windows | v0.23.6 | CI (windows-latest) build + unit tests | Recover and "check unfinished write" also show the ignition-cycle advice (see v0.23.6 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 

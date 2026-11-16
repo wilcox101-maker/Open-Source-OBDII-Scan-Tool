@@ -80,7 +80,7 @@ public class V060Tests
         }
         var prov = File.ReadAllText(Path.Combine(dir, "PROVENANCE.txt"));
         Assert.Contains("generated", prov, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("MIT", prov);
+        Assert.Contains("PolyForm Noncommercial", prov);
         Assert.Contains("wood-grain.jpg", prov);
         Assert.Contains("brushed-aluminum.jpg", prov);
         Assert.Contains("gloss-black.jpg", prov);
