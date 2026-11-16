@@ -8,5 +8,5 @@
     <RootNamespace>ObdLink.Cli</RootNamespace>
     <Version>0.20.1</Version>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\..\src\ObdLink.Core\ObdLink.Core.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\ObdLink.Core\ObdLink.Core.csproj" /><ProjectReference Include="..\SeedKeyPluginSample\SeedKeyPluginSample.csproj" /></ItemGroup>
 </Project>

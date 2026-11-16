@@ -28,6 +28,8 @@ jobs:
         run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x64
       - name: Publish obdcli win-x86 (for 32-bit J2534 drivers)
         run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x86
+      - name: obdcli selftest (published win-x64 exe, simulators only)
+        run: ./publish/obdcli-win-x64/obdcli.exe selftest
       - name: SHA-256 checksums (builds are unsigned; see README "Checking a download")
         shell: pwsh
         run: |
@@ -73,3 +75,5 @@ jobs:
         run: dotnet build ObdLink.sln -c Release
       - name: Test
         run: dotnet test tests/ObdLink.Core.Tests -c Release --no-build
+      - name: obdcli selftest (simulators only)
+        run: dotnet run --project tools/ObdCli -c Release --no-build -- selftest

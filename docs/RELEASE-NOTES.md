@@ -1,3 +1,18 @@
+## v0.23.15
+
+**`obdcli vbf-info` checks a whole Ford software set; new `obdcli selftest`.** Built and unit-tested on Linux and by GitHub Actions on Windows (where CI also runs `obdcli selftest` on the published exe); simulators only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- **Set check.** `obdcli vbf-info --file sbl.vbf --file strategy.vbf --file calibration.vbf` checks each file as before, then the set together: every file for the same module (`ecu_address`), at most one SBL, its call address inside its own data, no two images writing the same address, and each image's layout valid with the SBL (the same check the flash engine runs). It prints a suggested order (EXE then DATA, from community Ford flashers: UNVERIFIED) and a set verdict. Exit 0 = the engine would accept the set, 3 = it would refuse it. `--json` adds a `set` object. One `--file` works exactly as before. It does **not** compare image addresses with the SBL's RAM area (no verified Ford memory map).
+- **Self-test.** `obdcli selftest` runs six checks against the built-in simulators and prints PASS/FAIL for each: connect to a simulated OBDLink EX; a multi-frame write read back; a flash with SBL and the journal on disk; a session lost mid-download (restart from the erase); a wrong key (module reset back, security hold recorded, no second key sent); a VBF set check. Exit 0 only when all pass. No COM port, no vehicle; temporary files only. Use it after downloading a build to confirm it works on your PC; it says nothing about a real module.
+- STPX (adapter-side segmentation) is **not** in this release: it stays parked, and ships off by default after the truck check.
+
+Internal: `Flash/FlashSet.cs` (`FlashSet.Check`, `FlashSetResult`); `tools/ObdCli/SelfTest.cs`; `Cli.VbfInfo` split into per-file + set. No seed/key provider was added: the self-test uses the documented sample plug-in (`tools/SeedKeyPluginSample`, now referenced by `obdcli`; it answers only the simulator's seed), and the wrong-key check sets the new `SimulatedFlashEcu.AcceptedKey` so that key is refused (key guard #69 unchanged). The selftest header prints the Core version. CI: `obdcli selftest` step in both `windows` (published win-x64 exe) and `linux` jobs. Tests: `FlashSetTests` (8, incl. the CLI set check and the self-test passing). Mutations checked by hand: a set check that always reports a problem, a security hold that never holds, and a simulated module that never takes the new software each make `selftest` fail.
+
+### Windows + truck verify
+1. **Windows:** download the `obdcli-win-x64` artifact, run `obdcli selftest`: six PASS lines, "All 6 checks passed.", exit 0.
+2. **Windows, offline, when you have a real Ford set:** `obdcli vbf-info --file <sbl> --file <strategy> [--file <calibration>]`: note the set verdict and any PROBLEM lines (this is the pending "real SBL + strategy set" check).
+3. **Truck:** none.
+
 ## v0.23.13
 
 **IPMB (camera module) writes need a typed IPMB; its backups are flagged (KB-R6).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

@@ -85,6 +85,8 @@ public class SimulatedFlashEcu : IDiagChannel
     public int SecurityDelaysLeft { get; set; }
     /// <summary>Wrong keys accepted before the module answers NRC 0x36 and locks.</summary>
     public int MaxKeyAttempts { get; set; } = 3;
+    /// <summary>v0.23.15: the key this simulated module accepts (default 33 22 11, the seed reversed). Set it to something else to make a correct DEMO key "wrong" (used by <c>obdcli selftest</c>, so it needs no extra seed/key provider).</summary>
+    public byte[] AcceptedKey { get; set; } = { 0x33, 0x22, 0x11 };
     public int WrongKeys { get; private set; }
     public bool SecurityLocked { get; private set; }
     /// <summary>Ford-style: the erase is refused (NRC 0x22) until a secondary bootloader was downloaded to <see cref="SblRam"/> and started
@@ -175,7 +177,7 @@ public class SimulatedFlashEcu : IDiagChannel
                     return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
                 }
                 if (SecurityLocked) return Neg(0x27, 0x36);
-                if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; WrongKeys = 0; return new byte[] { 0x67, r[1] }; }
+                if (r.AsSpan(2).SequenceEqual(AcceptedKey)) { Unlocked = true; WrongKeys = 0; return new byte[] { 0x67, r[1] }; }
                 if (++WrongKeys >= MaxKeyAttempts) { SecurityLocked = true; return Neg(0x27, 0x36); }
                 return Neg(0x27, 0x35);
             case 0x31 when r.Length >= 4: return Routine(r);
