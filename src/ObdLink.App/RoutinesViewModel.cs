@@ -48,12 +48,14 @@ public sealed class RoutinesViewModel : ObservableObject
         set
         {
             if (!Set(ref _procedure, value)) return;
-            if (value is not null) _selectModule?.Invoke(value.TxId);
+            if (ResolvedProcedure is { } t) _selectModule?.Invoke(t.TxId);
             OnPropertyChanged(nameof(ProcedureText));
         }
     }
+    /// <summary>KB-R3: the selected procedure resolved for the scanned vehicle (e.g. transmission reset on the PCM when there's no TCM).</summary>
+    public ServiceProcedure? ResolvedProcedure => _procedure is null ? null : _present is null ? _procedure : ServiceProcedures.ResolveFor(_procedure, _present);
     /// <summary>The selected procedure's card, as shown under the picker.</summary>
-    public string ProcedureText => _procedure is null ? "Pick a procedure to see what it does, when to use it and where its identifiers come from." : Card(_procedure);
+    public string ProcedureText => ResolvedProcedure is not { } t ? "Pick a procedure to see what it does, when to use it and where its identifiers come from." : Card(t);
     private readonly Action<uint>? _selectModule;
 
     public AsyncCommand RunProcedureCommand { get; }
@@ -66,9 +68,9 @@ public sealed class RoutinesViewModel : ObservableObject
 
     public RoutinesViewModel(IEventLog log, Func<UdsSessionHost?> host, Func<ModuleRow?> module, Func<ModuleRow, Func<Task>, bool, Task> onBus,
         SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null, Action<uint>? selectModule = null,
-        RoutineJournal? journal = null)
+        RoutineJournal? journal = null, Func<uint, bool?>? present = null)
     {
-        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err; _selectModule = selectModule; _journal = journal;
+        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err; _selectModule = selectModule; _journal = journal; _present = present;
         (string, object?)[] P() => new (string, object?)[] { ("module", _module()?.Label), ("addr", _module()?.Address), ("routine", RoutineId), ("option", Option) };
         AsyncCommand C(string name, Func<Task> f) => new(name, log, async () =>
         {
@@ -89,6 +91,7 @@ public sealed class RoutinesViewModel : ObservableObject
     }
 
     private readonly RoutineJournal? _journal;
+    private readonly Func<uint, bool?>? _present;
 
     /// <summary>R1: at start, list routine requests from earlier runs that never got a final answer (crash, pulled adapter, timeout).</summary>
     private void ShowUnfinished()
@@ -111,7 +114,7 @@ public sealed class RoutinesViewModel : ObservableObject
 
     private async Task RunProcedureAsync()
     {
-        var p = _procedure ?? throw new InvalidOperationException("Pick a service procedure first.");
+        var p = ResolvedProcedure ?? throw new InvalidOperationException("Pick a service procedure first.");
         if (!p.Runnable) throw new InvalidOperationException($"{p.Name}: {p.NotRunnableReason}" + (p.ManualMethod is { Count: > 0 } ? " Its tool-free method is shown under the picker." : ""));
         var (m, uds) = Target();
         if (m.Def.TxId != p.TxId) throw new InvalidOperationException($"{p.Name} is for the {p.Module} (0x{p.TxId:X3}); select it in the Module list (it is not in this vehicle's list if it can't be selected).");
@@ -136,12 +139,21 @@ public sealed class RoutinesViewModel : ObservableObject
     {
         var sb = new StringBuilder();
         sb.Append($"{p.Name}: {p.Module} 0x{p.TxId:X3}, confidence {p.Confidence}. {p.Purpose}\n");
+        if (p.TargetNote is { Length: > 0 } note) sb.Append("Target: ").Append(note).Append('\n');
         sb.Append(p.Runnable ? $"Sends {p.RequestSummary} (type {p.Phrase}).\n" : $"Can't be run here: {p.NotRunnableReason}\n");
         Section("Use when", p.UseWhen); Section("Conditions", p.Conditions); Section("Warnings", p.Warnings); Section("Afterwards", p.After);
         if (p.ManualMethod is { Count: > 0 } mm) Section("Tool-free method", mm);
         sb.Append("Sources: ").Append(string.Join("  ", p.Sources.Select(s => s.Url)));
         return sb.ToString();
         void Section(string t, IReadOnlyList<string> items) { if (items.Count > 0) sb.Append(t).Append(": ").Append(string.Join(" ", items)).Append('\n'); }
+    }
+
+    /// <summary>KB-R3: the scan (or the module list) changed: re-resolve the selected procedure's target and its card.</summary>
+    public void VehicleChanged()
+    {
+        if (ResolvedProcedure is { } t && t.TxId != _procedure!.TxId) _selectModule?.Invoke(t.TxId);
+        OnPropertyChanged(nameof(ResolvedProcedure));
+        OnPropertyChanged(nameof(ProcedureText));
     }
 
     /// <summary>Updates the session line. Call on the UI thread.</summary>

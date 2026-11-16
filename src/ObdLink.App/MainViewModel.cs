@@ -493,7 +493,9 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked,
             tx => { if (Modules.FirstOrDefault(r => r.Def.TxId == tx) is { } row) SelectedModule = row; },
-            new RoutineJournal(Path.Combine(Paths.DataDir, "routines")));
+            new RoutineJournal(Path.Combine(Paths.DataDir, "routines")),
+            tx => Modules.FirstOrDefault(r => r.Def.TxId == tx) is not { } row ? false   // not in this vehicle's module list
+                : row.Found == "YES" ? true : row.Found == "no" ? false : null);          // KB-R3: null = not scanned yet
         Flash = new FlashViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, () => _session,
             () => SelectedPort, () => _asBuilt, () => _vin, Path.Combine(Paths.DataDir, "flash"), new WindowsHostPower(), Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
@@ -836,6 +838,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         await SelectDiagProtocol();
         EventLog.Message(LogEventLevel.Information, "Scan modules", $"{outcomes.Count(r => r.Responded)} of {outcomes.Count} modules responded");
         RefreshBackups();
+        Routines.VehicleChanged(); // KB-R3: a procedure's target can change once the scan says which modules are there
     }
 
     // ---------------- v0.2.2 adapter firmware check (logic in FirmwareViewModel since v0.22.3) ----------------

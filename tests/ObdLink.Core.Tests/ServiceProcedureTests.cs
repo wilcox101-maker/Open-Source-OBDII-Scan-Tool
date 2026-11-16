@@ -88,6 +88,45 @@ public class ServiceProcedureTests
     }
 
     [Fact]
+    public void Transmission_KAM_targets_the_PCM_on_a_vehicle_without_a_TCM()
+    {
+        // KB-R3: Dale's 2017 F-150 has no TCM (20-module scan, factory .AB); the 6R80 is run by the PCM.
+        var p = ServiceProcedures.Find("tcm-kam-reset")!;
+        Assert.Equal(0x7E1u, p.TxId);
+        bool? NoTcm(uint tx) => tx switch { 0x7E1 => false, 0x7E0 => true, _ => null };
+        var r = ServiceProcedures.ResolveFor(p, NoTcm);
+        Assert.Equal(("PCM", 0x7E0u), (r.Module, r.TxId));
+        Assert.Contains("not the PCM KAM reset", r.TargetNote);
+        Assert.Equal(p.Key, r.Key);
+        Assert.False(r.Runnable); // still NeedsCapture: resolving the target never makes a procedure runnable
+
+        // A TCM that answered keeps it; before a scan nothing moves but the card says what will happen.
+        Assert.Equal(0x7E1u, ServiceProcedures.ResolveFor(p, tx => true).TxId);
+        var unscanned = ServiceProcedures.ResolveFor(p, _ => null);
+        Assert.Equal(0x7E1u, unscanned.TxId);
+        Assert.StartsWith("Scan first", unscanned.TargetNote);
+        // No PCM either: nowhere better to go, stay on the TCM.
+        Assert.Equal(0x7E1u, ServiceProcedures.ResolveFor(p, _ => false).TxId);
+        // Procedures without a fallback never move.
+        var bms = ServiceProcedures.Find("bcm-bms-reset")!;
+        Assert.Same(bms, ServiceProcedures.ResolveFor(bms, _ => false));
+    }
+
+    [Fact]
+    public void The_Routines_tab_uses_the_resolved_target_for_selection_card_and_run()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ObdLink.sln"))) dir = dir.Parent;
+        var vm = File.ReadAllText(Path.Combine(dir!.FullName, "src", "ObdLink.App", "RoutinesViewModel.cs"));
+        Assert.Contains("ServiceProcedures.ResolveFor(_procedure, _present)", vm);
+        Assert.Contains("if (ResolvedProcedure is { } t) _selectModule?.Invoke(t.TxId);", vm);
+        Assert.Contains("var p = ResolvedProcedure ?? throw", vm);
+        Assert.Contains(": Card(t);", vm);
+        var main = File.ReadAllText(Path.Combine(dir.FullName, "src", "ObdLink.App", "MainViewModel.cs"));
+        Assert.Contains("Routines.VehicleChanged();", main);
+    }
+
+    [Fact]
     public async Task A_procedure_without_identifiers_cannot_be_confirmed_or_run()
     {
         var kam = ServiceProcedures.Find("pcm-kam-reset")!;

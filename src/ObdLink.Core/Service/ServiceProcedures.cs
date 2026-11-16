@@ -35,6 +35,12 @@ public sealed record ProcedureStep(ProcedureStepKind Kind, string Text, ushort? 
 public sealed record ProcedureSource(string What, string Url);
 
 /// <summary>
+/// KB-R3: the module a procedure runs on when its own module isn't on the vehicle (e.g. transmission adaptive reset on the
+/// PCM when there's no separate TCM). <see cref="Why"/> is shown on the card and in the doc.
+/// </summary>
+public sealed record ProcedureTarget(string Module, uint TxId, string Why);
+
+/// <summary>
 /// One service procedure (FORScan "Service Procedures" / Ford IDS "Toolbox" equivalent). Everything a user needs to decide is
 /// on the record: what it does, when to use it and when not, the conditions, what to do afterwards, a tool-free method where
 /// Ford documents one, and where every identifier comes from.
@@ -43,7 +49,8 @@ public sealed record ServiceProcedure(
     string Key, string Name, string Module, uint TxId, string Purpose,
     IReadOnlyList<string> UseWhen, IReadOnlyList<string> Conditions, IReadOnlyList<string> After, IReadOnlyList<string> Warnings,
     IReadOnlyList<ProcedureStep> Steps, ProcedureConfidence Confidence, IReadOnlyList<ProcedureSource> Sources,
-    string AppliesTo, IReadOnlyList<string>? ManualMethod = null, string? Gate = null, TimeSpan? ExitSettle = null)
+    string AppliesTo, IReadOnlyList<string>? ManualMethod = null, string? Gate = null, TimeSpan? ExitSettle = null,
+    ProcedureTarget? Fallback = null, string? TargetNote = null)
 {
     /// <summary>True when the steps contain a routine to send and its identifiers are not missing.</summary>
     public bool Runnable => Confidence != ProcedureConfidence.NeedsCapture && Steps.Any(s => s.Kind == ProcedureStepKind.StartRoutine);
@@ -191,7 +198,7 @@ public static class ServiceProcedures
             Sources: new[] { new ProcedureSource("Ford PCED text on KAM reset (quoted)", KamPced) },
             AppliesTo: "Ford PCM."),
 
-        new ServiceProcedure("tcm-kam-reset", "TCM Keep Alive Memory reset / clear adaptive tables", "TCM", 0x7E1,
+        new ServiceProcedure("tcm-kam-reset", "Transmission KAM reset / clear adaptive tables (TCM, or PCM without a TCM)", "TCM", 0x7E1,
             "Clears the transmission's learned shift adaptations.",
             UseWhen: new[] { "After transmission repair, valve body or TCM replacement, fluid service where Ford asks for it, or a shift-quality TSB." },
             Conditions: new[] { "Ignition ON, engine OFF." },
@@ -200,7 +207,11 @@ public static class ServiceProcedures
             Steps: Array.Empty<ProcedureStep>(),
             Confidence: ProcedureConfidence.NeedsCapture,
             Sources: new[] { new ProcedureSource("Ford TSB (transmission relearn): TCM KAM vs adaptive tables", TcmKamTsb) },
-            AppliesTo: "6R80 / 10R80. On the 2017 F-150 3.5L NA (6R80) the TCM may be inside the PCM: the address is [UNVERIFIED]."),
+            AppliesTo: "6R80 / 10R80. On the 2017 F-150 3.5L NA (6R80) the TCM may be inside the PCM: the address is [UNVERIFIED].",
+            // KB-R3: Dale's 2017 F-150 lists 20 modules in FORScan and the factory .AB, with no TCM (docs/REAL-DATA-FINDINGS.md):
+            // the 6R80 is controlled by the PCM there [judgment], so the transmission reset belongs on the PCM.
+            Fallback: new ProcedureTarget("PCM", 0x7E0,
+                "No TCM on this vehicle (it didn't answer the scan or isn't in its module list), so the transmission is controlled by the PCM: this procedure targets the PCM (0x7E0). It is the PCM's transmission adaptive reset, not the PCM KAM reset.")),
 
         new ServiceProcedure("sas-calibration", "Steering angle sensor calibration", "ABS", 0x760,
             "Zeroes the steering angle so 0° means straight ahead (stability control, lane keeping).",
@@ -238,6 +249,23 @@ public static class ServiceProcedures
 
     public static ServiceProcedure? Find(string key) => All.FirstOrDefault(p => p.Key == key);
 
+    /// <summary>
+    /// KB-R3: the procedure as it applies to the scanned vehicle. <paramref name="present"/> says whether a module answered
+    /// (true), is known to be absent (false: no reply, or not in this vehicle's module list), or isn't known yet (null: not scanned).
+    /// A procedure with a <see cref="ServiceProcedure.Fallback"/> moves to it only when its own module is known to be absent and
+    /// the fallback isn't. Before a scan nothing moves; the note says so.
+    /// </summary>
+    public static ServiceProcedure ResolveFor(ServiceProcedure p, Func<uint, bool?> present)
+    {
+        if (p.Fallback is not { } f) return p;
+        var own = present(p.TxId);
+        if (own == false && present(f.TxId) != false)
+            return p with { Module = f.Module, TxId = f.TxId, TargetNote = f.Why };
+        if (own is null)
+            return p with { TargetNote = $"Scan first: on a vehicle without a {p.Module} this procedure targets the {f.Module} (0x{f.TxId:X3}) instead." };
+        return p;
+    }
+
     /// <summary>Catalog checks (also run by the tests): unique keys, no refused routine, identifiers only where a source is cited.</summary>
     public static IEnumerable<string> Problems(IEnumerable<ServiceProcedure>? catalog = null)
     {
@@ -251,6 +279,8 @@ public static class ServiceProcedures
                 if (UdsRoutines.RefusalReason(s.RoutineId!.Value) is string why) yield return $"{p.Key}: routine 0x{s.RoutineId:X4} is refused ({why})";
             if (p.Confidence == ProcedureConfidence.NeedsCapture && p.Steps.Count > 0) yield return $"{p.Key}: needs capture but has steps";
             if (p.Confidence != ProcedureConfidence.NeedsCapture && !p.Runnable) yield return $"{p.Key}: has identifiers but no routine";
+            if (p.Fallback is { } f && f.TxId == p.TxId) yield return $"{p.Key}: fallback is the same module";
+            if (p.TargetNote is not null) yield return $"{p.Key}: TargetNote is set by ResolveFor only";
         }
     }
 }
