@@ -74,6 +74,12 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 - VBF layout and per-block CRC-16/CCITT come from community descriptions, not Ford documentation; no real file parsed yet.
   A block checksum mismatch rejects the file. **Check a real file first:** `obdcli vbf-info --file x.vbf` reports per block
   whether the stored checksum is CCITT-FALSE or which other common checksum it matches (exit 3 = the app would refuse it).
+  For a full Ford software set, repeat `--file` (SBL + strategy + calibration, v0.23.15): the files are also checked together
+  (one module, at most one SBL whose call address is inside its own data, no two images writing the same address, each image's
+  layout valid with the SBL). The suggested order (EXE then DATA, SBL loaded with each) follows community Ford flashers: UNVERIFIED.
+  The set check does **not** compare image addresses with the SBL's RAM area (no verified Ford memory map).
+- `obdcli selftest` (v0.23.15) runs the flash paths end to end on the simulated bootloader (SBL + image, session lost
+  mid-download, wrong key → hold). It proves the build works on your PC; it says nothing about a real module.
 - Ford security level for programming, erase option record layout and FF01 status meaning are per module and not public.
   `FlashPlan` exposes all three.
 - SBL start routine 0x0301 with a 4-byte call address and the commit routine 0x0304 come from an open-source community flasher

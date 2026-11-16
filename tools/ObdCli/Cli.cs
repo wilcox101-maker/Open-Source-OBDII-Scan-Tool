@@ -47,8 +47,12 @@ public static class Cli
           asbuilt-read --module 726 [--out file.abt]  read every As-Built block of a module
           options --abt file.abt [--tab NAME] [--search TEXT] [--set "ADDR PATTERN=DIGITS"]... [--out new.abt]
                                                       offline: list or edit As-Built options of a FORScan .abt file
-          vbf-info --file image.vbf                   offline: check a VBF flash file against this tool's reader (header,
-                                                      blocks, checksums). Exit 3 if the app would refuse to flash it
+          vbf-info --file image.vbf [--file …]        offline: check a VBF flash file against this tool's reader (header,
+                                                      blocks, checksums). Exit 3 if the app would refuse to flash it.
+                                                      Repeat --file for a Ford set (SBL + strategy + calibration): also
+                                                      checked together (one module, one SBL, no overlaps, layout)
+          selftest                                    offline: end-to-end checks on the built-in simulators (adapter,
+                                                      long request, flash with SBL, session loss, wrong key). Exit 0 = all pass
           proxy --port COM5 [--baud 115200] [--listen 35000] --log capture.txt
                                                       capture: relay another program (set to a Wi-Fi adapter at
                                                       127.0.0.1:35000) to the adapter and log every command and reply.
@@ -73,6 +77,7 @@ public static class Cli
             {
                 "options" => Options(a, o),
                 "vbf-info" => VbfInfo(a, o),
+                "selftest" => await SelfTest.RunAsync(o),
                 "j2534-list" => J2534List(a, o),
                 "capture-summary" => CaptureSummaryCmd(a, o),
                 "proxy" => await ProxyAsync(a, o, e, serial, ct),
@@ -492,25 +497,60 @@ public static class Cli
     /// <summary>Offline: inspects a VBF file and says whether the flash engine's reader accepts it. Never touches a vehicle.</summary>
     private static int VbfInfo(Args a, TextWriter o)
     {
-        var path = a.Get("file") ?? throw new FormatException("vbf-info needs --file image.vbf");
+        var paths = a.All("file");
+        if (paths.Count == 0) throw new FormatException("vbf-info needs --file image.vbf (repeat --file to check a set: SBL + strategy + calibration)");
+        bool json = a.Has("json");
+        if (paths.Count == 1)
+        {
+            int code = VbfFile(o, paths[0], json, out _, out var single);
+            if (json) Json(o, single);
+            return code;
+        }
+        // v0.23.15: a whole Ford software set, file by file, then together.
+        var images = new List<ObdLink.Core.Flash.FlashImage>();
+        var perFile = new List<object>();
+        bool allAccepted = true;
+        foreach (var p in paths)
+        {
+            if (!json) o.WriteLine();
+            allAccepted &= VbfFile(o, p, json, out var img, out var fileJson) == 0;
+            perFile.Add(fileJson);
+            if (img is not null) images.Add(img);
+        }
+        var set = ObdLink.Core.Flash.FlashSet.Check(images);
+        if (json)
+            Json(o, new { files = perFile, set = new { ok = set.Ok && allAccepted, module = set.TxId is uint t ? $"0x{t:X3}" : null, sbl = set.Sbl?.Name, order = set.Images.Select(i => i.Name), problems = set.Problems, notes = set.Notes } });
+        else
+        {
+            o.WriteLine();
+            o.WriteLine($"Set: {paths.Count} files" + (set.TxId is uint tx ? $" for module 0x{tx:X3}" : ""));
+            foreach (var n in set.Notes) o.WriteLine("  Note: " + n);
+            foreach (var p in set.Problems) o.WriteLine("  PROBLEM: " + p);
+            o.WriteLine(set.Ok && allAccepted ? "Set verdict: the flash engine would accept this set." : "Set verdict: the flash engine would REFUSE this set (see above).");
+        }
+        return set.Ok && allAccepted ? 0 : 3;
+    }
+
+    private static int VbfFile(TextWriter o, string path, bool json, out ObdLink.Core.Flash.FlashImage? image, out object jsonView)
+    {
+        image = null;
         var bytes = File.ReadAllBytes(path);
         var ins = ObdLink.Core.Flash.VbfReader.Inspect(bytes);
         IReadOnlyList<string> warnings = Array.Empty<string>();
         string? sha = null, refused = null;
         if (ins.ReaderAccepts)
         {
-            try { var img = ObdLink.Core.Flash.VbfReader.Parse(bytes, Path.GetFileName(path)); warnings = img.Warnings; sha = img.Sha256; }
+            try { var img = ObdLink.Core.Flash.VbfReader.Parse(bytes, Path.GetFileName(path)); warnings = img.Warnings; sha = img.Sha256; image = img; }
             catch (ObdLink.Core.Flash.FlashImageException ex) { refused = ex.Message; }
         }
         else refused = ins.Error ?? "one or more block checksums do not match CRC-16/CCITT-FALSE";
-        if (a.Has("json"))
-            Json(o, new
-            {
-                file = Path.GetFileName(path), bytes = bytes.Length, sha256 = sha, accepted = refused is null, refused, header = ins.Header,
-                blocks = ins.Blocks.Select(b => new { address = $"0x{b.Address:X8}", length = b.Length, stored = $"0x{b.StoredChecksum:X4}", ccitt = $"0x{b.ExpectedCcitt:X4}", matches = b.Matches, alternative = b.AlternativeMatch }),
-                warnings,
-            });
-        else
+        jsonView = new
+        {
+            file = Path.GetFileName(path), bytes = bytes.Length, sha256 = sha, accepted = refused is null, refused, header = ins.Header,
+            blocks = ins.Blocks.Select(b => new { address = $"0x{b.Address:X8}", length = b.Length, stored = $"0x{b.StoredChecksum:X4}", ccitt = $"0x{b.ExpectedCcitt:X4}", matches = b.Matches, alternative = b.AlternativeMatch }),
+            warnings,
+        };
+        if (!json)
         {
             o.WriteLine($"File: {Path.GetFileName(path)} ({bytes.Length:N0} bytes)" + (sha is null ? "" : $"  SHA-256 {sha}"));
             foreach (var (k, v) in ins.Header) o.WriteLine($"  {k} = {(v.Length > 120 ? v[..117] + "..." : v)}");
