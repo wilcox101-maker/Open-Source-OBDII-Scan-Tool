@@ -1,3 +1,24 @@
+## v0.15.0
+
+**Phase 3 start: As-Built options by name.** Includes v0.14.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.15.0.zip`** (normal Intel/AMD PCs).
+
+As-Built tab, new **Options (community sheet)** panel under the grid (Compare to factory moved to the tab next to it):
+- **Refresh** lists the options the 2015-2020 F-150 community sheet (Livnitup, now shipped inside the app) documents for the lines in the grid. It shows the current digits and their meaning.
+- **Sheet tab**: tabs describe the same address differently (for example SYNC 1 vs SYNC 3). The default for APIM, BCM and ABS comes from the 2017 F-150 profile; pick the tab that matches your module.
+- **New**: pick a documented value from the list (hover for all meanings) or type raw digits. **Search** and **Changed only** filter the list; pending values are kept while filtered out.
+- **Apply to grid** changes only the option's digits and recomputes each changed line's checksum. Two options that set the same digit differently are refused. **Nothing is written to the module here.** Then use **Write + verify…** per block: backup, confirmations, typed WRITE and read-back as before.
+- Only rows that mark their digits with `*` are offered. Sheet rows with literal digits ("recipes") are not editable here.
+- The meanings are community-reported, not Ford's. Compare with FORScan before writing.
+
+Internal: Core `FeatureOption` (load, value parsing), `AsBuiltEditor.ApplyAll`; the sheet is embedded in Core.
+
+### Windows + truck verify
+1. DEMO: As-Built → BCM (726) → Read all blocks → Options → Refresh (the sheet has no PCM options). A tab is chosen and options are listed with Now / Meaning. Change one value: State shows "changed". Apply to grid: that line's Data and Check change, and OK stays ticked. Write + verify… on that block runs the usual backup and confirmations (DEMO).
+2. DEMO: set two options that share a digit to conflicting values → Apply refuses with "Conflicting changes…".
+3. Truck (read-only ON): APIM 7D0 and BCM 726 → Read all blocks → Options → Refresh. For a few options you know, compare Now/Meaning with FORScan's decoded view. **Do not write** until the meanings match FORScan for that module.
+
 ## v0.14.0
 
 **Faster OBD-II live data. Read-only.** Includes v0.13.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

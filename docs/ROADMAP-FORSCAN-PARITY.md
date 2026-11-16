@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.14.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.15.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.14.0)
+## Where we are (v0.15.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -14,7 +14,7 @@ This file compares what the app does today (v0.14.0) with FORScan's feature grou
 | Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused) | On-demand self-test UI and per-module routine IDs (catalog data); output state control UI (2F, plus 85 / 28 are in Core with restore leases, bench-first) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
-| Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
+| Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data; edit by option name from the 2015-2020 F-150 community sheet into the grid, then the normal safe write (v0.15.0) | Choose the sheet tab from the module part number; literal-digit "recipe" rows; central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | None | Not started |
 | Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, UDS session keep-alive (v0.11.0) | Battery-maintainer detection |
 
@@ -68,8 +68,8 @@ cursor that shows every signal's value at one instant; right-click to remove one
 Datalogger, which works on one module at a time, allow signals from several modules in one chart.
 
 ### Phase 3: Configuration editor (decoded As-Built)
-1. Decode profiles per module/firmware: named options mapped to bits (the community-db schema already exists; add an editor).
-2. Edit by option name, show the resulting raw lines and checksums, write through the v0.6.1 safe path (length, checksum, backup, read-back).
+1. Decode profiles per module/firmware: named options mapped to bits. **v0.15.0:** editor for `*` options of the 2015-2020 F-150 sheet (shipped in Core), tab chosen by hand (default from `DecodeProfile`). Open: pick the tab from the module part number (F188/F111).
+2. **Done in v0.15.0:** edit by option name (value list or raw digits, conflicting edits refused), resulting raw lines and checksums shown in the grid, written through the v0.6.1 safe path (length, checksum, backup, read-back).
 3. Central configuration (CCC): read and edit, with module reset/relearn steps after changes.
 4. Undo stack per session, and a change history saved next to the backups.
 
