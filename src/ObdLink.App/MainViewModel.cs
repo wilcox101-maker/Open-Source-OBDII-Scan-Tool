@@ -196,6 +196,7 @@ public sealed class MainViewModel : ObservableObject
     public LiveDataViewModel LiveData { get; }
     public RoutinesViewModel Routines { get; }
     public BusMonitorViewModel Monitor { get; }
+    public AsBuiltOptionsViewModel AsBuiltOptions { get; }
     /// <summary>Why adapter commands are refused right now (the bus monitor owns the adapter), or null.</summary>
     private string? AdapterBlocked() => Monitor is { Running: true } ? "The bus monitor is using the adapter. Press Stop on the Bus Monitor tab first." : null;
     /// <summary>Per-module UDS clients for this connection; keeps non-default sessions alive (3E 80) under <see cref="_bus"/>.</summary>
@@ -509,6 +510,7 @@ public sealed class MainViewModel : ObservableObject
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
         LiveData.Blocked = AdapterBlocked;
+        AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltRows.ToList());
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         InitSeedKey(Err);

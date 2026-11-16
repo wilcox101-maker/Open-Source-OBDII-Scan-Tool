@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ObdLink.Core</RootNamespace>
-    <Version>0.14.0</Version>
+    <Version>0.15.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Data\*.json" />
+    <EmbeddedResource Include="..\..\community-db\f150-asbuilt\features.json" LogicalName="community-f150-2015-2020-features.json" />
   </ItemGroup>
 </Project>

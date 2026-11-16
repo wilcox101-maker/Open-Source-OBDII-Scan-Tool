@@ -469,14 +469,50 @@
               <Button Command="{Binding ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
             </WrapPanel>
             <TextBlock DockPanel.Dock="Top" Margin="3" Text="{Binding FactoryInfo}" TextWrapping="Wrap"/>
-            <DataGrid DockPanel.Dock="Bottom" Height="150" ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
-              <DataGrid.Columns>
-                <DataGridTextColumn Header="Address" Binding="{Binding Address}"/>
-                <DataGridTextColumn Header="Factory (.ab)" Binding="{Binding Factory}" Width="*"/>
-                <DataGridTextColumn Header="Current (module)" Binding="{Binding Current}" Width="*"/>
-                <DataGridTextColumn Header="Diff" Binding="{Binding Kind}"/>
-              </DataGrid.Columns>
-            </DataGrid>
+            <TabControl DockPanel.Dock="Bottom" Height="300">
+              <TabItem Header="Options (community sheet)" DataContext="{Binding AsBuiltOptions}">
+                <DockPanel>
+                  <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
+                    <Button Command="{Binding RefreshCommand}" Margin="0,0,6,0" ToolTip="List the community options for the lines now in the grid"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Refresh"/></StackPanel></Button>
+                    <TextBlock Text="Sheet tab" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" MinWidth="180" Margin="0,0,8,0" ToolTip="Tabs describe the same address differently (e.g. SYNC 1 vs SYNC 3). Pick the tab that matches this module's part number."/>
+                    <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBox Width="160" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                    <CheckBox Content="Changed only" IsChecked="{Binding ChangedOnly}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Button Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryStyle}" Margin="0,0,4,0" ToolTip="Puts the new values into the grid lines and fixes their checksums. Nothing is written to the module."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE73E;"/><TextBlock Text="Apply to grid"/></StackPanel></Button>
+                    <Button Command="{Binding ResetCommand}" Content="Discard pending"/>
+                  </WrapPanel>
+                  <TextBlock DockPanel.Dock="Top" Margin="2,0,2,4" TextWrapping="Wrap" Foreground="{DynamicResource Warn}" Text="{Binding Info}"/>
+                  <DataGrid ItemsSource="{Binding Options}" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Address" Binding="{Binding Address}" IsReadOnly="True" FontFamily="{StaticResource Mono}"/>
+                      <DataGridTextColumn Header="Option" Binding="{Binding Description}" IsReadOnly="True" Width="2*"/>
+                      <DataGridTextColumn Header="Now" Binding="{Binding CurrentDigits}" IsReadOnly="True" FontFamily="{StaticResource Mono}"/>
+                      <DataGridTextColumn Header="Meaning" Binding="{Binding CurrentMeaning}" IsReadOnly="True" Width="2*"/>
+                      <DataGridTemplateColumn Header="New" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate>
+                            <ComboBox IsEditable="True" ItemsSource="{Binding Choices}" Text="{Binding NewValue, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" ToolTip="{Binding ChoicesText}"/>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                      <DataGridTextColumn Header="New meaning" Binding="{Binding NewMeaning}" IsReadOnly="True" Width="2*"/>
+                      <DataGridTextColumn Header="State" Binding="{Binding State}" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                  </DataGrid>
+                </DockPanel>
+              </TabItem>
+              <TabItem Header="Compare to factory">
+                <DataGrid ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Address" Binding="{Binding Address}"/>
+                    <DataGridTextColumn Header="Factory (.ab)" Binding="{Binding Factory}" Width="*"/>
+                    <DataGridTextColumn Header="Current (module)" Binding="{Binding Current}" Width="*"/>
+                    <DataGridTextColumn Header="Diff" Binding="{Binding Kind}"/>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </TabItem>
+            </TabControl>
             <TextBlock DockPanel.Dock="Bottom" Margin="3" TextWrapping="Wrap" Foreground="{DynamicResource Warn}"
                        Text="Edit Data (hex, no checksum), then type the matching value in Check (as in FORScan). Only lines of the selected module and block are written, and the length must match the module. Block→DID mapping (DE00+n-1) is an UNVERIFIED community convention."/>
             <DataGrid ItemsSource="{Binding AsBuiltRows}" AutoGenerateColumns="False" CanUserAddRows="False" FontFamily="{StaticResource Mono}">
