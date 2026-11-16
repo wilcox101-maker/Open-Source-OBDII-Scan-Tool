@@ -181,8 +181,9 @@ public sealed class FlashViewModel : ObservableObject
     {
         var (m, plan) = Target();
         var uds = Client(m, plan);
+        bool open = FlashJournalState.From(Journal(m).ReadAll()).Open;   // an open job: recovery checks (the module may be in its bootloader)
         FlashPreflightReport? rep = null;
-        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart));
+        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart, resume: open));
         Preflight.Clear();
         foreach (var i in rep!.Items) Preflight.Add(i);
         int warn = rep.Warnings.Count(), fail = rep.Items.Count(i => i.Status == PreflightStatus.Fail);
@@ -205,7 +206,7 @@ public sealed class FlashViewModel : ObservableObject
         // Hard preflight checks run again right before the confirmation, so a stale report can't be used.
         var uds = Client(m, plan);
         FlashPreflightReport? rep = null;
-        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart));
+        await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart, resume: resume));
         Preflight.Clear(); foreach (var i in rep!.Items) Preflight.Add(i);
         if (!rep.CanFlash) throw new FlashPreflightException(rep);
         await _safety().RequireAsync(FlashWarnings.For(plan, _session()?.Profile));

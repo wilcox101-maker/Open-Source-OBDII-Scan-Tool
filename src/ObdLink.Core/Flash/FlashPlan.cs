@@ -142,7 +142,7 @@ public static class FlashPreflight
 
     public static async Task<FlashPreflightReport> RunAsync(UdsClient uds, FlashPlan plan, Func<CancellationToken, Task<double?>> readVoltage,
         AdapterProfile? adapter, IHostPower? host = null, Func<UdsClient, CancellationToken, Task<string?>>? readModulePart = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool resume = false)
     {
         host ??= UnknownHostPower.Instance;
         var items = new List<PreflightItem>();
@@ -180,7 +180,20 @@ public static class FlashPreflight
         }
         int lost = LinkProbes - answered;
         string stats = times.Count > 0 ? $"{answered}/{LinkProbes} answered, avg {times.Average():0} ms, max {times.Max():0} ms" : "no answers";
-        items.Add(lost switch
+        if (resume && lost >= 2)
+        {
+            // Recovery: a module stuck in its bootloader may ignore TesterPresent in its default session but still answer a
+            // programming-session request. Any answer (positive or negative) proves it is alive and reachable.
+            bool alive;
+            try { await uds.RequestAsync(new byte[] { 0x10, 0x02 }, ct); alive = true; }
+            catch (UdsNegativeResponseException) { alive = true; }
+            catch (Exception ex) when (ex is TimeoutException or IOException or IsoTp.DiagLinkException or InvalidDataException) { alive = false; }
+            items.Add(alive
+                ? new("Link", PreflightStatus.Warn, stats + ". The module ignores TesterPresent but answers a programming-session request (bootloader): recovery can continue.")
+                : new("Link", PreflightStatus.Fail, stats + ", and no answer to a programming-session request. Turn the ignition OFF for 10 s and ON, check the battery charger, " +
+                    "use the wired OBDLink EX, wait 10 s (security delay), then run the checks again. Don't loop: if it stays silent, stop and keep the journal and backup."));
+        }
+        else items.Add(lost switch
         {
             0 => new("Link", PreflightStatus.Pass, stats),
             1 => new("Link", PreflightStatus.Warn, stats + ". One probe was lost; keep the PC close and still."),

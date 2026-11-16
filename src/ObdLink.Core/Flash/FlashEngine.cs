@@ -92,7 +92,31 @@ public sealed class FlashEngine
         {
             SetPhase(FlashPhase.Preflight, resume ? $"resuming open job (attempt {st.Attempts + 1})" : "checking battery");
             await EnsureVoltageAsync(waitIfLow: resume);
-            if (resume) Write(FlashJournalKind.Resumed, detail: $"attempt {st.Attempts + 1}");
+            if (resume)
+            {
+                // A job interrupted after the reset may already run the new software: check before erasing anything again.
+                if (st.ReachedReset && ReadModulePart is not null && _plan.Image.SoftwarePartNumber is string wantPart)
+                {
+                    string? now = null;
+                    try { now = await ReadModulePart(uds, none); }
+                    catch (Exception ex) when (ex is not OperationCanceledException) { Log.Information("Flash resume: part number not readable ({Err}); flashing again", ex.Message); }
+                    if (now is not null && Normalize(now).Contains(Normalize(wantPart), StringComparison.Ordinal))
+                    {
+                        string done = $"Module already reports {now}: the flash finished before the link was lost. Nothing was sent again.";
+                        Write(FlashJournalKind.Completed, detail: done);
+                        SetPhase(FlashPhase.Done, done);
+                        return new FlashResult(true, now, 0, sw.Elapsed, st.Attempts, done);
+                    }
+                }
+                Write(FlashJournalKind.Resumed, detail: $"attempt {st.Attempts + 1}");
+                // A job stopped before its backup was saved, while the module was still running its application: back up now.
+                if (st.BackupRef is null && !st.ReachedProgramming && Backup is not null)
+                {
+                    SetPhase(FlashPhase.Backup, "saving backup (missing from the interrupted job)");
+                    Write(FlashJournalKind.Backup, detail: await Backup(none));
+                }
+                else if (st.BackupRef is null) Log.Warning("Flash resume: the job has no backup and the module may be in its bootloader (no backup possible)");
+            }
             else
             {
                 Write(FlashJournalKind.Started, detail: _plan.Image.Name, sha: _plan.Image.Sha256, tx: _plan.TxId);

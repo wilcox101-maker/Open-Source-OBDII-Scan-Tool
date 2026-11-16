@@ -9,6 +9,7 @@ public sealed record SimFlashFault(SimFlashFaultKind Kind, byte Nrc = 0)
     public static readonly SimFlashFault DropResponse = new(SimFlashFaultKind.DropResponse);
     public static readonly SimFlashFault Pending = new(SimFlashFaultKind.Pending);
     public static readonly SimFlashFault LinkDown = new(SimFlashFaultKind.LinkDown);
+    public static readonly SimFlashFault LinkDownAfter = new(SimFlashFaultKind.LinkDownAfter);
     public static SimFlashFault Negative(byte nrc) => new(SimFlashFaultKind.Nrc, nrc);
 }
 
@@ -24,6 +25,8 @@ public enum SimFlashFaultKind
     LinkDown,
     /// <summary>The module answers this NRC without processing the request.</summary>
     Nrc,
+    /// <summary>The module processes the request, then the adapter/port dies before the answer arrives (IOException from then on).</summary>
+    LinkDownAfter,
 }
 
 /// <summary>
@@ -64,6 +67,8 @@ public class SimulatedFlashEcu : IDiagChannel
     /// <summary>Drops the session right now, as an S3 timeout would (for fault injection).</summary>
     public void DropSession() { Session = 0x01; Unlocked = false; _dl = null; SessionTimeouts++; }
     private DateTime? _lastRequest;
+    /// <summary>Some bootloaders ignore TesterPresent in their default session (no answer at all). Recovery must still reach them.</summary>
+    public bool IgnoreTesterPresentInBootloader { get; set; }
 
     public List<byte[]> Calls { get; } = new();
     public int TransferBlocksWritten { get; private set; }
@@ -108,6 +113,7 @@ public class SimulatedFlashEcu : IDiagChannel
         var answer = Handle(request);
         switch (fault?.Kind)
         {
+            case SimFlashFaultKind.LinkDownAfter: LinkDown = true; throw new IOException("The port is closed (simulated adapter unplugged after the request)");
             case SimFlashFaultKind.DropResponse: return Result();
             case SimFlashFaultKind.Pending:
                 if (answer is not null) Deferred.Enqueue(answer);
@@ -126,6 +132,7 @@ public class SimulatedFlashEcu : IDiagChannel
         byte sid = r[0];
         switch (sid)
         {
+            case 0x3E when IgnoreTesterPresentInBootloader && InBootloader && Session == 0x01: return null;
             case 0x3E: return (r.Length > 1 && (r[1] & 0x80) != 0) ? null : new byte[] { 0x7E, 0x00 };
             case 0x10 when r.Length >= 2:
                 byte s = (byte)(r[1] & 0x7F);
