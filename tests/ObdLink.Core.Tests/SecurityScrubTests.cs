@@ -175,6 +175,11 @@ public class SecurityScrubTests
         // v0.16.0: undo of the last As-Built write is a restore, so it never hunts another bus either.
         Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", ab);
         Assert.Equal(3, Count(ab, "allowFallback: false"));
+        // Compare to factory reads through OnBus (the module's bus), not straight from the service, and restarts its list per attempt.
+        Assert.Contains("await OnBus(m, async () =>\n        {\n            current.Clear();", ab.Replace("\r\n", "\n"));
+        // Every module command's can-execute is refreshed, Undo included.
+        foreach (var c in new[] { "ReadAllBlocks", "ReadAsBuilt", "BackupAsBuilt", "WriteAsBuilt", "CompareToFactory", "RestoreAsBuilt", "UndoAsBuilt" })
+            Assert.Contains($"{c}Command.RaiseCanExecuteChanged();", ab);
         // The host passes the flag through unchanged.
         Assert.Contains("Task IAsBuiltHost.OnBus(ModuleRow m, Func<Task> work, bool allowFallback) => OnBus(m, work, allowFallback);", src);
         // DTC clear (moved to DtcViewModel): the only OnBus call there with fallback off, on the selected module's own bus.

@@ -145,6 +145,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         WriteAsBuiltCommand.RaiseCanExecuteChanged();
         CompareToFactoryCommand.RaiseCanExecuteChanged();
         RestoreAsBuiltCommand.RaiseCanExecuteChanged();
+        UndoAsBuiltCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>Refuses a module known to have no As-Built (NRC 0x31 on DE00) before anything is sent.</summary>
@@ -274,12 +275,19 @@ public sealed class AsBuiltPageViewModel : ObservableObject
     private async Task CompareAsync()
     {
         if (Factory is not { } factory) throw new InvalidOperationException("Import a factory .ab first");
-        if (_host.SelectedModule is { } m) RequireAsBuilt(m);
-        var module = (ushort)(_host.SelectedModule?.Def.TxId ?? throw new InvalidOperationException("Select a module in the module list first"));
+        if (_host.SelectedModule is not { } m) throw new InvalidOperationException("Select a module in the module list first");
+        RequireAsBuilt(m);
+        var module = (ushort)m.Def.TxId;
         var current = new List<AsBuiltLine>();
-        foreach (var b in factory.Blocks(module))
-            current.AddRange(factory.SplitLike(module, b, (await AsBuilt.ReadBlockAsync(module, b)).Data));
-        if (_host.SelectedModule is { } ok) _host.MarkAsBuilt(ok, AsBuiltSupport.Supported);
+        // Read on the module's own bus like every other read (MS-CAN modules switch the adapter). The router may run the
+        // work again on the other bus after a failure, so each attempt starts from an empty list (no duplicated lines).
+        await OnBus(m, async () =>
+        {
+            current.Clear();
+            foreach (var b in factory.Blocks(module))
+                current.AddRange(factory.SplitLike(module, b, (await AsBuilt.ReadBlockAsync(module, b)).Data));
+        });
+        _host.MarkAsBuilt(m, AsBuiltSupport.Supported);
         ShowDiff(AsBuiltDiff.Compare(factory.Lines, current, module));
         _log.Message(LogEventLevel.Information, "Compare to factory", DiffSummary(FactoryDiff));
     }
