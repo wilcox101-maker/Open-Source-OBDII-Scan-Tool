@@ -95,24 +95,11 @@ public sealed record AsBuiltHistoryRow(AsBuiltChange Change)
     public string Note => Change.Note;
 }
 
-public sealed record DtcRow(string Source, string Code, string Status, string Description)
-{
-    /// <summary>v0.8.0: plain-English status (confirmed / pending / history, failing now, lamp).</summary>
-    public string State { get; init; } = "";
-    /// <summary>Module transmit id for UDS DTCs (null for OBD-II rows). Hidden from the grid; used by Details.</summary>
-    [System.ComponentModel.Browsable(false)] public uint? ModuleTx { get; init; }
-    [System.ComponentModel.Browsable(false)] public uint? RawDtc { get; init; }
-    [System.ComponentModel.Browsable(false)] public byte RawStatus { get; init; }
-    public static DtcRow FromUds(string label, uint tx, ObdLink.Core.Uds.DtcRecord d, string description) =>
-        new(label, d.Display, $"0x{d.Status:X2}", description) { State = ObdLink.Core.Dtc.DtcStatusBits.Summary(d.Status), ModuleTx = tx, RawDtc = d.Code, RawStatus = d.Status };
-}
-
 public sealed class MainViewModel : ObservableObject
 {
     private static readonly PortInfo DemoMx = new("DEMO-MX+", "Simulated OBDLink MX+", PortKind.Virtual);
     private static readonly PortInfo DemoEx = new("DEMO-EX", "Simulated OBDLink EX", PortKind.Virtual);
     private readonly IConfirmationProvider _confirm;
-    private readonly DtcDatabase _dtcDb = DtcDatabase.LoadEmbedded();
     private static ObdLink.Core.Storage.AppPaths Paths => ObdLink.Core.Storage.AppPaths.Current;
     private string LogDir => Paths.LogsDir;
     public string DataDir => Paths.DataDir;
@@ -131,22 +118,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<PortInfo> Ports { get; } = new();
     public ObservableCollection<string> Vehicles { get; } = new(VehicleProfiles.All);
     public ObservableCollection<ModuleRow> Modules { get; } = new();
-    public ObservableCollection<DtcRow> Dtcs { get; } = new();
     public ObservableCollection<AsBuiltRow> AsBuiltRows { get; } = new();
-    public AsyncCommand ReadPendingDtcsCommand { get; private set; } = null!;
-    public AsyncCommand ReadPermanentDtcsCommand { get; private set; } = null!;
-    public AsyncCommand ReadFreezeFrameCommand { get; private set; } = null!;
-    public AsyncCommand DtcDetailsCommand { get; private set; } = null!;
-    private DtcRow? _selectedDtc; public DtcRow? SelectedDtc { get => _selectedDtc; set => Set(ref _selectedDtc, value); }
-
-    private async Task ReadObdListAsync(byte service, string label)
-    {
-        if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol();
-        Dtcs.Clear();
-        foreach (var (ecu, code) in await ObdLink.Core.Dtc.ObdDtcExtras.ReadListAsync(Ch, service))
-            Dtcs.Add(new($"{ecu:X3}", code, label, _dtcDb.Describe(code)) { State = label });
-        EventLog.Message(LogEventLevel.Information, $"Read {label} DTCs", $"{Dtcs.Count} DTCs");
-    }
     /// <summary>Factory reference baseline (Ford motorcraftservice.com .ab). Read-only reference. It is never written to a module automatically.</summary>
     private FordAbFile? _factory;
     private string _factoryInfo = "No factory .ab loaded"; public string FactoryInfo { get => _factoryInfo; set => Set(ref _factoryInfo, value); }
@@ -209,6 +181,8 @@ public sealed class MainViewModel : ObservableObject
     public DashboardViewModel Dashboard { get; }
     public LiveDataViewModel LiveData { get; }
     public RoutinesViewModel Routines { get; }
+    /// <summary>DTCs page (split out of this class).</summary>
+    public DtcViewModel Dtc { get; }
     public BusMonitorViewModel Monitor { get; }
     public AsBuiltOptionsViewModel AsBuiltOptions { get; }
     /// <summary>Why adapter commands are refused right now (the bus monitor owns the adapter), or null.</summary>
@@ -348,14 +322,10 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand ConnectCommand { get; }
     public AsyncCommand DisconnectCommand { get; }
     public AsyncCommand ScanCommand { get; }
-    public AsyncCommand ReadObdDtcsCommand { get; }
-    public AsyncCommand ReadModuleDtcsCommand { get; }
-    public AsyncCommand ClearModuleDtcsCommand { get; }
     public AsyncCommand ReadVinCommand { get; }
     public AsyncCommand ReadAsBuiltCommand { get; }
     public AsyncCommand ReadAllBlocksCommand { get; }
     public AsyncCommand ReadAllModulesAsBuiltCommand { get; }
-    public AsyncCommand ReadAllModuleDtcsCommand { get; }
     public RelayCommand CancelBatchCommand { get; }
     public AsyncCommand BackupAsBuiltCommand { get; }
     public AsyncCommand WriteAsBuiltCommand { get; }
@@ -527,6 +497,10 @@ public sealed class MainViewModel : ObservableObject
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
+        Dtc = new DtcViewModel(DtcDatabase.LoadEmbedded(), EventLog, (n, f, p) => C(n, f, p), () => Ch,
+            async () => { if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol(); },
+            () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
+            (m, f, fallback) => OnBus(m, f, fallback), Safety, ModuleBatchAsync, t => BatchText = t, Info);
         LiveData.Blocked = AdapterBlocked;
         AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltRows.ToList());
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
@@ -570,47 +544,10 @@ public sealed class MainViewModel : ObservableObject
             var hits = await new DiscoverySweep(_session, Ch).RunAsync(_settings.Discovery, new Progress<string>(m => EventLog.Message(LogEventLevel.Information, "Discovery", m)));
             EventLog.Message(LogEventLevel.Information, "Discovery", $"Done: {hits.Select(h => h.RequestId).Distinct().Count()} responding IDs\n{DiscoverySweep.Summarize(hits)}");
         }, () => new (string, object?)[] { ("from", DiscoveryStart), ("to", DiscoveryEnd) });
-        ReadObdDtcsCommand = C("Read OBD-II DTCs", async () => { Dtcs.Clear(); foreach (var (ecu, code) in await new ObdService(Ch).ReadStoredDtcsAsync()) Dtcs.Add(new($"{ecu:X3}", code, "stored", _dtcDb.Describe(code)) { State = "stored (03)" }); EventLog.Message(LogEventLevel.Information, "Read OBD-II DTCs", $"{Dtcs.Count} DTCs"); });
-        ReadModuleDtcsCommand = C("Read module DTCs", async () =>
-        {
-            if (await EnsureModuleAsync(false) is not { } m) return;
-            Dtcs.Clear();
-            await OnBus(m, async () => { foreach (var d in await new UdsClient(Ch, (ushort)m.Def.TxId).ReadDtcsByStatusAsync()) Dtcs.Add(DtcRow.FromUds(m.Label, m.Def.TxId, d, _dtcDb.Describe(d.Display))); });
-            EventLog.Message(LogEventLevel.Information, "Read module DTCs", $"{m.Label}: {Dtcs.Count} DTCs");
-        }, Mod);
-        ReadAllModuleDtcsCommand = C("Read DTCs from all modules", ReadAllModuleDtcsAsync);
-        // v0.8.0 Phase 1 (read-only): pending / permanent OBD-II DTCs, freeze frame, and UDS DTC details.
-        ReadPendingDtcsCommand = C("Read pending OBD-II DTCs", () => ReadObdListAsync(0x07, "pending (07)"));
-        ReadPermanentDtcsCommand = C("Read permanent OBD-II DTCs", () => ReadObdListAsync(0x0A, "permanent (0A)"));
-        ReadFreezeFrameCommand = C("Read OBD-II freeze frame", async () =>
-        {
-            if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol();
-            var ff = await ObdLink.Core.Dtc.ObdDtcExtras.ReadFreezeFrameAsync(Ch);
-            var text = ff.Count == 0 ? "No ECU returned a freeze frame (mode 02). Nothing is stored, or the ECU does not support it."
-                : string.Join(Environment.NewLine, ff.Select(v => $"ECU 0x{v.Ecu:X3}  PID {v.Pid:X2}  {v.Name}: {v.Value}"));
-            EventLog.Message(LogEventLevel.Information, "Freeze frame", text);
-            Info("Freeze frame (mode 02, frame 0)", text);
-        });
         InitPhase1(Err, (n, f) => C(n, f));
-        DtcDetailsCommand = C("DTC details", async () =>
-        {
-            if (SelectedDtc is not { ModuleTx: uint tx, RawDtc: uint raw } row) throw new InvalidOperationException("Select a module DTC (read with 19 02) first. OBD-II rows have no UDS details; use Freeze frame.");
-            var m = Modules.FirstOrDefault(r => r.Def.TxId == tx) ?? throw new InvalidOperationException($"Module 0x{tx:X3} is not in the module list.");
-            ObdLink.Core.Dtc.DtcDetail d = null!;
-            await OnBus(m, async () => d = await new ObdLink.Core.Dtc.UdsDtcReader(new UdsClient(Ch, (ushort)tx)).DetailAsync(raw, row.RawStatus));
-            var text = $"{row.Source}{Environment.NewLine}{_dtcDb.Describe(row.Code)}{Environment.NewLine}{Environment.NewLine}" + ObdLink.Core.Dtc.UdsDtcReader.Format(row.Code, d);
-            EventLog.Message(LogEventLevel.Information, "DTC details", text);
-            Info($"DTC {row.Code} details", text);
-        });
         ReadAllBlocksCommand = C("Read all As-Built blocks", ReadAllBlocksAsync, Mod, AsBuiltCan);
         ReadAllModulesAsBuiltCommand = C("Back up As-Built of all modules", ReadAllModulesAsBuiltAsync);
         CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Canceling after the current module…"; });
-        ClearModuleDtcsCommand = C("Clear module DTCs", async () =>
-        {
-            if (SelectedModule is not { } m) return;
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Clear DTCs", $"Clear all DTCs in {m.Label} on {ModuleReplies.BusName(m.Bus)}? Freeze-frame data will be lost. Other buses are not tried.") });
-            await OnBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), allowFallback: false);
-        }, Mod);
         ReadVinCommand = C("Read VIN", async () => { _vin = await new ObdService(Ch).ReadVinAsync() ?? _vin; EventLog.Message(LogEventLevel.Information, "Read VIN", $"VIN {_vin}"); });
         ReadAsBuiltCommand = C("Read As-Built block", ReadAsBuiltAsync, ModBlk, AsBuiltCan);
         BackupAsBuiltCommand = C("Backup As-Built block", async () =>
@@ -1512,23 +1449,14 @@ public sealed class MainViewModel : ObservableObject
         Info("As-Built backup", BatchText + "\n\n" + string.Join("\n", res.Select(AsBuiltBatch.Line)));
     }
 
-    private async Task ReadAllModuleDtcsAsync()
+    /// <summary>Scanned-module batch for child pages (DTCs): connect, scan if needed, then run <paramref name="work"/> per module. Null = nothing ran.</summary>
+    private async Task<List<BatchItemResult>?> ModuleBatchAsync(string what, Func<ModuleRow, CancellationToken, Task<BatchItemResult>> work)
     {
-        if (!await EnsureConnectedAsync()) return;
+        if (!await EnsureConnectedAsync()) return null;
         if (Modules.All(r => r.Found == "not scanned")) { BatchText = "Scanning modules first…"; await ScanAsync(); RefreshBackups(); }
         var mods = BatchModules(false);
-        if (mods.Count == 0) { ModuleHint = "No module answered the scan (ignition ON?)."; return; }
-        Dtcs.Clear();
-        var res = await RunBatch("Module DTCs", mods, async (m, ct) =>
-        {
-            List<DtcRecord> list = new();
-            await OnBus(m, async () => list = await new UdsClient(Ch, (ushort)m.Def.TxId).ReadDtcsByStatusAsync(ct: ct));
-            foreach (var d in list) Dtcs.Add(DtcRow.FromUds(m.Label, m.Def.TxId, d, _dtcDb.Describe(d.Display)));
-            return new BatchItemResult(m.Def, true, $"{list.Count} DTC(s)");
-        });
-        if (res.Count == 0) return;
-        BatchText = $"Module DTCs: {res.Count(r => r.Ok)} of {res.Count} modules read, {Dtcs.Count} DTC(s)" + (res.Any(r => !r.Ok) ? " - failed: " + string.Join(", ", res.Where(r => !r.Ok).Select(r => r.Module.Acronym)) : "");
-        EventLog.Message(LogEventLevel.Information, "Read DTCs from all modules", BatchText);
+        if (mods.Count == 0) { ModuleHint = "No module answered the scan (ignition ON?)."; return null; }
+        return await RunBatch(what, mods, work);
     }
 
     private async Task ReadAsBuiltAsync()

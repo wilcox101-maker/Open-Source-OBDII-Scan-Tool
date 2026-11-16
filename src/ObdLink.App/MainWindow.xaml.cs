@@ -113,9 +113,9 @@ public partial class MainWindow : Window
             case "disconnect": Run(_vm.DisconnectCommand); break;
             case "identify": Run(_vm.IdentifyVehicleCommand); break;
             case "scan": Run(_vm.ScanCommand); break;
-            case "dtcs": Go("DTCs"); Run(_vm.ReadObdDtcsCommand); break;
-            case "dtcsAll": Go("DTCs"); Run(_vm.ReadAllModuleDtcsCommand); break;
-            case "clearDtcs": Run(_vm.ClearModuleDtcsCommand); break;   // confirmation + read-only gate inside the command
+            case "dtcs": Go("DTCs"); Run(_vm.Dtc.ReadObdDtcsCommand); break;
+            case "dtcsAll": Go("DTCs"); Run(_vm.Dtc.ReadAllModuleDtcsCommand); break;
+            case "clearDtcs": Run(_vm.Dtc.ClearModuleDtcsCommand); break;   // confirmation + read-only gate inside the command
             case "readAb": Go("As-Built"); Run(_vm.ReadAsBuiltCommand); break;
             case "readAllAb": Go("As-Built"); Run(_vm.ReadAllModulesAsBuiltCommand); break;
             case "backup": Run(_vm.BackupAsBuiltCommand); break;
