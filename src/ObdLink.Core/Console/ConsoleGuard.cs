@@ -20,6 +20,7 @@ public static class ConsoleGuard
         if (input.Any(char.IsControl)) return Block(readOnly);
         var compact = input.Trim().Replace(" ", "").ToUpperInvariant();
         if (compact.Length == 0 || compact is "HELP" or "?" or "/?" or "/HELP" or "CLS" or "CLEAR") return new(true, null);
+        if (HitsPyrotechnic(compact)) return new(false, "BLOCKED: pyrotechnic deployment routines (31 xx E2xx) are never sent, whatever the write settings");
         if (!readOnly && allowWrites) return new(true, null);
         if (compact.StartsWith("STPX", StringComparison.Ordinal) || compact.StartsWith("ATWM", StringComparison.Ordinal) || compact == "ATCAF0") return Block(readOnly);
         if (HitsStateChange(compact, canAutoFormat)) return Block(readOnly);
@@ -57,6 +58,19 @@ public static class ConsoleGuard
             if (len > 7 && IsChanging(bytes[2])) return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// True when any reading of the line (formatted payload, ISO-TP single frame, or first frame) is a RoutineControl for the
+    /// pyrotechnic range. Checked with and without auto-formatting, so turning ATCAF0 on first does not open a path.
+    /// </summary>
+    public static bool HitsPyrotechnic(string compact)
+    {
+        if (compact.Length < 2 || compact.Length % 2 != 0 || !compact.All(Uri.IsHexDigit)) return false;
+        var b = Convert.FromHexString(compact);
+        if (Uds.UdsRoutines.IsPyrotechnicRequest(b)) return true;
+        if (b.Length >= 2 && b[0] is >= 0x01 and <= 0x07 && Uds.UdsRoutines.IsPyrotechnicRequest(b[1..])) return true;
+        return b.Length >= 3 && (b[0] & 0xF0) == 0x10 && Uds.UdsRoutines.IsPyrotechnicRequest(b[2..]);
     }
 
     private static bool IsChanging(byte sid) => Uds.UdsServices.IsStateChanging(sid);
