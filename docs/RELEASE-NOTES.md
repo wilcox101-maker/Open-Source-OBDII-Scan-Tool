@@ -12,6 +12,7 @@ Internal: `Flash/FlashSet.cs` (`FlashSet.Check`, `FlashSetResult`); `tools/ObdCl
 1. **Windows:** download the `obdcli-win-x64` artifact, run `obdcli selftest`: six PASS lines, "All 6 checks passed.", exit 0.
 2. **Windows, offline, when you have a real Ford set:** `obdcli vbf-info --file <sbl> --file <strategy> [--file <calibration>]`: note the set verdict and any PROBLEM lines (this is the pending "real SBL + strategy set" check).
 3. **Truck:** none.
+
 ## v0.23.14
 
 **Module software vs the factory record, offline (W5 v1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
