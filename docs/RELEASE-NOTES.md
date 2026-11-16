@@ -1,3 +1,18 @@
+## v0.23.4
+
+**Back to the default session after writes.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **As-Built write, restore, undo and recovery:** after each block's write and read-back the module gets **10 01**, also when the write is refused, uncertain or fails. Before, the extended session (10 03) stayed open, kept alive by the app, with security unlocked. A failed 10 01 is only logged: the module leaves the session by itself at its S3 timeout (about 5 s).
+- **Service procedures:** the runner ends with 10 01. After an accepted start it first waits the procedure's settle time **in** the session, sending TesterPresent (3E 80) every 2 s (the procedure holds the adapter, so the app's normal keep-alive can't). Leaving the session stops a routine that is still running (ISO 14229-1). **BMS reset: 15 s** (the time the battery light takes to confirm; our judgment, not from a source). The confirmation's request list now reads `10 03, 31 01 20 1A, wait 15 s, 10 01`. A refused start goes straight back to default.
+- Not changed: the Routines tab's manual 10 03 / 10 01 buttons (you choose the session there); dashboard write cards (OUIE's area).
+
+Internal: `AsBuiltService.WriteVerifyAsync` → `try { … } finally { LeaveSessionAsync }`; `ServiceProcedure.ExitSettle`, `LeavesSession`; `ServiceProcedureRunner` settle loop with 3E 80. Tests: As-Built write ends with 10 01 for positive / pending-only / refused writes; runner sequence `10 03, 31 01 201A, 8× 3E 80, 10 01` over 15 s, no settle → straight 10 01, refusal → 10 01 without 3E, failed 10 01 reported not thrown. Mutation: removing the As-Built `finally` fails 3 tests.
+
+### Windows + truck verify
+1. **DEMO:** Writes on → As-Built → change one byte in a BCM block → Write: afterwards the Routines tab shows no open session for the BCM (before v0.23.4 it stayed in extended).
+2. **DEMO:** Routines → BMS reset → Run procedure… (Yes to the battery question, type UNVERIFIED): the DEMO BCM refuses the routine; the list shows `default session (10 01): OK` right after, with no 15 s wait.
+3. **Truck (Phase 2):** after the one-block As-Built write, the module answers normal reads at once and FORScan (if connected afterwards) sees no extended session.
+
 ## v0.23.3
 
 **Clearing DTCs keeps a copy first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.

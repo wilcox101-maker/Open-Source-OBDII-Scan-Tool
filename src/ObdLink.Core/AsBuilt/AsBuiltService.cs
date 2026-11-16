@@ -109,6 +109,21 @@ public sealed class AsBuiltService
         var uds = _clientFactory(b.Module);
         var where = $"{b.Module:X3}-{b.Block:X2}";
         await uds.DiagnosticSessionControlAsync(UdsSession.Extended, ct);
+        // X2 (write recovery plan): back to the default session when done, whatever the outcome, so a lingering extended session
+        // (kept alive by the session host) can't hold the module unlocked or block other tools. Best-effort: never hides the result.
+        try { return await WriteVerifyInSessionAsync(uds, b, before, backupPath, kind, vin, context, where, ct); }
+        finally { await LeaveSessionAsync(uds, where); }
+    }
+
+    /// <summary>10 01 after a write. A failure here is only logged: the module drops to default by itself at the S3 timeout.</summary>
+    internal static async Task LeaveSessionAsync(UdsClient uds, string where)
+    {
+        try { await uds.DiagnosticSessionControlAsync(UdsSession.Default, CancellationToken.None); }
+        catch (Exception ex) { Log.Warning(ex, "As-Built {Where}: could not return to the default session (10 01); the module leaves it at its S3 timeout", where); }
+    }
+
+    private async Task<string> WriteVerifyInSessionAsync(UdsClient uds, AsBuiltBlock b, AsBuiltBlock before, string backupPath, string kind, string vin, string context, string where, CancellationToken ct)
+    {
         if (SecurityLevel is byte lvl && !await uds.SecurityAccessAsync(lvl, ct))
             throw new SafetyException($"{where}: security access level 0x{lvl:X2} is set, but no approved seed/key plug-in produced a key for module 0x{b.Module:X3}. Nothing was written.");
         string note = "";

@@ -33,6 +33,9 @@ public static class ServiceProcedureRunner
         byte[]? status = null;
         void Say(string m) { log.Add(m); progress?.Report(m); }
 
+        bool started = false;
+        try
+        {
         foreach (var step in p.Steps)
         {
             ct.ThrowIfCancellationRequested();
@@ -47,6 +50,7 @@ public static class ServiceProcedureRunner
                     {
                         var r = await uds.StartRoutineAsync(step.RoutineId!.Value, step.Option, ct);
                         status = r.StatusRecord;
+                        started = true;
                         Say($"{step.Text}: accepted" + (r.StatusRecord.Length > 0 ? $" (status {Convert.ToHexString(r.StatusRecord)})" : ""));
                     }
                     catch (UdsNegativeResponseException e)
@@ -63,8 +67,46 @@ public static class ServiceProcedureRunner
                     break;
             }
         }
+        }
+        finally
+        {
+            // X2: back to the default session, whatever happened. After an accepted start, wait ExitSettle first: leaving the session
+            // stops a routine that is still running. Best-effort: a failed 10 01 is reported, not thrown (S3 ends the session anyway).
+            if (p.LeavesSession && uds.ActiveSession is UdsSession s && s != UdsSession.Default)
+            {
+                if (started && p.ExitSettle is { } t && t > TimeSpan.Zero)
+                {
+                    Say($"waiting {t.TotalSeconds:0} s before leaving the extended session");
+                    await SettleInSessionAsync(uds, t, delay, Say);
+                }
+                try { await uds.DiagnosticSessionControlAsync(UdsSession.Default, CancellationToken.None); Say("default session (10 01): OK"); }
+                catch (Exception ex) { Say($"default session (10 01) failed: {ex.Message}; the module leaves the extended session by itself in a few seconds"); }
+            }
+        }
         Say($"{p.Name}: done. {string.Join(" ", p.After)}");
         return new ProcedureRun(p, log, status);
+    }
+
+    /// <summary>Keep-alive interval during the settle wait (below S3 = 5 s).</summary>
+    public static readonly TimeSpan SettleKeepAlive = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Waits <paramref name="total"/> in the session, sending 3E 80 every <see cref="SettleKeepAlive"/>: the caller holds the adapter
+    /// lock, so the session host's keep-alive can't run and the module would otherwise drop the session (and the routine) at S3.
+    /// Cancellation or a failed keep-alive ends the wait early; the caller then sends 10 01.
+    /// </summary>
+    private static async Task SettleInSessionAsync(UdsClient uds, TimeSpan total, Func<TimeSpan, Task> delay, Action<string> say)
+    {
+        for (var left = total; left > TimeSpan.Zero; left -= SettleKeepAlive)
+        {
+            try
+            {
+                await delay(left < SettleKeepAlive ? left : SettleKeepAlive);
+                await uds.TesterPresentAsync(suppressResponse: true, CancellationToken.None);
+            }
+            catch (OperationCanceledException) { say("wait cancelled"); return; }
+            catch (Exception ex) { say($"keep-alive during the wait failed: {ex.Message}"); return; }
+        }
     }
 
     private static async Task<byte[]?> PollAsync(UdsClient uds, ProcedureStep step, Func<TimeSpan, Task> delay, Action<string> say, CancellationToken ct)
