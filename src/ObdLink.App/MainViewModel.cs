@@ -492,7 +492,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         Dashboard = Dashboards[0];
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked,
-            tx => { if (Modules.FirstOrDefault(r => r.Def.TxId == tx) is { } row) SelectedModule = row; });
+            tx => { if (Modules.FirstOrDefault(r => r.Def.TxId == tx) is { } row) SelectedModule = row; },
+            new RoutineJournal(Path.Combine(Paths.DataDir, "routines")));
         Flash = new FlashViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, () => _session,
             () => SelectedPort, () => _asBuilt, () => _vin, Path.Combine(Paths.DataDir, "flash"), new WindowsHostPower(), Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);

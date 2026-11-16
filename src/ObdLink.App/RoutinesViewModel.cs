@@ -65,9 +65,10 @@ public sealed class RoutinesViewModel : ObservableObject
     public RelayCommand ClearCommand { get; }
 
     public RoutinesViewModel(IEventLog log, Func<UdsSessionHost?> host, Func<ModuleRow?> module, Func<ModuleRow, Func<Task>, bool, Task> onBus,
-        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null, Action<uint>? selectModule = null)
+        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null, Action<uint>? selectModule = null,
+        RoutineJournal? journal = null)
     {
-        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err; _selectModule = selectModule;
+        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err; _selectModule = selectModule; _journal = journal;
         (string, object?)[] P() => new (string, object?)[] { ("module", _module()?.Label), ("addr", _module()?.Address), ("routine", RoutineId), ("option", Option) };
         AsyncCommand C(string name, Func<Task> f) => new(name, log, async () =>
         {
@@ -84,7 +85,29 @@ public sealed class RoutinesViewModel : ObservableObject
         ResultsCommand = C("Routines: results (31 03)", ResultsAsync);
         ClearCommand = new RelayCommand("Routines: clear results", log, _ => Results.Clear());
         RunProcedureCommand = C("Routines: run service procedure", RunProcedureAsync);
+        ShowUnfinished();
     }
+
+    private readonly RoutineJournal? _journal;
+
+    /// <summary>R1: at start, list routine requests from earlier runs that never got a final answer (crash, pulled adapter, timeout).</summary>
+    private void ShowUnfinished()
+    {
+        if (_journal is null) return;
+        IReadOnlyList<RoutineEntry> open;
+        try { open = _journal.Unfinished(); }
+        catch (Exception ex) { _log.Message(LogEventLevel.Warning, "Routines", $"Routine journal could not be read: {ex.Message}"); return; }
+        foreach (var e in open.Reverse())
+        {
+            var line = RoutineJournal.Describe(e);
+            Add(line);
+            _log.Message(LogEventLevel.Warning, "Routines", line);
+        }
+    }
+
+    /// <summary>Journals a start / stop / procedure run (pending before the request); passes straight through without a journal.</summary>
+    private Task<T> Journaled<T>(string action, ModuleRow m, ushort rid, byte[]? option, Func<Task<T>> send, Func<T, string>? describe = null) =>
+        _journal is null ? send() : _journal.RecordAsync(action, m.Def.TxId, m.Label, rid, option, send, describe);
 
     private async Task RunProcedureAsync()
     {
@@ -98,7 +121,9 @@ public sealed class RoutinesViewModel : ObservableObject
         var lines = new List<string>();
         try
         {
-            await _onBus(m, async () => await ServiceProcedureRunner.RunAsync(uds, p, new Progress<string>(lines.Add)), false);
+            var rid = p.Steps.First(s => s.Kind == ProcedureStepKind.StartRoutine).RoutineId!.Value;
+            await _onBus(m, async () => await Journaled($"procedure:{p.Key}", m, rid, null,
+                () => ServiceProcedureRunner.RunAsync(uds, p, new Progress<string>(lines.Add)), r => r.Summary), false);
         }
         finally
         {
@@ -158,7 +183,7 @@ public sealed class RoutinesViewModel : ObservableObject
         var safety = _safety();
         await safety.EnsureVoltageAsync();
         await safety.RequireAsync(cmd.StartSteps($"{m.Label} (0x{m.Address})"));
-        await Run(m, () => uds.StartRoutineAsync(cmd.RoutineId, cmd.Option), cmd);
+        await Run(m, () => Journaled("start", m, cmd.RoutineId, cmd.Option, () => uds.StartRoutineAsync(cmd.RoutineId, cmd.Option)), cmd);
     }
 
     private async Task StopAsync()
@@ -166,14 +191,23 @@ public sealed class RoutinesViewModel : ObservableObject
         var cmd = RoutineCommand.Parse(RoutineId, Option);
         var (m, uds) = Target();
         await _safety().RequireAsync(cmd.StopSteps($"{m.Label} (0x{m.Address})"));
-        await Run(m, () => uds.StopRoutineAsync(cmd.RoutineId, cmd.Option), cmd);
+        await Run(m, () => Journaled("stop", m, cmd.RoutineId, cmd.Option, () => uds.StopRoutineAsync(cmd.RoutineId, cmd.Option)), cmd);
     }
 
     private async Task ResultsAsync()
     {
         var cmd = RoutineCommand.Parse(RoutineId, null);
         var (m, uds) = Target();
-        await Run(m, () => uds.RequestRoutineResultsAsync(cmd.RoutineId), cmd);
+        // R1: a results read for a routine with an unfinished start/stop records what the module says now (either way).
+        try { await Run(m, () => uds.RequestRoutineResultsAsync(cmd.RoutineId), cmd); }
+        catch (UdsNegativeResponseException ex) { MarkChecked(m, cmd, $"31 03: NRC 0x{ex.Nrc:X2} {UdsNrc.Describe(ex.Nrc)}"); throw; }
+        MarkChecked(m, cmd, "31 03: " + Results[0]);
+    }
+
+    private void MarkChecked(ModuleRow m, RoutineCommand cmd, string detail)
+    {
+        if (_journal?.MarkChecked(m.Def.TxId, cmd.RoutineId, detail) is int n and > 0)
+            Add($"{DateTimeOffset.Now:HH:mm:ss} {m.Label} {cmd.IdText}: {n} unfinished request(s) from the journal marked checked.");
     }
 
     /// <summary>Routines never fall back to another bus. A negative response is also written to the results list.</summary>
