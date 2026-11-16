@@ -1,3 +1,19 @@
+## v0.23.7
+
+**Routine journal (R1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **Routines tab → Start (31 01), Stop (31 02) and Run procedure…** are written to `routines\routine-journal.jsonl` in the data folder: a *pending* line flushed to disk **before** the request, then *accepted* (with the status record), *refused* (the NRC: nothing ran) or *unknown* (no final answer: link drop, timeout, cancel).
+- **At app start** every request that never got a final answer (crash, pulled adapter, timeout) is listed in the routine results and the event log: which module and routine, when, and that it **may have run**. A routine's effect can't be undone in general (the module defines it); the line says how to look: select the module, enter the routine ID, **Results (31 03)**.
+- **Results (31 03)** for such a routine marks the open entries *checked* with what the module answered (status or NRC).
+- (v0.23.5 close guard and v0.23.6 A4 are separate PRs.)
+
+Internal: `Uds/RoutineJournal` (`RecordAsync`, `Unfinished`, `MarkChecked`; append-only JSON lines, write-through, a torn last line is skipped); `RoutinesViewModel` wraps start / stop / procedure runs. Tests `RoutineJournalTests` (6, incl. a source test of the tab wiring, checked to fail with the Start journaling removed).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → Routines → BCM → routine 1234 → Start: accepted. Open `routines\routine-journal.jsonl`: a pending line, then accepted.
+2. **DEMO:** Start routine 1234 and close the app (or pull the DEMO link) before the answer, if you can time it; else add a pending line by hand. Restart: the routine results list starts with *UNFINISHED: start of BCM (0x726) routine 0x1234 …*. Results (31 03) for 1234 → "1 unfinished request(s) … marked checked"; restart again: no UNFINISHED line.
+3. **Truck:** none needed beyond the routine tests already planned (Phase 3).
+
 ## v0.23.4
 
 **Back to the default session after writes.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.

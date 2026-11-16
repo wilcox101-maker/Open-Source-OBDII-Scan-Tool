@@ -206,7 +206,8 @@ public class ServiceProcedureTests
         int volts = body.IndexOf("EnsureVoltageAsync()", StringComparison.Ordinal), confirm = body.IndexOf("RequireAsync(p.ConfirmSteps(", StringComparison.Ordinal);
         int send = body.IndexOf("ServiceProcedureRunner.RunAsync(", StringComparison.Ordinal);
         Assert.True(runnable >= 0 && runnable < module && module < volts && volts < confirm && confirm < send, $"{runnable} {module} {volts} {confirm} {send}");
-        Assert.Contains("new Progress<string>(lines.Add)), false);", body);   // no bus fallback for a write
+        Assert.Contains("r => r.Summary), false);", body);   // no bus fallback for a write
+        Assert.Contains("Journaled($\"procedure:{p.Key}\"", body); // R1: the run is journaled (pending before the request)
         var xaml = File.ReadAllText(Path.Combine(dir.FullName, "src", "ObdLink.App", "MainWindow.xaml"));
         Assert.Contains("{Binding Routines.RunProcedureCommand}", xaml);
         Assert.Contains("{Binding Routines.ProcedureText}", xaml);
