@@ -162,6 +162,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     public BusMonitorViewModel Monitor { get; }
     /// <summary>As-Built page state + offline file commands (split out of this class, step 1).</summary>
     public AsBuiltPageViewModel AsBuiltPage { get; }
+    /// <summary>Raw console page (split out of this class).</summary>
+    public ConsoleViewModel RawConsole { get; }
     public AsBuiltOptionsViewModel AsBuiltOptions { get; }
     /// <summary>Why adapter commands are refused right now (the bus monitor owns the adapter), or null.</summary>
     private string? AdapterBlocked() => Monitor is { Running: true } ? "The bus monitor is using the adapter. Press Stop on the Bus Monitor tab first." : null;
@@ -182,9 +184,6 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     public bool IsConnected => Connection.State == ConnectionState.Connected;
     private string _baud = ""; public string Baud { get => _baud; set => Set(ref _baud, value); }
     private bool _ms; public bool MsCanAvailable { get => _ms; set => Set(ref _ms, value); }
-    private string _ci = ""; public string ConsoleInput { get => _ci; set => Set(ref _ci, value); }
-    private string _co = ""; public string ConsoleOutput { get => _co; set => Set(ref _co, value); }
-    private bool _allow; public bool ConsoleAllowWrites { get => _allow; set { if (Set(ref _allow, value)) { EventLog.UserAction("Console 'Allow writes' toggled", ("on", value)); if (_console != null) _console.AllowWrites = value; } } }
     private bool _initializing = true;
 
     // ---- Settings: read-only test mode (default ON) ----
@@ -303,7 +302,6 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     public RelayCommand CancelBatchCommand { get; }
     /// <summary>v0.16.0: restores the backup taken before the last verified write of the selected module.</summary>
     /// <summary>v0.16.0: verified As-Built changes (newest first), from asbuilt-history.jsonl in the backups folder.</summary>
-    public AsyncCommand ConsoleSendCommand { get; }
     public AsyncCommand IdentifyVehicleCommand { get; }
     public AsyncCommand OpenMotorcraftCommand { get; }
     public AsyncCommand ImportVehicleAbCommand { get; }
@@ -469,6 +467,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
             (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info);
         LiveData.Blocked = AdapterBlocked;
+        RawConsole = new ConsoleViewModel(EventLog, (n, f, p) => C(n, f, p), () => _console);
         AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),
             () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups, AsBuiltCan);
         AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList());
@@ -579,17 +578,6 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             EventLog.Message(LogEventLevel.Information, "Import .ab", AsBuiltPage.FactoryInfo);
             return Task.CompletedTask;
         });
-        ConsoleSendCommand = C("Console send", async () =>
-        {
-            var input = ConsoleInput; ConsoleInput = "";
-            var t = input.Trim().ToUpperInvariant();
-            if (t is "CLS" or "CLEAR") { ConsoleOutput = ""; return; }
-            if (t is "HELP" or "?" or "/?" or "/HELP" && _console is null) { ConsoleOutput += $"> {input}{Environment.NewLine}{ObdLink.Core.ConsoleCmds.ConsoleHelp.Text()}{Environment.NewLine}"; return; }
-            if (_console is null) throw new InvalidOperationException("Not connected (type help for the command list)");
-            var result = await _console.ExecuteAsync(input);
-            ConsoleOutput += $"> {input}{Environment.NewLine}{result}{Environment.NewLine}";
-            if (result.StartsWith("BLOCKED")) EventLog.Message(LogEventLevel.Warning, "Console", $"{input}: {result}");
-        }, () => new (string, object?)[] { ("command", ConsoleInput) });
         _ = RefreshPortsCommand.ExecuteAsync();
         try { LoadSavedProfiles(); } catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Vehicles", "Could not load saved vehicle profiles", ex); }
         LoadModules();
@@ -717,7 +705,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             var info = await _session.InitializeAsync();
             MsCanAvailable = _session.Profile.Has(AdapterCapabilities.MsCan);
             _ch = new ElmDiagChannel(_session);
-            _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
+            _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = RawConsole.ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
             _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m) { SeedKey = _seedKey }, Safety(), Paths.BackupsDir);
             _router = new BusRouter(_session, () => CanSwitchBus, (lvl, ch, msg) => EventLog.Message(lvl, ch, msg));
             StartSessions();

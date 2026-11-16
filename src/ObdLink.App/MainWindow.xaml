@@ -572,11 +572,11 @@
           <Border Style="{StaticResource CardStyle}">
           <DockPanel>
             <DockPanel DockPanel.Dock="Bottom">
-              <CheckBox DockPanel.Dock="Right" Content="Allow writes" VerticalAlignment="Center" IsChecked="{Binding ConsoleAllowWrites}"/>
-              <Button Command="{Binding ConsoleSendCommand}" Style="{StaticResource PrimaryStyle}" DockPanel.Dock="Right" IsDefault="True"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE724;"/><TextBlock Text="Send"/></StackPanel></Button>
-              <TextBox ToolTip="Type help for the command list, cls to clear" Text="{Binding ConsoleInput, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}"/>
+              <CheckBox DockPanel.Dock="Right" Content="Allow writes" VerticalAlignment="Center" IsChecked="{Binding RawConsole.ConsoleAllowWrites}"/>
+              <Button Command="{Binding RawConsole.ConsoleSendCommand}" Style="{StaticResource PrimaryStyle}" DockPanel.Dock="Right" IsDefault="True"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE724;"/><TextBlock Text="Send"/></StackPanel></Button>
+              <TextBox ToolTip="Type help for the command list, cls to clear" Text="{Binding RawConsole.ConsoleInput, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}"/>
             </DockPanel>
-            <TextBox Text="{Binding ConsoleOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="{StaticResource Mono}"/>
+            <TextBox Text="{Binding RawConsole.ConsoleOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="{StaticResource Mono}"/>
           </DockPanel>
 </Border>
         </TabItem>
