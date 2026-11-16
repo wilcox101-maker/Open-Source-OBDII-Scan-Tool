@@ -158,6 +158,8 @@ public sealed class UdsClient
     public async Task<byte[]> RequestAsync(byte[] req, CancellationToken ct = default)
     {
         if (req.Length == 0) throw new ArgumentException("Empty UDS request", nameof(req));
+        if (UdsRoutines.IsPyrotechnicRequest(req))
+            throw new RoutineRefusedException((ushort)(req[2] << 8 | req[3]), UdsRoutines.RefusalReason((ushort)(req[2] << 8 | req[3]))!);
         if (Gate is not null && UdsServices.IsStateChanging(req[0])) Gate.Require($"{UdsNrc.ServiceName(req[0])} (0x{req[0]:X2})");
         bool suppressed = UdsServices.SuppressesPositiveResponse(req);
         uint rx = ResponseId;
@@ -190,7 +192,7 @@ public sealed class UdsClient
                 }
                 // ELM text interface: it returns on the first reply and cannot keep listening, so the only option is to send again.
                 // [LIMITATION] Only safe for idempotent services; see README.
-                if ((r[2] is 0x78 or 0x21) && attempt < PendingRetries && IsIdempotent(req[0])) { await Task.Delay(PendingRetryDelay, ct); resend = true; continue; }
+                if ((r[2] is 0x78 or 0x21) && attempt < PendingRetries && IsIdempotent(req)) { await Task.Delay(PendingRetryDelay, ct); resend = true; continue; }
                 throw new UdsNegativeResponseException(r[1], r[2], TargetTxId, req);
             }
         }
@@ -229,7 +231,10 @@ public sealed class UdsClient
         return pending;
     }
 
-    private static bool IsIdempotent(byte sid) => sid is 0x10 or 0x19 or 0x22 or 0x23 or 0x3E;
+    /// <summary>Requests that may be sent again after 0x78/0x21 on an ELM-style channel. RoutineControl RequestResults (31 03) only reads.</summary>
+    public static bool IsIdempotent(byte[] req) =>
+        req[0] is 0x10 or 0x19 or 0x22 or 0x23 or 0x3E
+        || (req[0] == 0x31 && req.Length >= 2 && (req[1] & 0x7F) == (byte)RoutineControlType.RequestResults);
 
     public Task<byte[]> DiagnosticSessionControlAsync(UdsSession s, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x10, (byte)s }, ct);
     public Task<byte[]> EcuResetAsync(ResetType t, CancellationToken ct = default) => RequestAsync(new[] { (byte)0x11, (byte)t }, ct);
