@@ -17,7 +17,7 @@ Every run needs writes turned on, the battery check and the typed phrase. Pyrote
 
 | Procedure | Module | Confidence | Requests | Tool-free method |
 |---|---|---|---|---|
-| [Battery Monitoring System (BMS) reset](#bcm-bms-reset) | BCM 0x726 | Community | `10 03, 31 01 20 1A` | yes |
+| [Battery Monitoring System (BMS) reset](#bcm-bms-reset) | BCM 0x726 | Community | `10 03, 31 01 20 1A, wait 15 s, 10 01` | yes |
 | [TPMS sensor training](#bcm-tpms-training) | BCM 0x726 | NeedsCapture | — | yes |
 | [PCM Keep Alive Memory (KAM) reset](#pcm-kam-reset) | PCM 0x7E0 | NeedsCapture | — | — |
 | [TCM Keep Alive Memory reset / clear adaptive tables](#tcm-kam-reset) | TCM 0x7E1 | NeedsCapture | — | — |
@@ -48,7 +48,7 @@ Tells the BCM a new battery is installed: battery state of charge back to its de
 
 **Asked first (No stops the run):** Did you disconnect and re-connect battery recently?
 
-**Requests:** `10 03, 31 01 20 1A` (type UNVERIFIED)
+**Requests:** `10 03, 31 01 20 1A, wait 15 s, 10 01` (type UNVERIFIED)
 
 **Afterwards:**
 

@@ -48,7 +48,7 @@ public class ServiceProcedureTests
     {
         var bms = ServiceProcedures.Find("bcm-bms-reset")!;
         Assert.True(bms.Runnable);
-        Assert.Equal("10 03, 31 01 20 1A", bms.RequestSummary);
+        Assert.Equal("10 03, 31 01 20 1A, wait 15 s, 10 01", bms.RequestSummary);
         var steps = bms.ConfirmSteps("BCM (0x726)");
         Assert.Equal("UNVERIFIED", steps[^1].TypedPhrase);
         Assert.Contains("NOT been verified", steps[^1].Message);
@@ -101,14 +101,16 @@ public class ServiceProcedureTests
     /// <summary>A BCM that answers 10 03 and 31 01 201A (or the NRC set in <see cref="StartNrc"/>), and 31 03 with <see cref="ResultsNrc"/>.</summary>
     private sealed class Module : IDiagChannel
     {
-        public byte? StartNrc, ResultsNrc = 0x12;
+        public byte? StartNrc, ResultsNrc = 0x12, DefaultNrc;
         public List<byte[]> Calls { get; } = new();
         public Task SetTargetAsync(uint txId, uint? rxId, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<DiagResponse>> RequestAsync(byte[] r, TimeSpan? timeout = null, CancellationToken ct = default)
         {
             Calls.Add(r.ToArray());
+            if (r[0] == 0x3E && r[1] == 0x80) return Task.FromResult<IReadOnlyList<DiagResponse>>(Array.Empty<DiagResponse>()); // suppressed reply
             byte[] a = r[0] switch
             {
+                0x10 when r[1] == 0x01 && DefaultNrc is byte d => new byte[] { 0x7F, 0x10, d },
                 0x10 => new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 },
                 0x31 when r[1] == 0x01 => StartNrc is byte n ? new byte[] { 0x7F, 0x31, n } : new byte[] { 0x71, 0x01, r[2], r[3] },
                 0x31 => ResultsNrc is byte m ? new byte[] { 0x7F, 0x31, m } : new byte[] { 0x71, 0x03, r[2], r[3], 0x00 },
@@ -119,13 +121,35 @@ public class ServiceProcedureTests
     }
 
     [Fact]
-    public async Task BMS_reset_sends_the_extended_session_then_the_routine_and_nothing_else()
+    public async Task BMS_reset_sends_the_session_and_the_routine_then_keeps_the_session_15_s_and_returns_to_default()
     {
         var m = new Module();
-        var run = await ServiceProcedureRunner.RunAsync(new UdsClient(m, 0x726), ServiceProcedures.Find("bcm-bms-reset")!, delay: _ => Task.CompletedTask);
-        Assert.Equal(new[] { "1003", "3101201A" }, m.Calls.Select(Convert.ToHexString));
+        var waits = new List<TimeSpan>();
+        var run = await ServiceProcedureRunner.RunAsync(new UdsClient(m, 0x726), ServiceProcedures.Find("bcm-bms-reset")!, delay: t => { waits.Add(t); return Task.CompletedTask; });
+        // X2: 10 03, the routine, a 3E 80 every 2 s for 15 s (the caller holds the adapter lock, so the host's keep-alive can't), 10 01.
+        Assert.Equal(new[] { "1003", "3101201A" }.Concat(Enumerable.Repeat("3E80", 8)).Append("1001"), m.Calls.Select(Convert.ToHexString));
+        Assert.Equal(TimeSpan.FromSeconds(15), waits.Aggregate(TimeSpan.Zero, (a, b) => a + b));
+        Assert.All(waits, w => Assert.True(w <= TimeSpan.FromSeconds(2)));
         Assert.Contains("accepted", run.Log[1]);
+        Assert.Contains(run.Log, l => l == "default session (10 01): OK");
         Assert.Contains("done", run.Summary);
+    }
+
+    [Fact]
+    public async Task A_procedure_without_a_settle_time_returns_to_default_right_after_the_routine()
+    {
+        var bms = ServiceProcedures.Find("bcm-bms-reset")! with { ExitSettle = null };
+        var m = new Module();
+        await ServiceProcedureRunner.RunAsync(new UdsClient(m, 0x726), bms, delay: _ => Task.CompletedTask);
+        Assert.Equal(new[] { "1003", "3101201A", "1001" }, m.Calls.Select(Convert.ToHexString));
+    }
+
+    [Fact]
+    public async Task A_failed_10_01_is_reported_not_thrown()
+    {
+        var m = new Module { DefaultNrc = 0x22 };
+        var run = await ServiceProcedureRunner.RunAsync(new UdsClient(m, 0x726), ServiceProcedures.Find("bcm-bms-reset")! with { ExitSettle = null }, delay: _ => Task.CompletedTask);
+        Assert.Contains(run.Log, l => l.StartsWith("default session (10 01) failed"));
     }
 
     [Fact]
@@ -136,6 +160,9 @@ public class ServiceProcedureTests
         Assert.Contains("nothing ran", ex.Message);
         Assert.Contains("does not apply to this model year", ex.Message);
         Assert.Single(m.Calls, c => c[0] == 0x31);   // never retried
+        // Nothing ran, so no settle wait: straight back to the default session.
+        Assert.Equal("1001", Convert.ToHexString(m.Calls[^1]));
+        Assert.DoesNotContain(m.Calls, c => c[0] == 0x3E);
     }
 
     [Fact]

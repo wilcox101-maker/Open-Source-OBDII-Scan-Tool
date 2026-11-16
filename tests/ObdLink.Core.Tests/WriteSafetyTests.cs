@@ -129,6 +129,22 @@ public class AsBuiltServiceSafetyTests
     }
 
     [Theory]
+    [InlineData(SimWriteReply.Positive)]
+    [InlineData(SimWriteReply.PendingOnly)]
+    [InlineData(SimWriteReply.RejectNotStored)]
+    public async Task Every_write_ends_back_in_the_default_session(SimWriteReply reply)
+    {
+        // X2: 10 03 before the write, 10 01 after the read-back, also when the write is refused.
+        var (sim, svc, _, _) = await Setup();
+        sim.WriteReply = reply;
+        try { await svc.WriteBlockAsync(Vin, Block(9, 9, 9, 9, 9, 9, 9)); } catch (Exception) when (reply == SimWriteReply.RejectNotStored) { /* refused write: expected */ }
+        var bcm = sim.Sent.Where(x => x.Header == 0x726).Select(x => x.Request).ToList();
+        int enter = bcm.IndexOf("1003"), write = bcm.FindIndex(r => r.Contains("2EDE00")) /* first ISO-TP frame */, leave = bcm.LastIndexOf("1001");
+        Assert.True(enter >= 0 && enter < write && write < leave, string.Join(" ", bcm));
+        Assert.Equal("1001", bcm[^1]);
+    }
+
+    [Theory]
     [InlineData(SimWriteReply.PendingThenPositive)]
     [InlineData(SimWriteReply.PendingOnly)]
     [InlineData(SimWriteReply.NoReply)]
