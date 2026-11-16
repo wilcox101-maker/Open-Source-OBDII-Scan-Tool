@@ -251,7 +251,8 @@ public sealed class FlashViewModel : ObservableObject
         await Locked(m, async () => rep = await FlashPreflight.RunAsync(uds, plan, Volts, _session()?.Profile, _power, ReadPart, resume: resume));
         Preflight.Clear(); foreach (var i in rep!.Items) Preflight.Add(i);
         if (!rep.CanFlash) throw new FlashPreflightException(rep);
-        await _safety().RequireAsync(FlashWarnings.For(plan, _session()?.Profile));
+        var quiet = FlashBusPolicy.QuietBus(m.Def.TxId, m.Def.Acronym); // KB-R1: never for the SYNC module (APIM)
+        await _safety().RequireAsync(FlashWarnings.For(plan, _session()?.Profile, quiet));
 
         var engine = new FlashEngine(plan, journal)
         {
@@ -260,11 +261,12 @@ public sealed class FlashViewModel : ObservableObject
             ReadModulePart = ReadPart,
             Host = _power,
             Progress = _progress,
-            QuietBus = true,   // FORScan-style "stop activity on buses"; restored afterwards (see FlashEngine.QuietBus)
+            QuietBus = quiet,  // FORScan-style "stop activity on buses", except SYNC (FlashBusPolicy); restored afterwards
         };
         _stop = new CancellationTokenSource();
         Running = true; Retries = 0; Percent = 0; _rate = new FlashRate(); _rateLogged = DateTimeOffset.UtcNow;
         Add(resume ? $"Resuming flash of {m.Label} (0x{m.Address})" : $"Flashing {m.Label} (0x{m.Address}) with {plan.Image.Name}");
+        if (!quiet) Add("Bus quieting is off for this module: " + FlashBusPolicy.NotQuietReason(m.Def.TxId));
         try
         {
             FlashResult? r = null;
