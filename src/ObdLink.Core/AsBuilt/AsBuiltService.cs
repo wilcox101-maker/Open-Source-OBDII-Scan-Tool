@@ -11,9 +11,21 @@ public sealed class AsBuiltService
     private readonly SafetyGuard _safety;
     private readonly string _backupDir;
     public byte? SecurityLevel { get; set; } // null = don't attempt 0x27 [whether As-Built writes need it is module-dependent, UNVERIFIED]
+    /// <summary>v0.16.0: verified changes are recorded here (next to the backups).</summary>
+    public AsBuiltHistory History { get; }
 
     public AsBuiltService(Func<uint, UdsClient> clientFactory, SafetyGuard safety, string backupDir)
-    { _clientFactory = clientFactory; _safety = safety; _backupDir = backupDir; Directory.CreateDirectory(backupDir); }
+    { _clientFactory = clientFactory; _safety = safety; _backupDir = backupDir; Directory.CreateDirectory(backupDir); History = new AsBuiltHistory(backupDir); }
+
+    private void Record(string kind, AsBuiltBlock before, AsBuiltBlock after, string backup, string vin, string note)
+    {
+        try
+        {
+            History.Append(new AsBuiltChange(DateTimeOffset.Now, kind, after.Module, after.Block, Convert.ToHexString(before.Data), Convert.ToHexString(after.Data),
+                AsBuiltWritePlan.CountChanges(before.Data, after.Data), Path.GetFileName(backup), AsBuiltHistory.VinTail(vin), note));
+        }
+        catch (Exception ex) { Log.Warning(ex, "Could not append to the As-Built change history (the write itself succeeded)"); }
+    }
 
     public async Task<AsBuiltBlock> ReadBlockAsync(ushort module, byte block, CancellationToken ct = default)
     {
@@ -66,6 +78,7 @@ public sealed class AsBuiltService
         await _safety.RequireAsync(SafetyGuard.WriteSteps($"As-Built {where} ({changed} of {newBlock.Data.Length} bytes change)"), ct);
         var backup = await SaveBackupAsync(vin, newBlock.Module, new[] { current }, "", ct);
         var note = await WriteVerifyAsync(newBlock, backup, ct);
+        Record("write", current, newBlock, backup, vin, note);
         return new AsBuiltWriteResult(backup, changed, true, note);
     }
 
@@ -156,6 +169,7 @@ public sealed class AsBuiltService
         {
             var n = await WriteVerifyAsync(b, pre, ct);
             if (n.Length > 0) notes.Add(n);
+            Record("restore", current[wanted.IndexOf(b)], b, pre, connectedVin, $"from {Path.GetFileName(backupPath)}" + (n.Length > 0 ? "; " + n : ""));
         }
         return new AsBuiltWriteResult(pre, changed, true, string.Join(" ", notes));
     }

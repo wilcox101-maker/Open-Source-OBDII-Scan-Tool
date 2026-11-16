@@ -81,6 +81,20 @@ public sealed class AsBuiltRow : ObservableObject
     public AsBuiltEditLine ToEdit() => new(Addr, Data, EnteredChecksum);
 }
 
+/// <summary>One line of the As-Built change history.</summary>
+public sealed record AsBuiltHistoryRow(AsBuiltChange Change)
+{
+    public string When => Change.At.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss");
+    public string Where => Change.Where;
+    public string Kind => Change.Kind;
+    public int Bytes => Change.BytesChanged;
+    public string Before => Change.Before;
+    public string After => Change.After;
+    public string Vin => "…" + Change.VinTail;
+    public string Backup => Change.BackupFile;
+    public string Note => Change.Note;
+}
+
 public sealed record DtcRow(string Source, string Code, string Status, string Description)
 {
     /// <summary>v0.8.0: plain-English status (confirmed / pending / history, failing now, lamp).</summary>
@@ -346,6 +360,10 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand BackupAsBuiltCommand { get; }
     public AsyncCommand WriteAsBuiltCommand { get; }
     public AsyncCommand RestoreAsBuiltCommand { get; }
+    /// <summary>v0.16.0: restores the backup taken before the last verified write of the selected module.</summary>
+    public AsyncCommand UndoAsBuiltCommand { get; }
+    /// <summary>v0.16.0: verified As-Built changes (newest first), from asbuilt-history.jsonl in the backups folder.</summary>
+    public ObservableCollection<AsBuiltHistoryRow> AsBuiltHistory { get; } = new();
     public AsyncCommand ConsoleSendCommand { get; }
     public AsyncCommand IdentifyVehicleCommand { get; }
     public AsyncCommand OpenMotorcraftCommand { get; }
@@ -632,6 +650,20 @@ public sealed class MainViewModel : ObservableObject
             if (!res.Written) { Info("Restore", res.Note); return; }
             Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}");
         }, can: AsBuiltCan);
+        UndoAsBuiltCommand = C("Undo last As-Built write", async () =>
+        {
+            if (SelectedModule is not { } m) throw new InvalidOperationException("Select a module first");
+            RequireAsBuilt(m);
+            var hist = new AsBuiltHistory(Paths.BackupsDir);
+            var last = hist.LastUndoable((ushort)m.Def.TxId)
+                ?? throw new InvalidOperationException($"No recorded change of {m.Label} with its backup still on disk. Nothing was written.");
+            await Safety().RequireAsync(new[] { new ConfirmationStep("Undo", $"Undo the {last.Kind} of {last.Where} on {last.At.LocalDateTime:yyyy-MM-dd HH:mm} ({last.BytesChanged} byte(s)) by restoring {last.BackupFile}? The normal restore checks follow (VIN match, fresh backup, typed WRITE, read-back).") });
+            AsBuiltWriteResult res = null!;
+            await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);
+            RefreshBackups();
+            if (!res.Written) { Info("Undo", res.Note); return; }
+            Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}");
+        }, Mod, AsBuiltCan);
         ImportFactoryAbCommand = C("Import factory .ab", () =>
         {
             _factory = FordAbFile.Load(OpenFile("Factory .ab", "Ford As-Built|*.ab|All files|*.*", Paths.AsBuiltDir)); RefreshBackups();
@@ -1284,8 +1316,16 @@ public sealed class MainViewModel : ObservableObject
         r.Def.InFactoryAb || factory.Contains(r.Def.TxId) || r.LastBackup != null || ModuleRow.TypicalAsBuilt.Contains(r.Acronym);
 
     /// <summary>Recomputes As-Built flags + newest backup per module, then refreshes the As-Built picker.</summary>
+    private void RefreshHistory()
+    {
+        AsBuiltHistory.Clear();
+        try { foreach (var c in new AsBuiltHistory(Paths.BackupsDir).Load().Reverse()) AsBuiltHistory.Add(new AsBuiltHistoryRow(c)); }
+        catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "As-Built history", "Could not read the change history", ex); }
+    }
+
     private void RefreshBackups()
     {
+        RefreshHistory();
         var found = AsBuiltBatch.FindBackups(Paths.AsBuiltDir, Paths.BackupsDir);
         var fac = _factory?.AsBuiltModules.Select(x => (uint)x).ToHashSet() ?? new();
         foreach (var r in Modules)

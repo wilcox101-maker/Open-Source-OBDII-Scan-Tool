@@ -502,6 +502,27 @@
                   </DataGrid>
                 </DockPanel>
               </TabItem>
+              <TabItem Header="Change history">
+                <DockPanel>
+                  <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
+                    <Button Command="{Binding UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last verified write of the selected module (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Verified writes and restores only (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
+                  </WrapPanel>
+                  <DataGrid ItemsSource="{Binding AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="When" Binding="{Binding When}"/>
+                      <DataGridTextColumn Header="Block" Binding="{Binding Where}"/>
+                      <DataGridTextColumn Header="Kind" Binding="{Binding Kind}"/>
+                      <DataGridTextColumn Header="Bytes" Binding="{Binding Bytes}"/>
+                      <DataGridTextColumn Header="Before" Binding="{Binding Before}" Width="*"/>
+                      <DataGridTextColumn Header="After" Binding="{Binding After}" Width="*"/>
+                      <DataGridTextColumn Header="VIN" Binding="{Binding Vin}"/>
+                      <DataGridTextColumn Header="Backup" Binding="{Binding Backup}"/>
+                      <DataGridTextColumn Header="Note" Binding="{Binding Note}"/>
+                    </DataGrid.Columns>
+                  </DataGrid>
+                </DockPanel>
+              </TabItem>
               <TabItem Header="Compare to factory">
                 <DataGrid ItemsSource="{Binding FactoryDiff}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
                   <DataGrid.Columns>

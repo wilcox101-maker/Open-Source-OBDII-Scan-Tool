@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.15.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.16.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.15.0)
+## Where we are (v0.16.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -16,7 +16,7 @@ This file compares what the app does today (v0.15.0) with FORScan's feature grou
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data; edit by option name from the 2015-2020 F-150 community sheet into the grid, then the normal safe write (v0.15.0) | Choose the sheet tab from the module part number; literal-digit "recipe" rows; central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | None | Not started |
-| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, UDS session keep-alive (v0.11.0) | Battery-maintainer detection |
+| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, UDS session keep-alive (v0.11.0), As-Built change history + undo (v0.16.0) | Battery-maintainer detection |
 
 ## Second reference: UCDS V3
 
@@ -71,7 +71,7 @@ Datalogger, which works on one module at a time, allow signals from several modu
 1. Decode profiles per module/firmware: named options mapped to bits. **v0.15.0:** editor for `*` options of the 2015-2020 F-150 sheet (shipped in Core), tab chosen by hand (default from `DecodeProfile`). Open: pick the tab from the module part number (F188/F111).
 2. **Done in v0.15.0:** edit by option name (value list or raw digits, conflicting edits refused), resulting raw lines and checksums shown in the grid, written through the v0.6.1 safe path (length, checksum, backup, read-back).
 3. Central configuration (CCC): read and edit, with module reset/relearn steps after changes.
-4. Undo stack per session, and a change history saved next to the backups.
+4. **Done in v0.16.0:** change history saved next to the backups (`asbuilt-history.jsonl`: verified writes and restores with before/after) and "Undo last write" per module (restores the backup taken before that write through the normal restore checks).
 
 Design notes from UCDS for the editor: choose the decode profile from the module's own part number (read F188/F111 first, as
 UCDS's "Read HWSW" does), not from the model year alone. Show each option's state as not read / read / changed, with keyword
