@@ -114,6 +114,8 @@ public sealed class AsBuiltPageViewModel : ObservableObject
     public AsyncCommand WriteAsBuiltCommand { get; }
     public AsyncCommand RestoreAsBuiltCommand { get; }
     public AsyncCommand UndoAsBuiltCommand { get; }
+    /// <summary>KB-R5: re-apply the user's verified writes that a dealer update / OTA reload reverted.</summary>
+    public AsyncCommand ReapplyAsBuiltCommand { get; }
     public AsyncCommand CompareToFactoryCommand { get; }
     public AsyncCommand CheckUnfinishedCommand { get; }
     public AsyncCommand RecoverUnfinishedCommand { get; }
@@ -143,6 +145,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         WriteAsBuiltCommand = cmd("Write + verify As-Built block", WriteAsync, ModBlk, actionsEnabled);
         RestoreAsBuiltCommand = cmd("Restore As-Built from backup", RestoreAsync, null, actionsEnabled);
         UndoAsBuiltCommand = cmd("Undo last As-Built write", UndoAsync, Mod, actionsEnabled);
+        ReapplyAsBuiltCommand = cmd("Re-apply my As-Built changes", ReapplyAsync, Mod, actionsEnabled);
         CompareToFactoryCommand = cmd("Compare to factory", CompareAsync, Mod, actionsEnabled);
         CheckUnfinishedCommand = cmd("Check unfinished As-Built write", () => CheckUnfinishedAsync(), null, () => HasUnfinished);
         RecoverUnfinishedCommand = cmd("Restore backup of unfinished As-Built write", RecoverUnfinishedAsync, null, () => HasUnfinished);
@@ -158,6 +161,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         CompareToFactoryCommand.RaiseCanExecuteChanged();
         RestoreAsBuiltCommand.RaiseCanExecuteChanged();
         UndoAsBuiltCommand.RaiseCanExecuteChanged();
+        ReapplyAsBuiltCommand.RaiseCanExecuteChanged();
         CheckUnfinishedCommand?.RaiseCanExecuteChanged();
         RecoverUnfinishedCommand?.RaiseCanExecuteChanged();
     }
@@ -277,6 +281,37 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         _host.RefreshBackups();
         if (!res.Written) { _host.Info("Restore", res.Note); return; }
         _host.Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)row.Def.TxId)}");
+    }
+
+    /// <summary>
+    /// KB-R5: after a dealer update or OTA reload: per block of the selected module, the last verified write (this vehicle) vs what
+    /// the module holds now (reads only). Blocks that were reverted or changed are written back one by one through the normal write
+    /// path (backup, typed WRITE, ECC RELEARN where it applies, read-back). Blocks the user undid or restored are never touched.
+    /// </summary>
+    private async Task ReapplyAsync()
+    {
+        if (_host.SelectedModule is not { } m) throw new InvalidOperationException("Select a module first");
+        RequireAsBuilt(m);
+        var hist = new AsBuiltHistory(_backupsDir());
+        IReadOnlyList<ReapplyItem> plan = Array.Empty<ReapplyItem>();
+        await OnBus(m, async () => plan = await AsBuiltReapply.PlanAsync(hist, (ushort)m.Def.TxId, _vin, (mod, blk, ct) => AsBuilt.ReadBlockAsync(mod, blk, ct)), allowFallback: true);
+        if (plan.Count == 0) { _host.Info("Re-apply", $"No verified write of {m.Label} for this vehicle in the change history. Nothing to re-apply."); return; }
+        var todo = plan.Where(i => i.State != ReapplyState.Kept).ToList();
+        var report = string.Join("\n", plan.Select(i => "• " + i.Line));
+        _log.Message(LogEventLevel.Information, "Re-apply As-Built", $"{m.Label}: {report}");
+        if (todo.Count == 0) { _host.Info("Re-apply", $"{m.Label}: every change you made is still in place.\n\n{report}"); return; }
+        if (!_ask("Re-apply my changes", $"{m.Label} (0x{m.Address}):\n{report}\n\nWrite {todo.Count} block(s) back to your values now? Each block goes through the normal write checks (backup, typed WRITE, read-back).")) return;
+        var done = new List<string>();
+        foreach (var i in todo)
+        {
+            var block = new AsBuiltBlock { Module = (ushort)m.Def.TxId, Block = i.Change.Block, Data = i.Wanted };
+            AsBuiltWriteResult res = null!;
+            try { await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, block), allowFallback: false); }
+            catch (Exception ex) when (ex is InvalidDataException) { await OfferCheckAfterFailureAsync(); throw; }
+            done.Add($"{i.Change.Where}: {(res.Written ? "re-applied and verified" : res.Note)}");
+        }
+        _host.RefreshBackups();
+        _host.Info("Re-apply", string.Join("\n", done) + $"\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)m.Def.TxId)}");
     }
 
     private async Task UndoAsync()

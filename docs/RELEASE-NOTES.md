@@ -1,3 +1,22 @@
+## v0.23.12
+
+**Re-apply my As-Built changes after a dealer update (KB-R5).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- A Ford dealer software update (FDRS) or an OTA reload re-applies the server's As-Built at the end, which **wipes your changes**. Users report having to revert, update, then re-apply by hand.
+- New: **As-Built → Change history → Re-apply my changes…** for the selected module. It reads the blocks you changed (reads only) and, per block, compares your **last verified write for this vehicle** with what the module holds now:
+  - *still as you set it*: nothing to do;
+  - *back to the value before your change* (the dealer-update case): offered for re-apply;
+  - *something else* (neither your value nor the one before it): shown, offered, and flagged "check before re-applying".
+- After you confirm, each block is written through the **normal write path** (backup, typed WRITE, the ECC RELEARN step where it applies, read-back), then the ignition-cycle advice is shown.
+- Blocks whose newest change is an undo, restore or recover are **never** offered (you chose to go back), nor writes for another vehicle (VIN tail) or writes that were refused.
+
+Internal: `AsBuilt/AsBuiltReapply` (`LastWrites`, `Classify`, `PlanAsync`, `ReapplyState`); `AsBuiltPageViewModel.ReapplyAsBuiltCommand` (write on the module's own bus, no fallback); button in `MainWindow.xaml` next to Undo. Tests `AsBuiltReapplyTests` (5) + the no-fallback scrub test now names this write (5 calls). Mutation: offering restores as re-apply candidates fails a test.
+
+### Windows + truck verify
+1. **DEMO:** As-Built → BCM block 1 → change a digit → Write. Change history → Re-apply my changes…: "still as you set it". Write the old digit back by hand (simulating a dealer revert) → Re-apply: offered as *back to the value before your change*; Yes → normal WRITE steps → verified.
+2. **DEMO:** Undo last write → Re-apply: nothing offered.
+3. **Truck:** only after a real dealer update; Phase 2 rules apply.
+
 ## v0.23.11
 
 **Shared vehicle configuration needs a typed RELEARN (KB-R4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

@@ -176,7 +176,9 @@ public class SecurityScrubTests
         Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", ab);
         // v0.21: recovering an unfinished write is a restore of its backup, on the module's own bus.
         Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RecoverAttemptAsync(c, _vin), allowFallback: false);", ab);
-        Assert.Equal(4, Count(ab, "allowFallback: false"));
+        // KB-R5: re-applying my changes is a normal write, on the module's own bus.
+        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, block), allowFallback: false);", ab);
+        Assert.Equal(5, Count(ab, "allowFallback: false"));
         // Compare to factory reads through OnBus (the module's bus), not straight from the service, and restarts its list per attempt.
         Assert.Contains("await OnBus(m, async () =>\n        {\n            current.Clear();", ab.Replace("\r\n", "\n"));
         // Every module command's can-execute is refreshed, Undo included.
