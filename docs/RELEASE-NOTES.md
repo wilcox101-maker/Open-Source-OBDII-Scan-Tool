@@ -1,3 +1,18 @@
+## v0.23.13
+
+**IPMB (camera module) writes need a typed IPMB; its backups are flagged (KB-R6).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- The community FORScan guide for the 2015+ F-150 (Livnitup, https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/) says **FORScan can't back up or restore the IPMB** (Image Processing Module B: forward camera / lane keeping, 0x7B1) correctly. This app's IPMB backup/restore has never been tested either.
+- An As-Built **write or restore of the IPMB** now asks one more question and needs **IPMB** typed; anything else stops before the backup and the write.
+- A **backup** of the IPMB (single module or "all modules") adds a note: keep the file, but don't count on a restore giving back a working camera configuration.
+- Dale's 2017 F-150 has no IPMB in its 20-module list; this matters for other trucks.
+
+Internal: `AsBuiltWritePolicy.Ipmb / IpmbPhrase / IpmbSource / BackupNote`; `ExtraSteps` adds the IPMB step; `AsBuiltPageViewModel` shows `BackupNote` after single and batch backups. Tests: 2 in `AsBuiltWritePolicyTests` (removing the step fails one).
+
+### Windows + truck verify
+1. **DEMO:** if the DEMO vehicle lists an IPMB: As-Built → IPMB → change a digit → Write: the IPMB step appears; Cancel → nothing written. Back up IPMB: the result shows the note.
+2. **Truck:** none (no IPMB on Dale's truck).
+
 ## v0.23.12
 
 **Re-apply my As-Built changes after a dealer update (KB-R5).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

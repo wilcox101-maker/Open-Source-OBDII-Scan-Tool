@@ -232,7 +232,8 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         _host.BatchText = text;
         _log.Message(AsBuiltBatch.HasHardFailure(res) ? LogEventLevel.Warning : LogEventLevel.Information, "Back up As-Built of all modules",
             text + "; " + string.Join("; ", res.Select(AsBuiltBatch.Line)));
-        _host.Info("As-Built backup", text + "\n\n" + string.Join("\n", res.Select(AsBuiltBatch.Line)));
+        var notes = res.Where(r => r.Ok).Select(r => AsBuiltWritePolicy.BackupNote((ushort)r.Module.TxId)).OfType<string>().ToList(); // KB-R6
+        _host.Info("As-Built backup", text + "\n\n" + string.Join("\n", res.Select(AsBuiltBatch.Line)) + (notes.Count > 0 ? "\n\n" + string.Join("\n", notes) : ""));
     }
 
     private async Task BackupAsync()
@@ -241,7 +242,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         RequireAsBuilt(m);
         string p = ""; await OnBus(m, async () => p = await AsBuilt.BackupAsync(_vin, (ushort)m.Def.TxId, new[] { Block }));
         _host.MarkAsBuilt(m, AsBuiltSupport.Supported);
-        _host.RefreshBackups(); _host.Info("Backup", $"Saved {p}");
+        _host.RefreshBackups(); _host.Info("Backup", $"Saved {p}" + (AsBuiltWritePolicy.BackupNote((ushort)m.Def.TxId) is { } note ? "\n\n" + note : "")); // KB-R6
     }
 
     private async Task WriteAsync()
