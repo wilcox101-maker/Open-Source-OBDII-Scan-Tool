@@ -7,6 +7,7 @@
 - **Checks before flashing**: battery window (12.5–15.0 V, three samples), link health (8 tester-present probes: one lost is a warning, two or more stop), file vs selected module, part number read from the module, PC on AC power.
 - **Backup**: every As-Built block the module has is saved (`*_preflash.asbuilt.json` in the backups folder) before the programming session.
 - **Error handling**: a journal (`flash/flash-<module>.jsonl` in the data folder) records every acknowledged block on disk. Lost answers and lost requests are resent with the same block counter; "response pending" is waited out or polled; low/high voltage pauses the flash; programming failures and security errors stop it. After a failure the module is **never** reset: it stays in its bootloader and **Resume** (same file, either adapter) redoes the programming session, security, erase and download. **Stop after this segment** and **Abandon job** are available. The PC is kept awake during a flash.
+- **`obdcli vbf-info --file x.vbf`** (offline): checks a real VBF against the reader before any flash: header, blocks, checksums; names the checksum a file really uses if it is not CRC-16/CCITT-FALSE. Exit 3 = the app would refuse the file.
 - **DEMO**: on a DEMO port, **DEMO image** loads a synthetic file and the flash targets a simulated bootloader module, so the whole flow can be tried without the truck.
 - Still needed for a real Ford module: a seed/key plug-in for the module and its programming security level (default 01, editable), and a real VBF. Erase/check record layouts per Ford module are not public: `docs/FLASHING.md` lists everything UNVERIFIED.
 
@@ -15,8 +16,9 @@ Internal: Core `Flash/` (VbfReader, FlashPlan, FlashPreflight, FlashWarnings, Fl
 ### Windows + truck verify
 1. DEMO (no vehicle): connect DEMO-EX, select the PCM, Flash tab → DEMO image → Run checks (all PASS except PC power if on battery) → Flash… → type FLASH. It finishes with "Module reports DEMO-14C204-SIM". Repeat on DEMO-MX+: the checks and the confirmation show the wireless warning, and the flash still runs.
 2. DEMO: start a flash and press Stop after this segment: the banner says the job is open; Flash… is refused; Resume… finishes it. Abandon job… on an open job asks first and keeps the journal.
-3. Truck, read-only path only: connect the EX, select a module, open any VBF for that module and press **Run checks** only. Expect PASS for battery (charger on) and link; note the link timings for EX and MX+.
-4. **Do not flash a real module yet.** The first real flash is Phase 5: a low-risk module with a known-good backup, a verified seed/key plug-in and a VBF from a known source, EX first.
+3. Offline, any PC: `obdcli vbf-info --file <a real Ford .vbf>`. Expect "the flash engine's reader accepts this file". If it says MISMATCH, send the output: the reader's checksum assumption needs fixing before any real flash.
+4. Truck, read-only path only: connect the EX, select a module, open any VBF for that module and press **Run checks** only. Expect PASS for battery (charger on) and link; note the link timings for EX and MX+.
+5. **Do not flash a real module yet.** The first real flash is Phase 5: a low-risk module with a known-good backup, a verified seed/key plug-in and a VBF from a known source, EX first.
 
 ## v0.18.0
 

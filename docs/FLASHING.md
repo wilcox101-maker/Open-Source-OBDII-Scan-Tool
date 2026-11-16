@@ -39,7 +39,8 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 ## UNVERIFIED (must be settled before a real flash)
 
 - VBF layout and per-block CRC-16/CCITT come from community descriptions, not Ford documentation; no real file parsed yet.
-  A block checksum mismatch rejects the file.
+  A block checksum mismatch rejects the file. **Check a real file first:** `obdcli vbf-info --file x.vbf` reports per block
+  whether the stored checksum is CCITT-FALSE or which other common checksum it matches (exit 3 = the app would refuse it).
 - Ford security level for programming, erase option record layout and FF01 status meaning are per module and not public.
   `FlashPlan` exposes all three.
 - Throughput: ELM host-side ISO-TP sends each CAN frame as a separate command. A 4 KB block is ~585 commands, which will be slow

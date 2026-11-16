@@ -58,6 +58,15 @@ public sealed class FlashImage
 
 public sealed class FlashImageException(string message) : Exception(message);
 
+/// <summary>One VBF block as found in the file: the stored checksum, the CRC-16/CCITT-FALSE this reader expects, and which other common checksum matches when that one does not.</summary>
+public sealed record VbfBlockInfo(uint Address, uint Length, ushort StoredChecksum, ushort ExpectedCcitt, bool Matches, string? AlternativeMatch);
+
+public sealed record VbfInspection(IReadOnlyDictionary<string, string> Header, IReadOnlyList<VbfBlockInfo> Blocks, string? Error)
+{
+    /// <summary>True when <see cref="VbfReader.Parse"/> would accept the file's blocks.</summary>
+    public bool ReaderAccepts => Error is null && Blocks.Count > 0 && Blocks.All(b => b.Matches);
+}
+
 /// <summary>
 /// Reader for VBF ("Versatile Binary Format") flash files: an ASCII header <c>vbf_version = x.y; header { key = value; ... }</c>
 /// followed by binary blocks of <c>[start address u32 BE][length u32 BE][data][checksum u16 BE]</c>.
@@ -118,6 +127,62 @@ public static class VbfReader
             Name = img.Name, Segments = img.Segments, Erase = img.Erase, SoftwarePartNumber = img.SoftwarePartNumber, EcuTxId = img.EcuTxId,
             DataFormat = img.DataFormat, Sha256 = Convert.ToHexString(SHA256.HashData(file)), Warnings = warnings,
         };
+    }
+
+    /// <summary>
+    /// Reads a VBF without refusing it: header fields, and for each block the stored checksum next to the CRC-16/CCITT-FALSE this
+    /// reader expects and the first of several other common 16-bit checksums that matches. Used by <c>obdcli vbf-info</c> to check
+    /// this reader's assumptions against real files before anything is flashed. <see cref="VbfInspection.Error"/> is set when the
+    /// file structure itself is broken.
+    /// </summary>
+    public static VbfInspection Inspect(byte[] file)
+    {
+        int headerEnd;
+        try { headerEnd = FindHeaderEnd(file); }
+        catch (FlashImageException ex) { return new VbfInspection(new Dictionary<string, string>(), Array.Empty<VbfBlockInfo>(), ex.Message); }
+        var fields = ParseHeader(Encoding.ASCII.GetString(file, 0, headerEnd));
+        var blocks = new List<VbfBlockInfo>();
+        int pos = headerEnd;
+        string? error = null;
+        while (pos < file.Length)
+        {
+            if (file.Length - pos < 10) { error = $"Truncated block header at byte {pos}"; break; }
+            uint addr = ReadU32(file, pos), len = ReadU32(file, pos + 4);
+            if (len == 0 || (long)pos + 8 + len + 2 > file.Length) { error = $"Block at 0x{addr:X8} claims {len} bytes but the file ends first (byte {pos})"; break; }
+            var data = file.AsSpan(pos + 8, (int)len).ToArray();
+            int c = pos + 8 + (int)len;
+            ushort stored = (ushort)(file[c] << 8 | file[c + 1]);
+            ushort ccitt = Crc16Ccitt(data);
+            string? alt = stored == ccitt ? null : Alternatives.FirstOrDefault(a => a.Fn(data) == stored).Name;
+            blocks.Add(new VbfBlockInfo(addr, len, stored, ccitt, stored == ccitt, alt));
+            pos = c + 2;
+        }
+        return new VbfInspection(fields, blocks, error);
+    }
+
+    private static readonly (string Name, Func<byte[], ushort> Fn)[] Alternatives =
+    {
+        ("CRC-16/XMODEM (init 0x0000)", d => Crc16(d, 0x1021, 0x0000, false)),
+        ("CRC-16/ARC (reflected, init 0x0000)", d => Crc16(d, 0x8005, 0x0000, true)),
+        ("CRC-16/MODBUS (reflected, init 0xFFFF)", d => Crc16(d, 0x8005, 0xFFFF, true)),
+        ("CRC-16/KERMIT (reflected CCITT, init 0x0000)", d => Crc16(d, 0x1021, 0x0000, true)),
+        ("byte sum mod 65536", d => (ushort)d.Sum(b => (long)b)),
+    };
+
+    /// <summary>Generic CRC-16 (no final XOR). Reflected variants use the bit-reversed polynomial internally.</summary>
+    private static ushort Crc16(ReadOnlySpan<byte> data, ushort poly, ushort init, bool reflected)
+    {
+        if (!reflected)
+        {
+            ushort crc = init;
+            foreach (var b in data) { crc ^= (ushort)(b << 8); for (int i = 0; i < 8; i++) crc = (crc & 0x8000) != 0 ? (ushort)(crc << 1 ^ poly) : (ushort)(crc << 1); }
+            return crc;
+        }
+        ushort rp = 0;
+        for (int i = 0; i < 16; i++) if ((poly & (1 << i)) != 0) rp |= (ushort)(1 << (15 - i));
+        ushort r = init;
+        foreach (var b in data) { r ^= b; for (int i = 0; i < 8; i++) r = (r & 1) != 0 ? (ushort)(r >> 1 ^ rp) : (ushort)(r >> 1); }
+        return r;
     }
 
     /// <summary>Writes a VBF in the layout <see cref="Parse"/> reads. For tests and DEMO images only.</summary>

@@ -47,6 +47,8 @@ public static class Cli
           asbuilt-read --module 726 [--out file.abt]  read every As-Built block of a module
           options --abt file.abt [--tab NAME] [--search TEXT] [--set "ADDR PATTERN=DIGITS"]... [--out new.abt]
                                                       offline: list or edit As-Built options of a FORScan .abt file
+          vbf-info --file image.vbf                   offline: check a VBF flash file against this tool's reader (header,
+                                                      blocks, checksums). Exit 3 if the app would refuse to flash it
         """;
 
     public static async Task<int> RunAsync(string[] args, TextWriter o, TextWriter e, Func<string, int, ITransport>? serial = null, CancellationToken ct = default)
@@ -60,6 +62,7 @@ public static class Cli
             return a.Command switch
             {
                 "options" => Options(a, o),
+                "vbf-info" => VbfInfo(a, o),
                 "j2534-list" => J2534List(a, o),
                 "info" or "scan" or "dtcs" or "live" or "monitor" or "asbuilt-read" => await WithAdapterAsync(a, o, e, serial, ct),
                 _ => Bad(e, $"Unknown command '{a.Command}'."),
@@ -425,6 +428,43 @@ public static class Cli
         if (a.Has("json")) Json(o, new { written = outPath, changed = changed.Select(p => new { before = p.First.Format(), after = p.Second.Format() }) });
         else { foreach (var (b, n) in changed) o.WriteLine($"{b.Format()}  ->  {n.Format()}"); o.WriteLine($"{changed.Count} line(s) changed; wrote {outPath}"); }
         return 0;
+    }
+
+    /// <summary>Offline: inspects a VBF file and says whether the flash engine's reader accepts it. Never touches a vehicle.</summary>
+    private static int VbfInfo(Args a, TextWriter o)
+    {
+        var path = a.Get("file") ?? throw new FormatException("vbf-info needs --file image.vbf");
+        var bytes = File.ReadAllBytes(path);
+        var ins = ObdLink.Core.Flash.VbfReader.Inspect(bytes);
+        IReadOnlyList<string> warnings = Array.Empty<string>();
+        string? sha = null, refused = null;
+        if (ins.ReaderAccepts)
+        {
+            try { var img = ObdLink.Core.Flash.VbfReader.Parse(bytes, Path.GetFileName(path)); warnings = img.Warnings; sha = img.Sha256; }
+            catch (ObdLink.Core.Flash.FlashImageException ex) { refused = ex.Message; }
+        }
+        else refused = ins.Error ?? "one or more block checksums do not match CRC-16/CCITT-FALSE";
+        if (a.Has("json"))
+            Json(o, new
+            {
+                file = Path.GetFileName(path), bytes = bytes.Length, sha256 = sha, accepted = refused is null, refused, header = ins.Header,
+                blocks = ins.Blocks.Select(b => new { address = $"0x{b.Address:X8}", length = b.Length, stored = $"0x{b.StoredChecksum:X4}", ccitt = $"0x{b.ExpectedCcitt:X4}", matches = b.Matches, alternative = b.AlternativeMatch }),
+                warnings,
+            });
+        else
+        {
+            o.WriteLine($"File: {Path.GetFileName(path)} ({bytes.Length:N0} bytes)" + (sha is null ? "" : $"  SHA-256 {sha}"));
+            foreach (var (k, v) in ins.Header) o.WriteLine($"  {k} = {(v.Length > 120 ? v[..117] + "..." : v)}");
+            o.WriteLine($"Blocks: {ins.Blocks.Count}, {ins.Blocks.Sum(b => (long)b.Length):N0} data bytes");
+            foreach (var b in ins.Blocks)
+                o.WriteLine($"  0x{b.Address:X8}  {b.Length,10:N0} bytes  stored 0x{b.StoredChecksum:X4}  CRC-16/CCITT 0x{b.ExpectedCcitt:X4}  "
+                    + (b.Matches ? "OK" : "MISMATCH" + (b.AlternativeMatch is string alt ? $" (stored value matches {alt})" : "")));
+            foreach (var w in warnings) o.WriteLine("Note: " + w);
+            o.WriteLine(refused is null ? "Verdict: the flash engine's reader accepts this file." : "Verdict: the flash engine would REFUSE this file: " + refused);
+            if (ins.Blocks.Any(b => !b.Matches && b.AlternativeMatch is not null))
+                o.WriteLine("The stored checksums follow another algorithm. Report this (with the line above) so the reader can be corrected; do not flash until then.");
+        }
+        return refused is null ? 0 : 3;
     }
 }
 
