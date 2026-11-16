@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.10.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.11.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.10.0)
+## Where we are (v0.11.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -11,12 +11,12 @@ This file compares what the app does today (v0.10.0) with FORScan's feature grou
 | Module discovery | Auto-detects modules on HS, MS, HS2, HS3 | Scan from a module table + discovery sweep on HS / MS / HS2 | HS3 and 2021+ gateway layouts; per-vehicle module tables beyond the 2017 F-150 |
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
 | Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); dashboard | Charts; wider Ford DID catalog |
-| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; RoutineControl (31 start/stop/results) in Core, not yet in the App (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused) | On-demand self-test UI and per-module routine IDs (catalog data), output state control (2F) |
+| Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused) | On-demand self-test UI and per-module routine IDs (catalog data), output state control (2F) |
 | Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | None | All of them (see phase 4; most need security access) |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data (read-only) | Decoded named-option editor, central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | None | Not started |
-| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify | Battery-maintainer detection; session keep-alive during long jobs |
+| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, UDS session keep-alive (v0.11.0) | Battery-maintainer detection |
 
 ## Second reference: UCDS V3
 

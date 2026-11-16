@@ -352,6 +352,32 @@
             </DockPanel>
           </Border>
         </TabItem>
+        <TabItem Header="Routines" Tag="&#xE945;">
+          <Border Style="{StaticResource CardStyle}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,0,4,6" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
+                         Text="UDS RoutineControl (31). Enter the extended session, then start, poll and stop a routine by its 2-byte identifier. Start, Stop and Results need writes enabled (Settings); Start also checks the battery and asks you to type RUN. Airbag/pretensioner deployment routines (E200-E2FF) and flashing routines (FF00/FF01) are always refused. DEMO modules accept routine 1234 only."/>
+              <DockPanel DockPanel.Dock="Top" Margin="2">
+                <TextBlock Text="Module:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="3,0,6,0"/>
+                <ComboBox ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" DisplayMemberPath="PickerText" ToolTip="{Binding SelectedModule.Tooltip}" MinWidth="420"/>
+              </DockPanel>
+              <WrapPanel DockPanel.Dock="Top" Margin="0,4,0,4">
+                <Button Command="{Binding Routines.ExtendedSessionCommand}" Margin="0,0,4,0" ToolTip="10 03. Allowed in read-only mode. The app then sends 3E 80 every 2 s so the module stays in it."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8AB;"/><TextBlock Text="Extended session (10 03)"/></StackPanel></Button>
+                <Button Command="{Binding Routines.DefaultSessionCommand}" Margin="0,0,12,0" ToolTip="10 01: back to the default session (keep-alive stops)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72B;"/><TextBlock Text="Default session (10 01)"/></StackPanel></Button>
+                <TextBlock Text="Routine ID 0x" VerticalAlignment="Center"/>
+                <TextBox Width="60" Text="{Binding Routines.RoutineId, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" ToolTip="2 bytes, e.g. 1234"/>
+                <TextBlock Text="  Option (hex, optional)" VerticalAlignment="Center"/>
+                <TextBox Width="140" Text="{Binding Routines.Option, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Margin="4,0,12,0" ToolTip="Option record sent after the routine ID with Start or Stop"/>
+                <Button Command="{Binding Routines.StartCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,0" ToolTip="31 01: needs writes enabled, battery check, typed RUN"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="Start…"/></StackPanel></Button>
+                <Button Command="{Binding Routines.ResultsCommand}" Margin="0,0,4,0" ToolTip="31 03: read the routine's status/results"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9D9;"/><TextBlock Text="Results"/></StackPanel></Button>
+                <Button Command="{Binding Routines.StopCommand}" Margin="0,0,4,0" ToolTip="31 02"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71A;"/><TextBlock Text="Stop…"/></StackPanel></Button>
+                <Button Command="{Binding Routines.ClearCommand}" Content="Clear list"/>
+              </WrapPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Text="{Binding Routines.SessionText}"/>
+              <ListBox ItemsSource="{Binding Routines.Results}" FontFamily="{StaticResource Mono}" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+            </DockPanel>
+          </Border>
+        </TabItem>
         <TabItem Header="As-Built" Tag="&#xE9F9;">
           <Border Style="{StaticResource CardStyle}">
           <DockPanel>
