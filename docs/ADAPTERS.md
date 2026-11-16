@@ -23,7 +23,7 @@ Source: https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF
 | **OBDLink EX** (USB, HS/MS auto-switch) | USB | Recommended. For 2021+ trucks the doc says to use the EX rather than other USB adapters. FTDI VCP driver (ftdichip.com CDM setup). Firmware updates: https://www.scantool.net/downloads/updates/obdlink_ex/ |
 | **OHP "Ford ELMconfig"** USB (ELM327 with HS/MS toggle switch) | USB | FTDI driver. Set the switch to the correct position for HS- or MS-CAN modules; FORScan prompts when to toggle it. Installation guide by tmcolegr (Drive link in the doc). |
 | **VINT ELM327** USB (switch-modded) | USB | CH340 driver (Win8/10). Has an HS/MS switch like the OHP. |
-| **OBDLink MX+** | Bluetooth | Recommended, including for 2021+. **This app's primary adapter.** The LX does **not** support MS-CAN. If the MX+ reports "No ELM found", close OBDLink's OBDwiz or any other app holding the port. |
+| **OBDLink MX+** | Bluetooth | Recommended, including for 2021+. Supported by this app alongside the EX; for **flashing** the app warns that the wireless link is a risk and recommends the wired EX (not a block). The LX does **not** support MS-CAN. If the MX+ reports "No ELM found", close OBDLink's OBDwiz or any other app holding the port. |
 | **vLinker FS** | Bluetooth | Livnitup lists it for FORScan Lite (iOS/Android) only. Not tested here. |
 
 Untested in this app: OHP, VINT and vLinker (UNVERIFIED). The EX and MX+ have profiles in `AdapterProfiles`.

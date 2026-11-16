@@ -1,3 +1,5 @@
+HISTORICAL: notes shipped with the v0.3.5 test build (2026-10-24). For current builds see README.md and docs/RELEASE-NOTES.md.
+
 OBDLink Diag - TEST BUILD v0.3.5 (win-x64 / win-arm64)  2026-10-24
 =======================================================
 UNSIGNED TEST BUILD. Compiled on Linux. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2

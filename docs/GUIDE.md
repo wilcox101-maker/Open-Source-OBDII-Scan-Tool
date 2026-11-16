@@ -166,6 +166,16 @@ Open the dashboard window with **View → Dashboard**, the **Dashboard** button 
 - **Left rail:** when the main window is short the page list scrolls. Shorter still (the window can shrink to a 480 px minimum), the captions hide and the icons remain. Labels come back only once there is room for them with a little extra, so the rail does not flicker. Alt+1 opens Modules. Alt+2 through Alt+8 open DTCs, As-Built, Vehicle, Console, Logs, Guide, and Settings. Alt+9 does nothing.
 - Units and refresh rate are on the **Settings** page.
 
+## Flash (module programming, Phase 5)
+The **Flash** page reprograms a module from a VBF file. **It has only been run against the simulated module on a DEMO port. Do not flash a real module until the Phase 5 checks in the release notes pass** and you have the module's seed/key plug-in, its programming security level, and a VBF from a known source.
+1. Pick the module. The blue line says which adapter is connected: the wired **OBDLink EX** is recommended; the **MX+** works, with a wireless-link warning.
+2. **Open file…** (a VBF; a block with a bad checksum refuses the file) or, on a DEMO port, **DEMO image**. Check a real file first with `obdcli vbf-info --file x.vbf`.
+3. **Run checks**: file vs module, battery window (12.5-15.0 V), link health (8 probes), the module's part number, adapter, PC on AC power. A failed check blocks the flash; a warning does not.
+4. **Flash…** (writes must be enabled in Settings): the checks run again, the warnings are shown, then type **FLASH**. Every As-Built block of the module is backed up first.
+5. While it runs: keep the charger on, don't turn the key, don't unplug anything. Lost replies are resent; low voltage pauses the flash. **Stop after this segment** stops at a safe point.
+6. If it stops (link lost, a module error), the module may be left in its bootloader. Nothing resets it. Reconnect (EX or MX+), open the **same file**, and press **Resume…**. **Abandon job…** closes an open job without finishing it (asks first; the journal and backup are kept).
+The journal of every flash is `Data\flash\flash-<module>.jsonl`. Details: `docs/FLASHING.md`.
+
 ## As-Built backup
 Open **As-Built** and pick a module (only modules with As-Built blocks are listed unless "Show all modules" is ticked). If a module answers DID DE00 with NRC 0x31, it has no As-Built: it leaves the list, Read / Backup / Write stay off, and an info message explains that. That is not an error. **Show all modules** puts it back in the list with the actions still off. Modules that do answer DE00 keep working. A real adapter remembers which Ford bus (HS-CAN, HS-CAN2, or MS-CAN) each module answered on and tries that bus first next time; DEMO does not save that. If you are not connected the app offers to connect, and it scans first if needed. **Read all blocks** saves the module to `Data\asbuilt\<date>\`; **Read all modules (backup)** backs up every As-Built module that answered, with progress and Cancel, and counts "no As-Built" separately from failures. Everything is read-only until you turn read-only mode off. The DTCs page has the same picker and **Read all modules**. DEMO TCM (0x7E1) has synthetic DE00-DE07 blocks so you can try the page; a 2017 F-150 factory file has no TCM As-Built.
 

@@ -1,5 +1,7 @@
 # OpenDiag-MX: Technical Design Plan
 
+> **Historical document (draft v0.1, 2026-10-22).** It is kept for the reasoning behind the design. Several choices changed: the app supports the OBDLink **EX and MX+**, ships under **MIT**, stores data as JSON (no SQLite), and module flashing is in scope (Phase 5). For the current state see `README.md`, `docs/ROADMAP-FORSCAN-PARITY.md` and `docs/RELEASE-NOTES.md`.
+
 Open-source Windows diagnostic app for the **OBDLink MX+** (STN2255 / STN2256 chipset). Target vehicles: **Ford only** (primary: 2017 F-150).
 
 **Status:** draft v0.1 (2026-10-22, America/New_York).  
