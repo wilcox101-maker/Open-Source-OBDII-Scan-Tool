@@ -15,6 +15,8 @@ public sealed class FordAbFile
 {
     public string Vin { get; set; } = "";
     public List<AsBuiltLine> Lines { get; } = new();
+    /// <summary>KB-R2: lines that couldn't be represented (block/line above 99), with why. Not imported.</summary>
+    public List<string> Skipped { get; } = new();
     /// <summary>PCM rows are labeled "PCM n" with no module address.</summary>
     public List<(string Label, byte[] Bytes)> PcmLines { get; } = new();
     public byte[] VehicleData { get; set; } = Array.Empty<byte>();
@@ -50,7 +52,10 @@ public sealed class FordAbFile
         {
             var b = Codes(d);
             if (b.Length < 2) throw new FormatException($"Short line {(string?)d.Attribute("LABEL")}");
-            f.Lines.Add(new AsBuiltLine(AsBuiltAddress.Parse((string?)d.Attribute("LABEL") ?? ""), b[..^1], b[^1]));
+            AsBuiltAddress addr;
+            try { addr = AsBuiltAddress.Parse((string?)d.Attribute("LABEL") ?? ""); }
+            catch (AsBuiltRangeException ex) { f.Skipped.Add(ex.Message); continue; } // KB-R2: skip and report, don't abort the file
+            f.Lines.Add(new AsBuiltLine(addr, b[..^1], b[^1]));
         }
         foreach (var n in v.Elements("NODEID"))
         {

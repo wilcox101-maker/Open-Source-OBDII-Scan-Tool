@@ -6,6 +6,18 @@ using System.Text.RegularExpressions;
 namespace ObdLink.Core.AsBuilt;
 
 /// <summary>Ford As-Built address "MMM-BB-LL": module request id, block, line.</summary>
+/// <summary>
+/// KB-R2: an As-Built block or line number above 99. FORScan's .abt page shows PCM blocks above 99 exist on some vehicles
+/// (e.g. 7E0-162-01, https://forum.forscan.org/viewtopic.php?p=36323). This tool stores block/line numbers as BCD bytes (0..99),
+/// and the checksum rule for higher numbers is unknown, so such lines are skipped and reported, never guessed.
+/// Derives from <see cref="FormatException"/> so existing "bad input" handling still applies.
+/// </summary>
+public sealed class AsBuiltRangeException(string what)
+    : FormatException($"{what}: As-Built block/line numbers above 99 aren't supported yet (stored as BCD 0-99; the checksum rule for higher blocks is unknown). The line is skipped, not guessed.")
+{
+    public string What { get; } = what;
+}
+
 public readonly record struct AsBuiltAddress(ushort Module, byte Block, byte Line)
 {
     public override string ToString() => $"{Module:X3}-{Block:X2}-{Line:X2}";
@@ -15,13 +27,16 @@ public readonly record struct AsBuiltAddress(ushort Module, byte Block, byte Lin
     /// Evidence: (1) the Ford .ab labels jump 09→10 and only validate as 0x10; (2) Dale's PCM .abt has 26–52 lines per block coded sequentially (G1…GF,H0…), and all 101 checksums validate only when line n contributes BCD(n) to the sum.
     /// Inferred from real files; not a published Ford spec.
     /// </summary>
-    public static byte ToBcd(int ordinal) => ordinal is >= 0 and <= 99 ? (byte)((ordinal / 10 << 4) | ordinal % 10) : throw new ArgumentOutOfRangeException(nameof(ordinal), "BCD block/line ordinal must be 0..99");
+    public static byte ToBcd(int ordinal) => ordinal is >= 0 and <= 99 ? (byte)((ordinal / 10 << 4) | ordinal % 10)
+        : ordinal > 99 ? throw new AsBuiltRangeException($"ordinal {ordinal}") : throw new ArgumentOutOfRangeException(nameof(ordinal), "BCD block/line ordinal must be 0..99");
     public static bool IsBcd(byte b) => (b >> 4) <= 9 && (b & 0xF) <= 9;
     public static int FromBcd(byte b) => IsBcd(b) ? (b >> 4) * 10 + (b & 0xF) : throw new FormatException($"0x{b:X2} is not a BCD ordinal");
     public static AsBuiltAddress Parse(string s)
     {
         var p = s.Trim().Split('-');
         if (p.Length != 3) throw new FormatException($"Bad As-Built address '{s}'");
+        // KB-R2: a 3-digit block or line (FORScan's 7E0-162-01) is a number above 99, not a hex byte that overflows.
+        if (p[1].Length > 2 || p[2].Length > 2) throw new AsBuiltRangeException(s.Trim());
         return new(ushort.Parse(p[0], NumberStyles.HexNumber), byte.Parse(p[1], NumberStyles.HexNumber), byte.Parse(p[2], NumberStyles.HexNumber));
     }
 }
@@ -49,7 +64,7 @@ public sealed record AsBuiltLine(AsBuiltAddress Address, byte[] Data, byte Check
     /// <summary>Parses "726-01-01 xxxx xxxx xxCC" (FORScan-style display; groups of 4 hex digits, last byte = checksum).</summary>
     public static AsBuiltLine Parse(string line)
     {
-        var m = Regex.Match(line.Trim(), @"^([0-9A-Fa-f]{3}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})\s*[:=]?\s*([0-9A-Fa-f\s]+)$");
+        var m = Regex.Match(line.Trim(), @"^([0-9A-Fa-f]{3}-[0-9A-Fa-f]{2,3}-[0-9A-Fa-f]{2,3})\s*[:=]?\s*([0-9A-Fa-f\s]+)$");
         if (!m.Success) throw new FormatException($"Unrecognized As-Built line '{line}'");
         var hex = Regex.Replace(m.Groups[2].Value, @"\s", "");
         if (hex.Length < 4 || hex.Length % 2 != 0) throw new FormatException("As-Built data must be whole bytes incl. checksum");
