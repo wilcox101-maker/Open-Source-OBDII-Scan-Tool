@@ -14,7 +14,8 @@ namespace ObdLink.App;
 /// <item>Output hold: 2F did 03 state with a <see cref="ControlLease"/>. Pressing again, <see cref="DashActions.HoldSeconds"/> s
 /// passing, removing the card or closing the window sends 2F did 00 (allowed even after writes are switched off).</item>
 /// <item>DID write: reads the current value first (shown as old → new and logged so it can be written back), writes, reads back
-/// and says whether the module now holds the new value. <see cref="UndoCommand"/> then writes the old value back (same gate,
+/// and says whether the module now holds the new value (<see cref="DashWrite"/>: a lost or pending reply is settled by the read-back,
+/// a refusal says what to do next, a different value suggests an ignition cycle or Undo). <see cref="UndoCommand"/> then writes the old value back (same gate,
 /// battery check and typed WRITE), but only while the module still holds what the card wrote.</item>
 /// </list>
 /// </summary>
@@ -103,12 +104,12 @@ public sealed class DashActionCardVm : ObservableObject
                     // the DID first: if the write never landed it finds the old value and has nothing to do.
                     byte[]? old = before is null ? null : Convert.FromHexString(before);
                     SetUndo(DashActions.UndoFor(Spec, old, plan.Data, plan.Data));
-                    await uds.WriteDataByIdentifierAsync(plan.Id, plan.Data);
-                    var back = await uds.ReadDataByIdentifierAsync(plan.Id);
-                    SetUndo(DashActions.UndoFor(Spec, old, plan.Data, back));
-                    var ok = back.AsSpan().SequenceEqual(plan.Data);
-                    Status = $"{DateTimeOffset.Now:HH:mm:ss} wrote {Convert.ToHexString(plan.Data)} (was {before ?? "unreadable"}); read back {Convert.ToHexString(back)}: " + (ok ? "verified." : "DIFFERENT - the module did not keep the value.");
-                    if (!ok) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: read-back {Convert.ToHexString(back)} differs from written {Convert.ToHexString(plan.Data)}");
+                    // A lost or "pending" reply is settled by reading back; a refusal is definite (nothing changed). See DashWrite.
+                    var o = await DashWrite.WriteAndSettleAsync(uds, plan.Id, plan.Data, old);
+                    // Not applied: the module still holds the old value, nothing to undo. Unknown: Undo stays (it re-reads before writing).
+                    SetUndo(o.Verdict == DashWriteVerdict.NotApplied ? null : DashActions.UndoFor(Spec, old, plan.Data, o.ReadBack ?? plan.Data));
+                    Status = $"{DateTimeOffset.Now:HH:mm:ss} {o.Message}" + (before is null ? " (old value was unreadable: no undo)" : "");
+                    if (!o.Verified) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: {o.Message}");
                     break;
             }
         });
@@ -132,12 +133,10 @@ public sealed class DashActionCardVm : ObservableObject
             await safety.RequireAsync(DashActions.Steps(undo.Plan, Label + " (undo)", module, Convert.ToHexString(now)));
             await uds.DiagnosticSessionControlAsync(UdsSession.Extended);
             _log.Message(LogEventLevel.Information, "Dashboard", $"{Label}: undo, DID 0x{undo.Plan.Id:X4} on 0x{undo.Plan.TxId:X3} {Convert.ToHexString(now)} → {Convert.ToHexString(undo.Before)}");
-            await uds.WriteDataByIdentifierAsync(undo.Plan.Id, undo.Before);
-            var back = await uds.ReadDataByIdentifierAsync(undo.Plan.Id);
-            bool ok = back.AsSpan().SequenceEqual(undo.Before);
-            if (ok) SetUndo(null);
-            Status = $"{DateTimeOffset.Now:HH:mm:ss} undo: wrote {Convert.ToHexString(undo.Before)} back; read back {Convert.ToHexString(back)}: " + (ok ? "verified." : "DIFFERENT - the module did not keep the old value.");
-            if (!ok) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: undo read-back {Convert.ToHexString(back)} differs from {Convert.ToHexString(undo.Before)}");
+            var o = await DashWrite.WriteAndSettleAsync(uds, undo.Plan.Id, undo.Before, now);
+            if (o.Verified) SetUndo(null);
+            Status = $"{DateTimeOffset.Now:HH:mm:ss} undo: {o.Message}";
+            if (!o.Verified) _log.Message(LogEventLevel.Warning, "Dashboard", $"{Label}: undo: {o.Message}");
         });
     }
 
