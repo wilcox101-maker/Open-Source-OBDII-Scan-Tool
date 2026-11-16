@@ -625,4 +625,162 @@ public class FlashEngineTests
         Assert.Contains(r.Items, i => i.Name == "Image layout" && i.Status == PreflightStatus.Pass);
         Assert.Contains(r.Items, i => i.Name == "Module part number" && i.Status == PreflightStatus.Warn && i.Detail.Contains("program code"));
     }
+
+    // ---- keep-alive, lost session, lockout-safe security ----
+
+    private sealed class WrongKey : ISeedKeyProvider
+    {
+        public Task<byte[]?> ComputeKeyAsync(uint m, byte l, byte[] seed, CancellationToken ct = default) => Task.FromResult<byte[]?>(new byte[] { 0xDE, 0xAD, 0x00 });
+    }
+
+    /// <summary>An engine whose waits advance the simulated module's clock, so S3 session timeouts happen as on a real module.</summary>
+    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal) Timed(SimulatedFlashEcu ecu, FlashImage img, FlashRetryPolicy? retry = null,
+        Func<DateTimeOffset>? now = null, MemoryFlashJournal? journal = null)
+    {
+        ecu.ExpectedImage = img;
+        var uds = new UdsClient(ecu, 0x7E0) { SeedKey = new SimKey(), PendingRetryDelay = TimeSpan.Zero };
+        journal ??= new MemoryFlashJournal();
+        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img, Retry = retry ?? new FlashRetryPolicy() }, journal)
+        {
+            ReadVoltage = _ => Task.FromResult<double?>(13.2),
+            Backup = _ => Task.FromResult("b.json"),
+            Delay = t => { ecu.Advance(t); return Task.CompletedTask; },
+            Now = now ?? (() => DateTimeOffset.UtcNow),
+        };
+        return (engine, uds, journal);
+    }
+
+    [Fact]
+    public async Task SecurityDelay_InProgrammingSession_KeepsTheSessionAlive()
+    {
+        // 0x37 on the seed makes the engine wait 10 s; the module's S3 is 5 s. Without TesterPresent the session would be gone.
+        var ecu = new SimulatedFlashEcu { S3 = TimeSpan.FromSeconds(5), SecurityDelaysLeft = 1 };
+        var img = Image(1);
+        var (eng, uds, _) = Timed(ecu, img);
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Equal(0, ecu.SessionDrops);
+        Assert.Contains(ecu.Calls, c => c.Length == 2 && c[0] == 0x3E && c[1] == 0x80);
+    }
+
+    [Fact]
+    public async Task LowBatteryPause_InProgrammingSession_KeepsTheSessionAlive()
+    {
+        var ecu = new SimulatedFlashEcu { S3 = TimeSpan.FromSeconds(5) };
+        var img = Image(1, 3000);
+        int reads = 0;
+        var (eng, uds, _) = Timed(ecu, img);
+        var eng2 = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img }, new MemoryFlashJournal())
+        {
+            ReadVoltage = _ => Task.FromResult<double?>(++reads is >= 3 and <= 7 ? 11.9 : 13.2), // ~10 s below the window mid-download
+            Backup = _ => Task.FromResult("b.json"),
+            Delay = t => { ecu.Advance(t); return Task.CompletedTask; },
+            VoltageCheckEveryBlocks = 1,
+        };
+        await eng2.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Equal(0, ecu.SessionDrops);
+    }
+
+    [Fact]
+    public async Task SessionDroppedMidDownload_RestartsFromEraseAndFinishes()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(2, 3000);
+        int seen = 0;
+        ecu.Faults = (req, _) => req[0] == 0x36 && req[1] == 0x04 && seen++ == 0 ? SimFlashFault.SessionDrop : null;
+        var (eng, uds, journal) = Timed(ecu, img);
+        var r = await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Equal(1, ecu.SessionDrops);
+        Assert.Contains(journal.ReadAll(), e => e.Kind == FlashJournalKind.Restarted);
+        Assert.Equal(2, ecu.Calls.Count(c => c[0] == 0x10 && c[1] == 0x02));
+        Assert.Equal(2, eng.State.SegmentsDone); // the restart reset the count
+        Assert.False(eng.State.Open);
+        Assert.True(r.Retries >= 1);
+    }
+
+    [Fact]
+    public async Task SessionDroppingRepeatedly_InterruptsWithTheJobOpen()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1, 3000);
+        ecu.Faults = (req, _) => req[0] == 0x36 && req[1] == 0x03 ? SimFlashFault.SessionDrop : null;
+        var (eng, uds, _) = Timed(ecu, img);
+        var ex = await Assert.ThrowsAsync<SessionLostException>(() => eng.RunAsync(uds));
+        Assert.Equal(FlashFaultAction.SessionLost, ex.Fault?.Action);
+        Assert.Contains("Resume", ex.Message);
+        Assert.True(eng.State.Open);
+        Assert.Equal(0, ecu.Resets); // erased: never reset after a failure
+    }
+
+    [Fact]
+    public async Task WrongKey_IsSentOnce_ThenResumeIsHeldUntilCleared()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        var (eng, uds, journal) = Timed(ecu, img);
+        uds.SeedKey = new WrongKey();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x35, ex.Fault?.Nrc);
+        Assert.Equal(1, ecu.WrongKeys);
+        Assert.False(ex.ModuleMayBeInBootloader); // nothing erased: reset back to its software
+
+        // Run again (and again): refused before a single request, so the module's attempt counter is never spent.
+        int before = ecu.Calls.Count;
+        for (int i = 0; i < 3; i++)
+        {
+            var held = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+            Assert.Contains("clear the security hold", held.Message);
+        }
+        Assert.Equal(before, ecu.Calls.Count);
+        Assert.Equal(1, ecu.WrongKeys);
+        Assert.False(ecu.SecurityLocked);
+
+        // Fixed provider, hold cleared: it flashes.
+        uds.SeedKey = new SimKey();
+        eng.ClearSecurityHold("provider fixed");
+        Assert.Null(eng.SecurityHold);
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+    }
+
+    [Fact]
+    public async Task Lockout_HoldsNewAttemptsForTheLockoutTime()
+    {
+        var ecu = new SimulatedFlashEcu { MaxKeyAttempts = 1 }; // first wrong key locks
+        var img = Image(1);
+        var clock = DateTimeOffset.Parse("2026-11-16T12:00:00Z");
+        var (eng, uds, _) = Timed(ecu, img, now: () => clock);
+        uds.SeedKey = new WrongKey();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x36, ex.Fault?.Nrc);
+
+        clock += TimeSpan.FromMinutes(4);
+        int before = ecu.Calls.Count;
+        var held = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Contains("6 more minute", held.Message);
+        Assert.Equal(before, ecu.Calls.Count);
+
+        clock += TimeSpan.FromMinutes(7);
+        Assert.Null(eng.SecurityHold);
+    }
+
+    [Fact]
+    public void SecurityState_SurvivesNewJobsAndClearsOnSuccess()
+    {
+        var t = DateTimeOffset.UtcNow;
+        var e = new List<FlashJournalEntry>
+        {
+            new(t, FlashJournalKind.Security, Detail: FlashSecurity.WrongKey),
+            new(t, FlashJournalKind.Started, ImageSha256: "x", TxId: 0x7E0),
+        };
+        Assert.Equal(1, FlashJournalState.From(e).WrongKeys);
+        e.Add(new(t, FlashJournalKind.Security, Detail: FlashSecurity.Ok));
+        Assert.Equal(0, FlashJournalState.From(e).WrongKeys);
+        e.Add(new(t, FlashJournalKind.Security, Detail: FlashSecurity.Locked));
+        Assert.Equal(t, FlashJournalState.From(e).LockedAt);
+        Assert.NotNull(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(1)));
+        Assert.Null(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(11)));
+    }
 }

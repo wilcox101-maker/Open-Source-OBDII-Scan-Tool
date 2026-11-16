@@ -18,6 +18,8 @@ public enum FlashFaultAction
     Security,
     /// <summary>The adapter or port went away. Stop sending; recovery reconnects (same or other adapter) and resumes.</summary>
     LinkLost,
+    /// <summary>The module left the programming session (session timeout, reset): unlock and download state are gone. Start again from the session and erase.</summary>
+    SessionLost,
 }
 
 public sealed record FlashFault(FlashFaultAction Action, string Reason, byte? Nrc = null);
@@ -60,7 +62,7 @@ public class FlashFailedException(string message, string phase, bool moduleMayBe
 }
 
 /// <summary>The adapter link was lost or retries ran out mid-job. The job stays open in the journal; reconnect and call resume.</summary>
-public sealed class FlashInterruptedException(string message, string phase, FlashFault fault, Exception? inner = null)
+public class FlashInterruptedException(string message, string phase, FlashFault fault, Exception? inner = null)
     : FlashFailedException(message, phase, true, fault, inner);
 
 /// <summary>A preflight check failed before anything was sent to the module.</summary>

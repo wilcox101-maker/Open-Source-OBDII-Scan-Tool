@@ -469,6 +469,10 @@
               </WrapPanel>
               <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Text="{Binding ImageText}"/>
               <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding JobText}"/>
+              <DockPanel DockPanel.Dock="Top" Margin="4,2" Visibility="{Binding HasSecurityHold, Converter={StaticResource BoolVis}}">
+                <Button DockPanel.Dock="Right" Command="{Binding ClearHoldCommand}" Content="Clear security hold…" Margin="8,0,0,0" VerticalAlignment="Top" ToolTip="Allows one more security attempt. Only after fixing the key provider or waiting out the lockout."/>
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Warn}" Text="{Binding SecurityHoldText}"/>
+              </DockPanel>
               <TextBlock DockPanel.Dock="Top" Margin="4,6,4,2" FontWeight="SemiBold" Text="{Binding PreflightText}"/>
               <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Preflight}" Margin="4,0,4,6">
                 <ItemsControl.ItemTemplate>

@@ -9,6 +9,7 @@ public sealed record SimFlashFault(SimFlashFaultKind Kind, byte Nrc = 0)
     public static readonly SimFlashFault DropResponse = new(SimFlashFaultKind.DropResponse);
     public static readonly SimFlashFault Pending = new(SimFlashFaultKind.Pending);
     public static readonly SimFlashFault LinkDown = new(SimFlashFaultKind.LinkDown);
+    public static readonly SimFlashFault SessionDrop = new(SimFlashFaultKind.SessionDrop);
     public static SimFlashFault Negative(byte nrc) => new(SimFlashFaultKind.Nrc, nrc);
 }
 
@@ -24,6 +25,8 @@ public enum SimFlashFaultKind
     LinkDown,
     /// <summary>The module answers this NRC without processing the request.</summary>
     Nrc,
+    /// <summary>The module falls back to the default session (as after an S3 timeout) just before handling the request.</summary>
+    SessionDrop,
 }
 
 /// <summary>
@@ -61,6 +64,30 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool InBootloader { get; private set; }
     public bool Unlocked { get; private set; }
     public bool ApplicationValid { get; private set; } = true;
+    /// <summary>S3 session timeout. When set, a non-default session ends once this much simulated time passes without a request
+    /// (see <see cref="Advance"/>). Null: sessions never time out.</summary>
+    public TimeSpan? S3 { get; set; }
+    /// <summary>The next seed request(s) answer NRC 0x37 (required time delay not expired).</summary>
+    public int SecurityDelaysLeft { get; set; }
+    /// <summary>Wrong keys accepted before the module answers NRC 0x36 and locks.</summary>
+    public int MaxKeyAttempts { get; set; } = 3;
+    public int WrongKeys { get; private set; }
+    public bool SecurityLocked { get; private set; }
+    public int SessionDrops { get; private set; }
+    private TimeSpan _idle;
+
+    /// <summary>Simulated time passing with no request (tests route the engine's Delay hook here).</summary>
+    public void Advance(TimeSpan t)
+    {
+        _idle += t;
+        if (S3 is TimeSpan s3 && _idle > s3 && Session != 0x01) DropSession();
+    }
+
+    /// <summary>Back to the default session: unlock and any download in progress are lost; a module without valid software stays in its bootloader.</summary>
+    public void DropSession()
+    {
+        Session = 0x01; Unlocked = false; _dl = null; InBootloader = !ApplicationValid; SessionDrops++;
+    }
 
     protected readonly Queue<byte[]> Deferred = new();
     private readonly Dictionary<uint, byte[]> _memory = new();
@@ -82,6 +109,8 @@ public class SimulatedFlashEcu : IDiagChannel
         Calls.Add(request.ToArray());
         if (LinkDown) throw new IOException("The port is closed (simulated adapter unplugged)");
         var fault = Faults?.Invoke(request, index);
+        _idle = TimeSpan.Zero; // any request (TesterPresent included) restarts S3
+        if (fault?.Kind == SimFlashFaultKind.SessionDrop) DropSession();
         switch (fault?.Kind)
         {
             case SimFlashFaultKind.LinkDown: LinkDown = true; throw new IOException("The port is closed (simulated adapter unplugged)");
@@ -124,8 +153,15 @@ public class SimulatedFlashEcu : IDiagChannel
                 Session = s;
                 return new byte[] { 0x50, s, 0x00, 0x32, 0x01, 0xF4 };
             case 0x27 when r.Length >= 2:
-                if (r[1] % 2 == 1) return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
-                if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; return new byte[] { 0x67, r[1] }; }
+                if (r[1] % 2 == 1)
+                {
+                    if (SecurityLocked) return Neg(0x27, 0x37);
+                    if (SecurityDelaysLeft > 0) { SecurityDelaysLeft--; return Neg(0x27, 0x37); }
+                    return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
+                }
+                if (SecurityLocked) return Neg(0x27, 0x36);
+                if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; WrongKeys = 0; return new byte[] { 0x67, r[1] }; }
+                if (++WrongKeys >= MaxKeyAttempts) { SecurityLocked = true; return Neg(0x27, 0x36); }
                 return Neg(0x27, 0x35);
             case 0x31 when r.Length >= 4: return Routine(r);
             case 0x34: return RequestDownload(r);

@@ -53,6 +53,9 @@ public sealed class FlashViewModel : ObservableObject
     public bool Idle => !Running;
     private string _jobText = ""; public string JobText { get => _jobText; private set => Set(ref _jobText, value); }
     private bool _hasOpenJob; public bool HasOpenJob { get => _hasOpenJob; private set { if (Set(ref _hasOpenJob, value)) { OnPropertyChanged(nameof(Banner)); OnPropertyChanged(nameof(BannerVisible)); } } }
+    private string _holdText = ""; public string SecurityHoldText { get => _holdText; private set { if (Set(ref _holdText, value)) OnPropertyChanged(nameof(HasSecurityHold)); } }
+    /// <summary>True when the journal forbids a security attempt now (earlier wrong key or recent lockout).</summary>
+    public bool HasSecurityHold => SecurityHoldText.Length > 0;
     private string _adapterNote = "Not connected."; public string AdapterNote { get => _adapterNote; private set => Set(ref _adapterNote, value); }
     private string _level = "01";
     /// <summary>SecurityAccess seed level for programming (hex, odd). [UNVERIFIED for Ford modules]</summary>
@@ -68,6 +71,7 @@ public sealed class FlashViewModel : ObservableObject
     public AsyncCommand ResumeCommand { get; }
     public RelayCommand StopCommand { get; }
     public AsyncCommand AbandonCommand { get; }
+    public AsyncCommand ClearHoldCommand { get; }
     public RelayCommand ClearCommand { get; }
 
     public FlashViewModel(IEventLog log, Func<UdsSessionHost?> host, Func<ModuleRow?> module, Func<ModuleRow, Func<Task>, bool, Task> onBus,
@@ -91,6 +95,7 @@ public sealed class FlashViewModel : ObservableObject
         FlashCommand = C("Flash: start", () => RunAsync(resume: false));
         ResumeCommand = C("Flash: resume", () => RunAsync(resume: true));
         AbandonCommand = C("Flash: abandon job", AbandonAsync, needsBus: false);
+        ClearHoldCommand = C("Flash: clear security hold", ClearHoldAsync, needsBus: false);
         StopCommand = new RelayCommand("Flash: stop after this segment", log, _ => { _stop?.Cancel(); Add("Stop requested: the flash stops after the current segment (the job stays open for resume)."); });
         ClearCommand = new RelayCommand("Flash: clear log", log, _ => Lines.Clear());
     }
@@ -111,7 +116,8 @@ public sealed class FlashViewModel : ObservableObject
         JobText = !st.Exists ? "No flash history for this module."
             : st.Open ? $"Open job for 0x{st.TxId:X3}: {st.LastPhase ?? "started"}, {st.SegmentsDone} segment(s) done, {st.BytesAcked:N0} bytes acknowledged, attempt {st.Attempts}. Last fault: {st.LastFault?.Detail ?? "none"}. Backup: {Path.GetFileName(st.BackupRef ?? "-")}. Open the same file, then Resume."
             : "Last job finished or was abandoned.";
-        foreach (var c in new[] { OpenFileCommand, DemoImageCommand, PreflightCommand, FlashCommand, ResumeCommand, AbandonCommand }) c.RaiseCanExecuteChanged();
+        SecurityHoldText = m is null ? "" : FlashSecurity.Hold(st, new FlashRetryPolicy().LockoutHold, DateTimeOffset.UtcNow) ?? "";
+        foreach (var c in new[] { OpenFileCommand, DemoImageCommand, PreflightCommand, FlashCommand, ResumeCommand, AbandonCommand, ClearHoldCommand }) c.RaiseCanExecuteChanged();
     }
 
     private IFlashJournal Journal(ModuleRow m) => new FileFlashJournal(Path.Combine(_dir, $"flash-{m.Def.TxId:X3}.jsonl"));
@@ -201,6 +207,8 @@ public sealed class FlashViewModel : ObservableObject
         if (resume && !st.Open) throw new InvalidOperationException("There is no open flash job for this module.");
         if (!resume && st.Open) throw new InvalidOperationException("This module has an open flash job. Resume it (same file) or abandon it first.");
         if (resume && st.ImageSha256 != plan.Image.Sha256) throw new InvalidOperationException("The loaded file is not the one the open job started with. Open the same file to resume.");
+        // Checked before the warnings and the typed FLASH, so the operator is not walked through them for a run the engine will refuse.
+        if (FlashSecurity.Hold(st, plan.Retry.LockoutHold, DateTimeOffset.UtcNow) is string hold) throw new InvalidOperationException(hold);
 
         // Hard preflight checks run again right before the confirmation, so a stale report can't be used.
         var uds = Client(m, plan);
@@ -257,6 +265,22 @@ public sealed class FlashViewModel : ObservableObject
             "Abandon flash job", System.Windows.MessageBoxImage.Warning)) return Task.CompletedTask;
         journal.Append(new FlashJournalEntry(DateTimeOffset.UtcNow, FlashJournalKind.Abandoned, Detail: "abandoned by the operator"));
         Add($"Flash job for {m.Label} abandoned by the operator.");
+        return Task.CompletedTask;
+    }
+
+    private Task ClearHoldAsync()
+    {
+        var m = _module() ?? throw new InvalidOperationException("Select a module first");
+        var journal = Journal(m);
+        var st = FlashJournalState.From(journal.ReadAll());
+        if (FlashSecurity.Hold(st, new FlashRetryPolicy().LockoutHold, DateTimeOffset.UtcNow) is null) throw new InvalidOperationException("There is no security hold for this module.");
+        string why = st.WrongKeys > 0
+            ? "The module rejected the key last time. Clear the hold only after fixing or replacing the seed/key provider: each wrong key counts toward the module's lockout."
+            : "The module locked security access recently. Clearing the hold early usually just gets another lockout answer.";
+        if (!DialogService.YesNo($"Clear the security hold for {m.Label}?\n\n{why}\n\nThis allows one more security attempt.", "Clear security hold", System.Windows.MessageBoxImage.Warning))
+            return Task.CompletedTask;
+        journal.Append(new FlashJournalEntry(DateTimeOffset.UtcNow, FlashJournalKind.Security, Phase: "cleared by the operator", Detail: FlashSecurity.HoldCleared));
+        Add($"Security hold for {m.Label} cleared by the operator.");
         return Task.CompletedTask;
     }
 
