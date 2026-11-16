@@ -1,3 +1,18 @@
+## v0.23.6
+
+**Ignition-cycle advice on every As-Built path (A4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- A read-back proves the module **stored** the data, not that it **uses** it: most modules apply As-Built after an ignition cycle. Write, restore and undo already said so (v0.21.1: "turn the ignition OFF for at least 30 s, then ON, and Read the block again"; U2100 / U2101 note; PCM / TCM DTC check).
+- Now also **Recover** (restoring the backup after an unfinished write) and **Check unfinished write** when it finds the new data. The app never resets a module by itself.
+- (v0.23.5 is the close-guard PR from the OUIE lane.)
+
+Internal: `AsBuiltPageViewModel` recover / check texts call `AsBuiltWritePolicy.AfterWriteAdvice`; a source test requires it on all five "new data is in the module" messages (checked to fail on the old file).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → As-Built → write one byte → the result ends with the ignition OFF 30 s / Read again advice (as before).
+2. **DEMO:** start a write, pull the simulated link (or use a journal with an unfinished entry) → Check unfinished write → "holds the NEW data" now ends with the same advice; Recover → the restore result ends with it too.
+3. **Truck (Phase 2):** after the one-block write, follow the advice: ignition OFF 30 s, ON, Read the block: same bytes, and the feature behaves as changed.
+
 ## v0.23.5
 
 **Medium-risk items from the 2026-11-16 risk review.** Includes v0.23.4 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
