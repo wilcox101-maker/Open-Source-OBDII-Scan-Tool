@@ -195,6 +195,9 @@ public sealed class MainViewModel : ObservableObject
     public DashboardViewModel Dashboard { get; }
     public LiveDataViewModel LiveData { get; }
     public RoutinesViewModel Routines { get; }
+    public BusMonitorViewModel Monitor { get; }
+    /// <summary>Why adapter commands are refused right now (the bus monitor owns the adapter), or null.</summary>
+    private string? AdapterBlocked() => Monitor is { Running: true } ? "The bus monitor is using the adapter. Press Stop on the Bus Monitor tab first." : null;
     /// <summary>Per-module UDS clients for this connection; keeps non-default sessions alive (3E 80) under <see cref="_bus"/>.</summary>
     private UdsSessionHost? _sessions;
     private CancellationTokenSource? _keepAlive;
@@ -480,6 +483,9 @@ public sealed class MainViewModel : ObservableObject
         AsyncCommand C(string name, Func<Task> f, Func<(string, object?)[]>? p = null, Func<bool>? can = null) => new(name, EventLog, async () =>
         {
             AsBuiltNotSupportedException? none = null;
+            // v0.13.0: the bus monitor holds the adapter. Connect / Disconnect stop it first; anything else is refused instead of waiting.
+            if (name is "Connect" or "Disconnect") await Monitor.StopAsync();
+            else if (AdapterBlocked() is string why) throw new InvalidOperationException(why);
             await _bus.WaitAsync();
             try { await f(); }
             catch (AsBuiltNotSupportedException ex) { none = ex; }
@@ -499,7 +505,9 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
-        Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err);
+        Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
+        Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
+        LiveData.Blocked = AdapterBlocked;
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         InitSeedKey(Err);
@@ -852,6 +860,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task DisconnectAsync()
     {
+        await Monitor.StopAsync();
         LiveData.Stop();
         StopSessions();
         if (_session != null) await _session.Link.DisposeAsync();
@@ -931,7 +940,20 @@ public sealed class MainViewModel : ObservableObject
         _keepAlive = new CancellationTokenSource();
         _ = host.RunAsync(TimeProvider.System, _keepAlive.Token,
             onError: ex => EventLog.Message(LogEventLevel.Warning, "Session", "Keep-alive loop error", ex));
-        Application.Current?.Dispatcher.BeginInvoke(Routines.Refresh);
+        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Monitor.AdapterChanged(); });
+    }
+
+    /// <summary>
+    /// The bus monitor is about to take the adapter for as long as it runs: stop live-data polling, and release kept-alive UDS
+    /// sessions (no keep-alive can be sent while monitoring, so the modules drop to their default session after 5 s).
+    /// </summary>
+    private void MonitorStarting()
+    {
+        LiveData.Stop();
+        if (_sessions is { } h && h.OpenSessions.Count > 0)
+            EventLog.Message(LogEventLevel.Warning, "Bus monitor", "Released kept-alive sessions (" + string.Join(", ", h.OpenSessions.Select(o => $"0x{o.TxId:X3} {o.Session}")) + "): modules return to their default session while the monitor runs");
+        _sessions?.Clear();
+        Routines.Refresh();
     }
 
     /// <summary>
@@ -942,7 +964,7 @@ public sealed class MainViewModel : ObservableObject
     {
         _keepAlive?.Cancel(); _keepAlive?.Dispose(); _keepAlive = null;
         _sessions?.Clear(); _sessions = null;
-        Application.Current?.Dispatcher.BeginInvoke(Routines.Refresh);
+        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Monitor.AdapterChanged(); });
     }
 
     private async Task ScanAsync()

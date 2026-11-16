@@ -6,6 +6,9 @@ namespace ObdLink.Core.Elm;
 
 public enum ElmError { None, Unknown, NoData, CanError, BufferFull, Stopped, UnableToConnect, BusInit, BusError, RxError, DataError, LowVoltageReset, ActivityAlert, Error }
 
+/// <summary>Why <see cref="ElmLink.MonitorAsync"/> returned.</summary>
+public enum MonitorStop { Cancelled, BufferFull, AdapterStopped }
+
 public sealed record ElmResponse(string Command, IReadOnlyList<string> Lines, ElmError Error, string Raw)
 {
     public bool Ok => Error == ElmError.None;
@@ -123,6 +126,74 @@ public sealed class ElmLink : IAsyncDisposable
         Traffic?.Invoke("<<", raw.TrimEnd('>', '\r', '\n'));
         _log.Debug("<< {Raw}", raw.Replace("\r", "\\r"));
         return Parse(command, raw);
+    }
+
+    /// <summary>
+    /// v0.13.0: runs a monitor command (ATMA / STMA) that keeps printing lines until any character is sent. Each received line
+    /// (not the echo, not the prompt) goes to <paramref name="onLine"/>. Cancelling <paramref name="ct"/> sends a CR to stop the
+    /// adapter and waits for its prompt, so the link is back in command mode on return. Holds the command gate for the whole
+    /// time: other commands wait. Individual lines are not written to <see cref="Traffic"/> (that would flood the log); the
+    /// start and the stop are.
+    /// </summary>
+    public async Task<MonitorStop> MonitorAsync(string command, Action<string> onLine, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await EnsureOpenAsync(ct).ConfigureAwait(false);
+            _transport.DiscardInput();
+            Traffic?.Invoke(">>", command);
+            await _transport.WriteAsync(command + "\r", ct).ConfigureAwait(false);
+            var line = new StringBuilder();
+            bool bufferFull = false, first = true;
+            // Stop = one CR, sent from the cancellation callback so the adapter ends a pending read by printing its prompt
+            // (a serial read that ignores cancellation still returns). Exactly once: a CR at the prompt would repeat ATMA.
+            int stopSent = 0;
+            void SendStop() { if (Interlocked.Exchange(ref stopSent, 1) == 0) _ = WriteQuietAsync("\r"); }
+            using var reg = ct.Register(SendStop);
+            void Flush()
+            {
+                var l = line.ToString().Trim(); line.Clear();
+                if (l.Length == 0) return;
+                if (first && string.Equals(l.Replace(" ", ""), command.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)) { first = false; return; }
+                first = false;
+                if (l.StartsWith("BUFFER FULL", StringComparison.OrdinalIgnoreCase)) { bufferFull = true; return; }
+                onLine(l);
+            }
+            try
+            {
+                while (true)
+                {
+                    var chunk = await _transport.ReadAsync(ct).ConfigureAwait(false);
+                    foreach (var c in chunk)
+                    {
+                        if (c == '>')
+                        {
+                            Flush();
+                            if (Volatile.Read(ref stopSent) == 1) { Traffic?.Invoke("<<", "(monitor stopped)"); return MonitorStop.Cancelled; }
+                            Interlocked.Exchange(ref stopSent, 1); // the adapter stopped on its own: never send a stray CR now
+                            Traffic?.Invoke("<<", bufferFull ? "(monitor stopped: BUFFER FULL)" : "(monitor stopped by the adapter)");
+                            return bufferFull ? MonitorStop.BufferFull : MonitorStop.AdapterStopped;
+                        }
+                        if (c is '\r' or '\n') Flush(); else line.Append(c);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                SendStop(); // no-op: the callback already sent it
+                await DrainToPromptAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                Traffic?.Invoke("<<", "(monitor stopped)");
+                return MonitorStop.Cancelled;
+            }
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task WriteQuietAsync(string text)
+    {
+        try { await _transport.WriteAsync(text, CancellationToken.None).ConfigureAwait(false); }
+        catch (Exception ex) { _log.Debug("Monitor stop write failed: {Err}", ex.Message); }
     }
 
     /// <summary>

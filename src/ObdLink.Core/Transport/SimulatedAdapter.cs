@@ -74,7 +74,68 @@ public sealed class SimulatedAdapter
     private bool _caf = true;
     private readonly IsoTp.IsoTpReassembler _rxAsm = new();
 
-    public MockTransport CreateTransport() => new(Respond);
+    public MockTransport CreateTransport() { var t = new MockTransport(Respond); _transport = t; return t; }
+    private MockTransport? _transport;
+
+    // ---- SYNTHETIC monitor mode (ATMA / STMA) -----------------------------------------------------------------------
+    private readonly object _monSync = new();
+    private CancellationTokenSource? _mon;
+    /// <summary>Delay between synthetic monitor frames (ms).</summary>
+    public int MonitorIntervalMs { get; set; } = 5;
+    /// <summary>When set, the monitor prints BUFFER FULL and stops after this many frames (each ATMA run).</summary>
+    public int? MonitorBufferFullAfter { get; set; }
+    public bool Monitoring { get { lock (_monSync) return _mon != null; } }
+    public long MonitorFramesSent { get; private set; }
+
+    /// <summary>
+    /// SYNTHETIC broadcast traffic. HS-CAN: 201 (rpm x4, speed x100, counter), 420 (ECT+40, flags), 3B3 (door bit toggles every
+    /// 40 frames), 167 (counter). MS-CAN / HS2 (STP 53): 3B2, 080, 433. Not decoded Ford signals: just varied, plausible frames.
+    /// </summary>
+    private string MonitorFrame(long n)
+    {
+        var st = DriveCycle.At(Clock());
+        bool ms = Protocol == "53";
+        int which = (int)(n % (ms ? 3 : 4));
+        (uint id, byte[] d) = (ms, which) switch
+        {
+            (false, 0) => (0x201u, new byte[] { (byte)((int)(st.Rpm * 4) >> 8), (byte)(int)(st.Rpm * 4), (byte)((int)(st.SpeedKmh * 100) >> 8), (byte)(int)(st.SpeedKmh * 100), 0, 0, 0, (byte)n }),
+            (false, 1) => (0x420u, new byte[] { (byte)(st.CoolantC + 40), 0x10, 0, 0, 0, 0, 0, 0 }),
+            (false, 2) => (0x3B3u, new byte[] { (byte)((n / 40) % 2 == 0 ? 0x00 : 0x04), 0, 0, 0, 0, 0, 0, 0 }),
+            (false, _) => (0x167u, new byte[] { (byte)(n >> 2), 0, 0, 0, 0, 0, 0, 0 }),
+            (true, 0) => (0x3B2u, new byte[] { 0x40, (byte)(n >> 3), 0, 0, 0, 0, 0, 0 }),
+            (true, 1) => (0x080u, new byte[] { 0x01, 0, 0, 0, 0, 0, 0, 0 }),
+            (true, _) => (0x433u, new byte[] { (byte)n, 0, 0, 0, 0, 0, 0, 0 }),
+        };
+        return id.ToString("X3") + Convert.ToHexString(d);
+    }
+
+    private void StartMonitor()
+    {
+        var t = _transport ?? throw new InvalidOperationException("Monitor needs CreateTransport()");
+        var cts = new CancellationTokenSource();
+        lock (_monSync) _mon = cts;
+        _ = Task.Run(async () =>
+        {
+            long run = 0;
+            while (!cts.IsCancellationRequested)
+            {
+                lock (_monSync)
+                {
+                    if (_mon != cts) return;
+                    if (MonitorBufferFullAfter is int max && run >= max) { t.Push("BUFFER FULL\r\r>"); _mon = null; return; }
+                    t.Push(MonitorFrame(MonitorFramesSent) + "\r");
+                    MonitorFramesSent++; run++;
+                }
+                try { await Task.Delay(Math.Max(1, MonitorIntervalMs), cts.Token); } catch (OperationCanceledException) { return; }
+            }
+        });
+    }
+
+    /// <summary>Any input stops the monitor (the character itself is swallowed); the adapter then prints its prompt.</summary>
+    private bool StopMonitor()
+    {
+        lock (_monSync) { if (_mon is null) return false; _mon.Cancel(); _mon = null; return true; }
+    }
 
     /// <summary>Imitates opening the UART at a given baud. A mismatched rate produces garbage, like a real wrong-baud link.</summary>
     public MockTransport CreateTransportAtBaud(int baud) => new(cmd => Profile == SimProfile.MxPlus || baud == UartBaud ? Respond(cmd) : "\u00ff\u00fe?");
@@ -82,6 +143,10 @@ public sealed class SimulatedAdapter
     public string? Respond(string cmd)
     {
         var c = cmd.Replace(" ", "").ToUpperInvariant();
+        if (StopMonitor()) return "";
+        if (c.Length == 0) return "";
+        if (c is "ATMA" or "STMA") { StartMonitor(); return null; }
+        if (c is "ATCSM1" or "ATCSM0") return "OK";
         if (c == "ATZ") { _header = 0x7DF; _caf = true; Protocol = null; return "ELM327 v1.4b"; } // a reset forgets header, formatting and protocol
         if (c is "ATE0" or "ATL0" or "ATS0" or "ATH1" or "ATCRA" or "STPO" or "STPC") return "OK";
         if (c == "ATI") return "ELM327 v1.4b";

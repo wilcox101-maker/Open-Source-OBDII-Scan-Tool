@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.12.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.13.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.12.0)
+## Where we are (v0.13.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -58,9 +58,10 @@ release notes. Nothing that writes is called done until it has been verified on 
 1. **Done in v0.10.0:** live-data browser — pick any supported OBD-II PID or Ford enhanced DID, watch it live with running min/max/avg and sample count. Reuses the dashboard's poll engine (services 01/22 only). The enhanced-DID catalog is the editable `ford-enhanced-pids.json`.
 2. CSV export **done in v0.10.0** (per-cycle, base units). **Done in v0.12.0:** multi-signal charts (one lane per signal, own scale, up to 8), CSV replay at 0.5-16x, threshold triggers with hysteresis (chart markers + log).
 3. Faster polling: STN batch requests where supported; per-signal rates in `PollScheduler`.
-4. Bus monitor (read-only): passive capture on HS-CAN and MS-CAN with per-ID rate and changed-bit highlighting, plus a logger
-   with an ID filter (all / diagnostic 7xx / pattern + mask) and frame timing. Sending, replaying or periodic frames are
-   separate, state-changing features behind the write gate. **Open:** MX+ monitor throughput not measured.
+4. **Done in v0.13.0:** bus monitor (read-only): silent passive capture (ATCSM1 + ATMA) on HS-CAN, MS-CAN and HS-CAN2 with
+   per-ID count, rate and changed-bit marks, a software ID filter (all / diag 7xx / ID / id/mask) and a CSV frame log.
+   BUFFER FULL restarts the monitor and is counted. Sending, replaying or periodic frames are separate, state-changing
+   features behind the write gate. **Open:** MX+ monitor throughput not measured; STN hardware filters (STFAP) to cut load.
 
 Design notes from UCDS for charts (item 2): a signal table beside the graph with one colour per signal; after Stop, a time
 cursor that shows every signal's value at one instant; right-click to remove one signal or clear all. Unlike the UCDS manual's
