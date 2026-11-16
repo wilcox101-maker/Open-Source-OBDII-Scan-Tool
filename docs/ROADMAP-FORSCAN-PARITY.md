@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.23.4) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.23.6) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.23.4)
+## Where we are (v0.23.6)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|

@@ -61,4 +61,17 @@ public class AsBuiltWritePolicyTests
         Assert.DoesNotContain("PCM / TCM", a);
         Assert.Contains("PCM / TCM", AsBuiltWritePolicy.AfterWriteAdvice(0x7E1));
     }
+
+    [Fact]
+    public void Every_message_that_reports_new_data_in_a_module_ends_with_the_ignition_cycle_advice()
+    {
+        // A4: read-back proves storage, not effect (most modules apply As-Built after an ignition cycle). Write, restore, undo,
+        // recover and "check unfinished write → new data" all tell the user to cycle the ignition and read again.
+        var src = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Me())!, "..", "..", "src", "ObdLink.App", "AsBuiltPageViewModel.cs"));
+        var lines = src.Split('\n').Where(l => l.Contains("verified by read-back (") || l.Contains("verified by read-back on") || l.Contains("the write did take effect")).ToList();
+        Assert.Equal(5, lines.Count); // write, restore, undo, recover, check → new data
+        Assert.All(lines, l => Assert.Contains("AsBuiltWritePolicy.AfterWriteAdvice(", l));
+    }
+
+    private static string Me([System.Runtime.CompilerServices.CallerFilePath] string me = "") => me;
 }
