@@ -1,5 +1,9 @@
 using System.Text;
 using ObdLink.Core.Adapters;
+using ObdLink.Core.AsBuilt;
+using ObdLink.Core.Elm;
+using ObdLink.Core.IsoTp;
+using ObdLink.Core.Transport;
 using ObdLink.Core.Flash;
 using ObdLink.Core.Safety;
 using ObdLink.Core.Uds;
@@ -455,5 +459,27 @@ public class FlashEngineTests
         var wrong = new FlashPlan { TxId = 0x726, Image = img };
         var w = await FlashPreflight.RunAsync(new UdsClient(new SimulatedFlashEcu(0x726), 0x726), wrong, _ => Task.FromResult<double?>(13.1), null);
         Assert.Contains(w.Items, i => i.Name == "Image target" && i.Status == PreflightStatus.Fail);
+    }
+
+    [Fact]
+    public async Task PreflashBackup_SavesEveryAsBuiltBlock_OrNullWhenTheModuleHasNone()
+    {
+        var sim = new SimulatedAdapter();
+        var s = new AdapterSession(new ElmLink(sim.CreateTransport()));
+        await s.InitializeAsync();
+        await s.SelectProtocolAsync(StnProtocol.HsCan11_500);
+        var dir = Path.Combine(Path.GetTempPath(), "preflash-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var svc = new AsBuiltService(m => new UdsClient(new ElmDiagChannel(s), m), new SafetyGuard(s, new AutoConfirm(false)), dir);
+            var path = await svc.BackupAvailableAsync("NOVIN", 0x7E1);
+            Assert.NotNull(path);
+            Assert.EndsWith("_preflash.asbuilt.json", path);
+            var bk = AsBuiltBackup.Deserialize(File.ReadAllText(path!));
+            Assert.Equal(sim.Dids[0x7E1].Keys.Count(k => k >= 0xDE00 && k <= 0xDEFF), bk.Blocks.Count);
+            sim.Dids[0x7E0].Remove(0xDE00); // a module that answers but has no As-Built block 1
+            Assert.Null(await svc.BackupAvailableAsync("NOVIN", 0x7E0));
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 }

@@ -50,6 +50,21 @@ public sealed class AsBuiltService
         return await SaveBackupAsync(vin, module, read, "", ct);
     }
 
+    /// <summary>
+    /// Backup before a flash: reads As-Built blocks 1, 2, 3, ... until the module answers "no such block" (NRC 0x31) and saves
+    /// what was read. Returns null when the module has no As-Built block 1.
+    /// </summary>
+    public async Task<string?> BackupAvailableAsync(string vin, ushort module, int maxBlocks = 20, CancellationToken ct = default)
+    {
+        var read = new List<AsBuiltBlock>();
+        for (int n = 1; n <= maxBlocks; n++)
+        {
+            try { read.Add(await ReadBlockAsync(module, AsBuiltAddress.ToBcd(n), ct)); }
+            catch (AsBuiltNotSupportedException) { break; }
+        }
+        return read.Count == 0 ? null : await SaveBackupAsync(vin, module, read, "_preflash", ct);
+    }
+
     private async Task<string> SaveBackupAsync(string vin, ushort module, IEnumerable<AsBuiltBlock> blocks, string tag, CancellationToken ct)
     {
         var dict = blocks.ToDictionary(b => b.Block.ToString("X2"), b => Convert.ToHexString(b.Data));
