@@ -48,7 +48,10 @@ public sealed class J2534DiagChannel : IDiagChannel, IDiagReceiveChannel, IAsync
     public J2534DiagChannel(IJ2534Api api, uint deviceId) { _api = api; _device = deviceId; }
 
     public Bus? CurrentBus { get; private set; }
-    public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(1);
+    /// <summary>Wait for the first sign of a reply. 600 ms like the ELM path's ATST 96, which slow modules (IPC, APIM) needed on the truck.</summary>
+    public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromMilliseconds(600);
+    /// <summary>Once a first-frame indication shows a multi-frame reply is on its way, wait up to this long for the rest (PCM 19 02 took &gt;1.5 s on a 2017 F-150).</summary>
+    public TimeSpan MultiFrameTimeout { get; set; } = TimeSpan.FromSeconds(5);
     /// <summary>After a functional request, stop collecting when no new reply arrived for this long.</summary>
     public TimeSpan FunctionalQuiet { get; set; } = TimeSpan.FromMilliseconds(100);
     public uint WriteTimeoutMs { get; set; } = 1000;
@@ -143,6 +146,12 @@ public sealed class J2534DiagChannel : IDiagChannel, IDiagReceiveChannel, IAsync
             var msgs = await Task.Run(() => _api.ReadMsgs(ch, 16, (uint)Math.Max(1, Math.Min(left.TotalMilliseconds, 100))), ct);
             foreach (var m in msgs)
             {
+                if ((m.RxStatus & J2534RxStatus.StartOfMessage) != 0 && (m.RxStatus & J2534RxStatus.TxMsgType) == 0 && (rx is null || m.CanId == rx))
+                {
+                    var longer = DateTime.UtcNow + MultiFrameTimeout; // a long reply is arriving: give it time to finish
+                    if (longer > deadline) deadline = longer;
+                    continue;
+                }
                 if ((m.RxStatus & (J2534RxStatus.TxMsgType | J2534RxStatus.TxIndication | J2534RxStatus.StartOfMessage)) != 0 || m.Data.Length <= 4) continue;
                 list.Add(new DiagResponse(m.CanId, m.Payload));
                 if (rx is null) deadline = DateTime.UtcNow + FunctionalQuiet;

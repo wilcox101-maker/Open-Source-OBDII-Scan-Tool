@@ -217,4 +217,33 @@ public class J2534ChannelTests
     [InlineData(Architecture.X86, DllMachine.X64, false)]
     [InlineData(Architecture.X64, DllMachine.Unknown, false)]
     public void In_process_loading(Architecture proc, DllMachine dll, bool ok) => Assert.Equal(ok, DllInfo.LoadsInProcess(dll, proc));
+
+    [Fact]
+    public async Task Elm_simulator_bridge_answers_per_bus()
+    {
+        var api = new SimulatedJ2534Api { Responder = SimulatedJ2534Api.FromElmSimulator(new ObdLink.Core.Transport.SimulatedAdapter()) };
+        await using var ch = new J2534DiagChannel(api, api.Open(null)) { DefaultTimeout = TimeSpan.FromMilliseconds(200) };
+        var pcm = new UdsClient(ch, 0x7E0); var acm = new UdsClient(ch, 0x727);
+        Assert.Equal(new byte[] { 0x7E, 0x00 }, await pcm.TesterPresentAsync());
+        await Assert.ThrowsAsync<TimeoutException>(() => acm.TesterPresentAsync());   // ACM is on MS-CAN
+        await ch.SelectBusAsync(Bus.MsCan);
+        Assert.Equal(new byte[] { 0x7E, 0x00 }, await acm.TesterPresentAsync());
+        await Assert.ThrowsAsync<TimeoutException>(() => pcm.TesterPresentAsync());   // and the PCM is not
+    }
+
+    [Fact]
+    public async Task A_first_frame_indication_extends_the_wait_for_a_long_reply()
+    {
+        // A 12-byte (multi-frame) reply that completes 400 ms after the request; the caller only waits 200 ms for a first sign.
+        var (api, ch) = Make((c, id, req) => id == 0x7E0
+            ? new[] { new SimReply(0x7E8, new byte[] { 0x59, 0x02, 0xFF, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, DelayMs: 400) }
+            : Array.Empty<SimReply>());
+        await ch.SetTargetAsync(0x7E0, 0x7E8);
+        // No early sign of a reply: the request gives up after 200 ms.
+        Assert.Empty(await ch.RequestAsync(new byte[] { 0x19, 0x02, 0xFF }, TimeSpan.FromMilliseconds(200)));
+        // The device reports the first frame at once (as real devices do): the channel keeps waiting for the rest.
+        api.EarlyFirstFrame = true;
+        var r = await ch.RequestAsync(new byte[] { 0x19, 0x02, 0xFF }, TimeSpan.FromMilliseconds(200));
+        Assert.Equal(12, Assert.Single(r).Payload.Length);
+    }
 }

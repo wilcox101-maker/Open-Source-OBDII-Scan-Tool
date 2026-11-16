@@ -6,6 +6,7 @@ using ObdLink.Core.Dashboard;
 using ObdLink.Core.Dtc;
 using ObdLink.Core.Elm;
 using ObdLink.Core.IsoTp;
+using ObdLink.Core.J2534;
 using ObdLink.Core.LiveData;
 using ObdLink.Core.Modules;
 using ObdLink.Core.Monitor;
@@ -30,9 +31,12 @@ public static class Cli
         Connection (one of):
           --port COM5 [--baud 115200]   real ELM327/STN adapter (baud is probed when omitted)
           --demo [mx|ex]                built-in simulator (no vehicle needed)
+          --j2534 NAME|DLL              J2534 pass-thru device (registered name, or the driver DLL path)
+          --j2534-demo                  simulated J2534 device (same vehicle as --demo)
         Common: --json   machine-readable output
 
         Commands:
+          j2534-list                                  installed J2534 devices and whether this build can load each driver
           info                                        adapter identity and battery voltage
           scan                                        2017 F-150 module scan with alternate-bus retries
           dtcs [--module 7E0|all]                     UDS DTCs (19 02) with status; 'all' scans first
@@ -56,6 +60,7 @@ public static class Cli
             return a.Command switch
             {
                 "options" => Options(a, o),
+                "j2534-list" => J2534List(a, o),
                 "info" or "scan" or "dtcs" or "live" or "monitor" or "asbuilt-read" => await WithAdapterAsync(a, o, e, serial, ct),
                 _ => Bad(e, $"Unknown command '{a.Command}'."),
             };
@@ -69,10 +74,99 @@ public static class Cli
 
     // ---- Connection -----------------------------------------------------------------------------------------------
 
-    private sealed record Conn(AdapterSession Session, ElmDiagChannel Channel, AdapterInfo Info, bool CanSwitchBus);
+    /// <summary>An open adapter: ELM/STN (Session set) or J2534 (Session null). SelectBus puts the channel on a Ford bus.</summary>
+    private sealed class Conn
+    {
+        public required IDiagChannel Channel { get; init; }
+        public AdapterSession? Session { get; init; }
+        public required Func<Bus, CancellationToken, Task> SelectBus { get; init; }
+        public required bool CanSwitchBus { get; init; }
+        public required object InfoJson { get; init; }
+        public required string[] InfoText { get; init; }
+    }
+
+    private static int J2534List(Args a, TextWriter o)
+    {
+        var devs = J2534Registry.Enumerate(new WindowsJ2534Registry());
+        var rows = devs.Select(d =>
+        {
+            var m = File.Exists(d.FunctionLibrary) ? DllInfo.Machine(d.FunctionLibrary) : DllMachine.Unknown;
+            return new { name = d.Name, vendor = d.Vendor, dll = d.FunctionLibrary, exists = File.Exists(d.FunctionLibrary), machine = m.ToString(), loadsHere = DllInfo.LoadsInProcess(m), can = d.Can, iso15765 = d.Iso15765 };
+        }).ToList();
+        if (a.Has("json")) Json(o, rows);
+        else
+        {
+            foreach (var r in rows)
+                o.WriteLine($"{r.name} ({r.vendor})  {r.dll}  {(r.exists ? r.machine : "missing")}{(r.exists && !r.loadsHere ? $" - needs the {(r.machine == "X86" ? "x86" : r.machine)} build" : "")}{(r.iso15765 ? "" : " - no ISO15765")}");
+            o.WriteLine(rows.Count == 0 ? "No J2534 v04.04 devices are registered on this computer." : $"{rows.Count} device(s). This build runs as {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}.");
+        }
+        return 0;
+    }
+
+    private static async Task<int> WithJ2534Async(Args a, TextWriter o, TextWriter e, CancellationToken ct)
+    {
+        IJ2534Api api;
+        string label;
+        if (a.Has("j2534-demo"))
+        {
+            api = new SimulatedJ2534Api { Responder = SimulatedJ2534Api.FromElmSimulator(new SimulatedAdapter()) };
+            label = "Simulated J2534 device";
+        }
+        else
+        {
+            var want = a.Get("j2534")!;
+            var dev = J2534Registry.Enumerate(new WindowsJ2534Registry()).FirstOrDefault(d => d.Name.Contains(want, StringComparison.OrdinalIgnoreCase));
+            var dll = dev?.FunctionLibrary ?? want;
+            if (!File.Exists(dll)) throw new InvalidOperationException($"No registered J2534 device matches '{want}' and no such DLL exists. Run 'obdcli j2534-list'.");
+            api = new NativeJ2534Api(dll);
+            label = dev?.Display ?? Path.GetFileName(dll);
+        }
+        using (api)
+        {
+            var devId = await Task.Run(() => api.Open(null), ct);
+            try
+            {
+                var ver = api.ReadVersion(devId);
+                double? volts = null;
+                try { volts = api.ReadVbattMillivolts(devId) / 1000.0; } catch (J2534Exception) { /* optional */ }
+                await using var ch = new J2534DiagChannel(api, devId);
+                if (a.Has("j2534-demo")) ch.DefaultTimeout = TimeSpan.FromMilliseconds(100); // the simulator answers at once
+                await ch.SelectBusAsync(Bus.HsCan, ct);
+                bool ms;
+                try { await ch.SelectBusAsync(Bus.MsCan, ct); ms = true; } catch (J2534Exception) { ms = false; }
+                await ch.SelectBusAsync(Bus.HsCan, ct);
+                var conn = new Conn
+                {
+                    Channel = ch, Session = null, SelectBus = ch.SelectBusAsync, CanSwitchBus = ms,
+                    InfoJson = new { adapter = label, firmware = ver.Firmware, dll = ver.Dll, api = ver.Api, battery = volts, msCan = ms, transport = "J2534" },
+                    InfoText = new[]
+                    {
+                        $"Adapter : {label} (J2534 {ver.Api})",
+                        $"Versions: firmware {ver.Firmware}, driver {ver.Dll}",
+                        $"Buses   : HS-CAN{(ms ? ", MS-CAN / HS-CAN2 (J2534-2 pin selection)" : " only (no J2534-2 pin selection)")}",
+                        $"Battery : {(volts is double v ? v.ToString("0.0", CultureInfo.InvariantCulture) + " V" : "?")}",
+                    },
+                };
+                return await DispatchAsync(a, o, conn, ct);
+            }
+            finally { try { api.Close(devId); } catch (J2534Exception) { /* already closed */ } }
+        }
+    }
+
+    private static Task<int> DispatchAsync(Args a, TextWriter o, Conn conn, CancellationToken ct) => a.Command switch
+    {
+        "info" => Task.FromResult(Info(a, o, conn)),
+        "scan" => ScanAsync(a, o, conn, ct),
+        "dtcs" => DtcsAsync(a, o, conn, ct),
+        "live" => LiveAsync(a, o, conn, ct),
+        "monitor" => MonitorAsync(a, o, conn, ct),
+        "asbuilt-read" => AsBuiltReadAsync(a, o, conn, ct),
+        _ => Task.FromResult(2),
+    };
 
     private static async Task<int> WithAdapterAsync(Args a, TextWriter o, TextWriter e, Func<string, int, ITransport>? serial, CancellationToken ct)
     {
+        if (a.Has("j2534") || a.Has("j2534-demo")) return await WithJ2534Async(a, o, e, ct);
         ITransport t;
         AdapterProfile initial;
         if (a.Has("demo"))
@@ -93,7 +187,7 @@ public static class Cli
                 t = found.Transport;
             }
         }
-        else return Bad(e, "Give --port COMx or --demo.");
+        else return Bad(e, "Give --port COMx, --demo, --j2534 NAME or --j2534-demo.");
 
         var link = new ElmLink(t);
         try
@@ -101,17 +195,19 @@ public static class Cli
             var session = new AdapterSession(link, initial: initial);
             var info = await session.InitializeAsync(ct);
             if (session.IsStn) await session.SelectProtocolAsync(StnProtocol.HsCan11_500, ct); else await session.SelectElmProtocolAsync('6', ct);
-            var conn = new Conn(session, new ElmDiagChannel(session), info, session.IsStn && session.Profile.Has(AdapterCapabilities.MsCan));
-            return a.Command switch
+            bool msCan = session.IsStn && session.Profile.Has(AdapterCapabilities.MsCan);
+            var conn = new Conn
             {
-                "info" => Info(a, o, conn),
-                "scan" => await ScanAsync(a, o, conn, ct),
-                "dtcs" => await DtcsAsync(a, o, conn, ct),
-                "live" => await LiveAsync(a, o, conn, ct),
-                "monitor" => await MonitorAsync(a, o, conn, ct),
-                "asbuilt-read" => await AsBuiltReadAsync(a, o, conn, ct),
-                _ => 2,
+                Channel = new ElmDiagChannel(session), Session = session, SelectBus = session.SelectBusAsync, CanSwitchBus = msCan,
+                InfoJson = new { elm = info.ElmId, stn = info.StnId, device = info.DeviceId, battery = info.BatteryVolts, profile = session.Profile.DisplayName, msCan, transport = "ELM/STN" },
+                InfoText = new[]
+                {
+                    $"Adapter : {info.ElmId}{(info.StnId is null ? "" : " / " + info.StnId)}{(info.DeviceId is null ? "" : " / " + info.DeviceId)}",
+                    $"Profile : {session.Profile.DisplayName}{(msCan ? " (MS-CAN capable)" : "")}",
+                    $"Battery : {(info.BatteryVolts is double v ? v.ToString("0.0", CultureInfo.InvariantCulture) + " V" : "?")}",
+                },
             };
+            return await DispatchAsync(a, o, conn, ct);
         }
         finally { await link.DisposeAsync(); }
     }
@@ -125,22 +221,15 @@ public static class Cli
 
     private static int Info(Args a, TextWriter o, Conn c)
     {
-        var x = new { elm = c.Info.ElmId, stn = c.Info.StnId, device = c.Info.DeviceId, battery = c.Info.BatteryVolts, profile = c.Session.Profile.DisplayName, msCan = c.CanSwitchBus };
-        if (a.Has("json")) Json(o, x);
-        else
-        {
-            o.WriteLine($"Adapter : {x.elm}{(x.stn is null ? "" : " / " + x.stn)}{(x.device is null ? "" : " / " + x.device)}");
-            o.WriteLine($"Profile : {x.profile}{(x.msCan ? " (MS-CAN capable)" : "")}");
-            o.WriteLine($"Battery : {(x.battery is double v ? v.ToString("0.0", CultureInfo.InvariantCulture) + " V" : "?")}");
-        }
+        if (a.Has("json")) Json(o, c.InfoJson); else foreach (var l in c.InfoText) o.WriteLine(l);
         return 0;
     }
 
     private static async Task<IReadOnlyList<ScanOutcome>> Scan(Conn c, CancellationToken ct)
     {
         var targets = FordF150_2017.Modules.Where(m => m.HasAddress).Select(m => new ScanTarget(m, m.Bus)).ToList();
-        var res = await ModuleScanFlow.RunAsync((mods, p, t) => new ModuleScanner(c.Session, c.Channel).ScanAsync(mods, p, t), targets, c.CanSwitchBus, ct: ct);
-        await c.Session.SelectBusAsync(Bus.HsCan, ct);
+        var res = await ModuleScanFlow.RunAsync((mods, p, t) => (c.Session is { } s ? new ModuleScanner(s, c.Channel) : new ModuleScanner(c.SelectBus, c.Channel)).ScanAsync(mods, p, t), targets, c.CanSwitchBus, ct: ct);
+        await c.SelectBus(Bus.HsCan, ct);
         return res;
     }
 
@@ -173,9 +262,9 @@ public static class Cli
     {
         var b = bus ?? m.Bus;
         if (b != Bus.HsCan && !c.CanSwitchBus) throw new InvalidOperationException($"{m.Acronym} is on {ModuleReplies.BusName(b)}; this adapter cannot switch buses.");
-        await c.Session.SelectBusAsync(b, ct);
+        await c.SelectBus(b, ct);
         try { await work(); }
-        finally { if (b != Bus.HsCan) await c.Session.SelectBusAsync(Bus.HsCan, ct); }
+        finally { if (b != Bus.HsCan) await c.SelectBus(Bus.HsCan, ct); }
     }
 
     private static async Task<int> DtcsAsync(Args a, TextWriter o, Conn c, CancellationToken ct)
@@ -249,6 +338,7 @@ public static class Cli
             "hs" => Bus.HsCan, "ms" => Bus.MsCan, "hs2" => Bus.HsCan2,
             var x => throw new FormatException($"--bus must be hs, ms or hs2 (got '{x}')."),
         };
+        if (c.Session is null) throw new InvalidOperationException("monitor needs an ELM327/STN adapter (--port or --demo); a raw-CAN J2534 monitor is not implemented yet.");
         if (bus != Bus.HsCan && !c.CanSwitchBus) throw new InvalidOperationException($"{ModuleReplies.BusName(bus)} needs an OBDLink MX+ / EX.");
         var filter = IdFilter.Parse(a.Get("filter"));
         var seconds = double.Parse(a.Get("seconds") ?? "5", CultureInfo.InvariantCulture);
@@ -273,9 +363,11 @@ public static class Cli
     {
         var tx = ParseTx(a.Get("module") ?? throw new FormatException("asbuilt-read needs --module, e.g. --module 726"));
         var def = DefFor(tx);
-        var svc = new AsBuiltService(m => Uds(c, m), new SafetyGuard(c.Session, new AutoConfirm(false), gate: new WriteGate(() => true)), Path.Combine(Path.GetTempPath(), "obdcli-unused"));
+        // Read-only: 22 DExx through a gated client (no AsBuiltService, which also carries the write path).
+        async Task<AsBuiltBlock> Read(byte block, CancellationToken t) =>
+            new() { Module = (ushort)tx, Block = block, Data = await Uds(c, tx).ReadDataByIdentifierAsync(AsBuiltBlock.DidForBlock(block), t) };
         List<AsBuiltBlock> blocks = new();
-        await OnBus(c, def, null, async () => blocks = await AsBuiltBatch.ReadAllBlocksAsync((b, t) => svc.ReadBlockAsync((ushort)tx, b, t), ct: ct), ct);
+        await OnBus(c, def, null, async () => blocks = await AsBuiltBatch.ReadAllBlocksAsync(Read, ct: ct), ct);
         var lines = blocks.SelectMany(b => b.Lines()).ToList();
         if (a.Get("out") is string outPath) { File.WriteAllText(outPath, ForscanAbtFile.Format(lines)); }
         if (a.Has("json")) Json(o, new { module = def.Acronym, tx = tx.ToString("X3"), blocks = blocks.Count, lines = lines.Select(l => l.Format()) });
@@ -343,7 +435,7 @@ internal sealed class Args
     public string? Command { get; private set; }
 
     /// <summary>Options that never take a value.</summary>
-    private static readonly HashSet<string> Flags = new() { "json" };
+    private static readonly HashSet<string> Flags = new() { "json", "j2534-demo" };
 
     public static Args Parse(string[] args)
     {
