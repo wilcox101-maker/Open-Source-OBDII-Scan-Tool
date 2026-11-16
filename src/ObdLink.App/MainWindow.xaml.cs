@@ -51,38 +51,11 @@ public partial class MainWindow : Window
         w.Show();
     }
 
-    private bool _shutdownReady;
-
-    /// <summary>
-    /// v0.22.3: closing is refused while a flash runs (the process would exit mid-block and leave the module in its bootloader),
-    /// and held dashboard outputs are returned to their modules, with a bounded wait, before the windows close and the adapter goes.
-    /// </summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        if (_vm.Flash.Running)
-        {
-            e.Cancel = true;
-            DialogService.Show("A module is being flashed. Closing the app now would cut the link mid-transfer and leave the module in its bootloader.\n\n"
-                + "Wait for it to finish, or press \"Stop after this segment\" on the Flash page and close once it has stopped.", "Flash in progress", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-            return;
-        }
-        if (!_shutdownReady && _vm.Dashboards.Any(d => d.HoldingOutputs))
-        {
-            e.Cancel = true;
-            _ = ReleaseHoldsThenCloseAsync();
-            return;
-        }
         foreach (var d in _dashboards.ToArray()) d?.Close();
         _vm.DashboardPoller.Stop();
         base.OnClosing(e);
-    }
-
-    private async Task ReleaseHoldsThenCloseAsync()
-    {
-        var all = Task.WhenAll(_vm.Dashboards.Select(d => d.ReleaseAllAsync("app closing")));
-        await Task.WhenAny(all, Task.Delay(TimeSpan.FromSeconds(3))); // the module's S3 timeout is the backstop if an answer never comes
-        _shutdownReady = true;
-        Close();
     }
     // ---- v0.3.2: rescan COM ports when a USB serial device (e.g. OBDLink EX) is plugged in or removed ----
     private System.Windows.Threading.DispatcherTimer? _rescan;

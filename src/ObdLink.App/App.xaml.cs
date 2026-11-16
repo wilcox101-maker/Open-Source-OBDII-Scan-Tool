@@ -26,20 +26,6 @@ public partial class App : Application
         if (!started) Shutdown(1);
     }
 
-    /// <summary>
-    /// v0.22.3: Windows log-off / shutdown while a module is being flashed is refused (Windows may still force it after its own
-    /// timeout; the flash journal then lets the job be resumed). Sleep is already blocked during a flash.
-    /// </summary>
-    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
-    {
-        if (MainWindow?.DataContext is MainViewModel { Flash.Running: true })
-        {
-            e.Cancel = true;
-            Serilog.Log.Warning("Windows {Reason} refused: a module is being flashed", e.ReasonSessionEnding);
-        }
-        base.OnSessionEnding(e);
-    }
-
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
