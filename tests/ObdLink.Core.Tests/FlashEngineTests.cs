@@ -245,16 +245,57 @@ public class FlashEngineTests
     }
 
     [Fact]
-    public async Task NoSeedKeyProvider_FailsAtSecurity_InBootloaderSoRecoveryIsOffered()
+    public async Task NoSeedKeyProvider_FailsAtSecurity_ResetsModuleBackToItsSoftware()
     {
+        // The likeliest real-world failure (no Ford key): nothing was erased, so the module is reset into its own software
+        // and the job is closed rather than left open as "may be in the bootloader".
         var ecu = new SimulatedFlashEcu();
         var img = Image(1);
-        var (eng, uds, _, _) = Make(ecu, img);
+        var (eng, uds, _, backups) = Make(ecu, img);
         uds.SeedKey = new NullSeedKeyProvider();
         var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
         Assert.Equal(FlashFaultAction.Security, ex.Fault?.Action);
         Assert.Contains("seed/key provider", ex.Message);
+        Assert.Contains("Nothing was erased", ex.Message);
+        Assert.False(ex.ModuleMayBeInBootloader);
         Assert.DoesNotContain(ecu.Calls, c => c[0] == 0x31 || c[0] == 0x34);
+        Assert.Equal(1, ecu.Resets);
+        Assert.False(ecu.InBootloader);
+        Assert.True(ecu.ApplicationValid);
+        Assert.False(eng.State.Open);
+        Assert.Single(backups); // the backup taken before the attempt is kept
+    }
+
+    [Fact]
+    public async Task FailureBeforeErase_ModuleSilentAfterReset_JobStaysOpen()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        ecu.Faults = (req, _) => req[0] == 0x11 ? SimFlashFault.LinkDown : null;
+        var (eng, uds, _, _) = Make(ecu, img);
+        uds.SeedKey = new NullSeedKeyProvider();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.True(ex.ModuleMayBeInBootloader);
+        Assert.DoesNotContain("Nothing was erased", ex.Message);
+        Assert.True(eng.State.Open);
+    }
+
+    [Fact]
+    public async Task ResumedJob_FailingAtSecurity_IsNotReset()
+    {
+        // A resume follows an attempt that may have erased the module: a failure now must not reset it.
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        bool fail = true;
+        ecu.Faults = (req, _) => fail && req[0] == 0x36 ? SimFlashFault.Negative(0x72) : null;
+        var (eng, uds, _, _) = Make(ecu, img);
+        await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        fail = false;
+        uds.SeedKey = new NullSeedKeyProvider();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.True(ex.ModuleMayBeInBootloader);
+        Assert.Equal(0, ecu.Resets);
+        Assert.True(eng.State.Open);
     }
 
     [Fact]
@@ -528,5 +569,282 @@ public class FlashEngineTests
             Assert.True(System.Text.Json.JsonDocument.Parse(o.ToString()).RootElement.GetProperty("accepted").GetBoolean());
         }
         finally { Directory.Delete(dir, true); }
+    }
+
+    private static FlashPlan PlanFor(IReadOnlyList<FlashSegment> segs, IReadOnlyList<EraseRegion>? erase = null, byte alfid = 0x44) =>
+        new() { TxId = 0x7E0, AddressAndLengthFormat = alfid, Image = FlashImage.FromSegments("t.vbf", segs, erase, ecuTxId: 0x7E0) };
+
+    [Fact]
+    public void Layout_AcceptsSeparateSegmentsInsideTheirEraseRegions()
+    {
+        var segs = new[] { new FlashSegment(0x10000, new byte[0x100]), new FlashSegment(0x10100, new byte[0x100]) };
+        Assert.Null(FlashImageChecks.Layout(PlanFor(segs)));
+        Assert.Null(FlashImageChecks.Layout(PlanFor(segs, new[] { new EraseRegion(0x10000, 0x10000) })));
+    }
+
+    [Fact]
+    public void Layout_RefusesOverlapsOutsideEraseOverflowAndFormatMisfits()
+    {
+        Assert.Contains("overlap", FlashImageChecks.Layout(PlanFor(new[] { new FlashSegment(0x10000, new byte[0x200]), new FlashSegment(0x10100, new byte[0x10]) })));
+        Assert.Contains("not inside any erase region", FlashImageChecks.Layout(PlanFor(new[] { new FlashSegment(0x30000, new byte[0x10]) }, new[] { new EraseRegion(0x10000, 0x10000) })));
+        Assert.Contains("32-bit", FlashImageChecks.Layout(PlanFor(new[] { new FlashSegment(0xFFFFFFF0, new byte[0x20]) })));
+        Assert.Contains("format 0x33", FlashImageChecks.Layout(PlanFor(new[] { new FlashSegment(0x01000000, new byte[0x10]) }, alfid: 0x33)));
+        Assert.Contains("not supported", FlashImageChecks.Layout(PlanFor(new[] { new FlashSegment(0x1000, new byte[0x10]) }, alfid: 0x50)));
+    }
+
+    [Fact]
+    public async Task Engine_RefusesABadLayoutBeforeSendingAnything()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = FlashImage.FromSegments("bad.vbf", new[] { new FlashSegment(0x10000, new byte[0x200]), new FlashSegment(0x10100, new byte[0x10]) }, ecuTxId: 0x7E0);
+        var (eng, uds, _, backups) = Make(ecu, img);
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Contains("overlap", ex.Message);
+        Assert.False(ex.ModuleMayBeInBootloader);
+        Assert.Empty(ecu.Calls);
+        Assert.Empty(backups);
+    }
+
+    [Theory]
+    [InlineData("JL3A-12A650-AB", "JL3A-14C204-ABC", true)]
+    [InlineData("jl3a12a650ab", "JL3A-14C204-ABC", true)]
+    [InlineData("HL3A-12A650-AB", "JL3A-14C204-ABC", false)]
+    [InlineData("AB", "JL3A-14C204-ABC", true)]
+    public void SameProgram_ComparesTheVehicleProgramCode(string module, string file, bool same) =>
+        Assert.Equal(same, FlashImageChecks.SameProgram(module, file));
+
+    [Fact]
+    public async Task Preflight_WarnsWhenTheFileNamesNoModuleOrAnotherProgram()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var uds = new UdsClient(ecu, 0x7E0);
+        var plan = new FlashPlan { TxId = 0x7E0, Image = FlashImage.FromSegments("t.vbf", new[] { new FlashSegment(0x10000, new byte[0x10]) }, partNumber: "HL3A-14C204-AA") };
+        var r = await FlashPreflight.RunAsync(uds, plan, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx,
+            readModulePart: (_, _) => Task.FromResult<string?>("JL3A-12A650-AB"));
+        Assert.Contains(r.Items, i => i.Name == "Image target" && i.Status == PreflightStatus.Warn);
+        Assert.Contains(r.Items, i => i.Name == "Image layout" && i.Status == PreflightStatus.Pass);
+        Assert.Contains(r.Items, i => i.Name == "Module part number" && i.Status == PreflightStatus.Warn && i.Detail.Contains("program code"));
+    }
+
+    // ---- keep-alive, lost session, lockout-safe security ----
+
+    private sealed class WrongKey : ISeedKeyProvider
+    {
+        public Task<byte[]?> ComputeKeyAsync(uint m, byte l, byte[] seed, CancellationToken ct = default) => Task.FromResult<byte[]?>(new byte[] { 0xDE, 0xAD, 0x00 });
+    }
+
+    /// <summary>An engine with an injectable clock for the security hold (waits are instant).</summary>
+    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal) Timed(SimulatedFlashEcu ecu, FlashImage img, FlashRetryPolicy? retry = null,
+        Func<DateTimeOffset>? now = null, MemoryFlashJournal? journal = null)
+    {
+        ecu.ExpectedImage = img;
+        var uds = new UdsClient(ecu, 0x7E0) { SeedKey = new SimKey(), PendingRetryDelay = TimeSpan.Zero };
+        journal ??= new MemoryFlashJournal();
+        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img, Retry = retry ?? new FlashRetryPolicy() }, journal)
+        {
+            ReadVoltage = _ => Task.FromResult<double?>(13.2),
+            Backup = _ => Task.FromResult("b.json"),
+            Delay = _ => Task.CompletedTask,
+            Now = now ?? (() => DateTimeOffset.UtcNow),
+        };
+        return (engine, uds, journal);
+    }
+
+    [Fact]
+    public async Task WrongKey_IsSentOnce_ThenResumeIsHeldUntilCleared()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        var (eng, uds, journal) = Timed(ecu, img);
+        uds.SeedKey = new WrongKey();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x35, ex.Fault?.Nrc);
+        Assert.Equal(1, ecu.WrongKeys);
+        Assert.False(ex.ModuleMayBeInBootloader); // nothing erased: reset back to its software
+
+        // Run again (and again): refused before a single request, so the module's attempt counter is never spent.
+        int before = ecu.Calls.Count;
+        for (int i = 0; i < 3; i++)
+        {
+            var held = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+            Assert.Contains("clear the security hold", held.Message);
+        }
+        Assert.Equal(before, ecu.Calls.Count);
+        Assert.Equal(1, ecu.WrongKeys);
+        Assert.False(ecu.SecurityLocked);
+
+        // Fixed provider, hold cleared: it flashes.
+        uds.SeedKey = new SimKey();
+        eng.ClearSecurityHold("provider fixed");
+        Assert.Null(eng.SecurityHold);
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+    }
+
+    [Fact]
+    public async Task Lockout_HoldsNewAttemptsForTheLockoutTime()
+    {
+        var ecu = new SimulatedFlashEcu { MaxKeyAttempts = 1 }; // first wrong key locks
+        var img = Image(1);
+        var clock = DateTimeOffset.Parse("2026-11-16T12:00:00Z");
+        var (eng, uds, _) = Timed(ecu, img, now: () => clock);
+        uds.SeedKey = new WrongKey();
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x36, ex.Fault?.Nrc);
+
+        clock += TimeSpan.FromMinutes(4);
+        int before = ecu.Calls.Count;
+        var held = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Contains("6 more minute", held.Message);
+        Assert.Equal(before, ecu.Calls.Count);
+
+        clock += TimeSpan.FromMinutes(7);
+        Assert.Null(eng.SecurityHold);
+    }
+
+    [Fact]
+    public void SecurityState_SurvivesNewJobsAndClearsOnSuccess()
+    {
+        var t = DateTimeOffset.UtcNow;
+        var e = new List<FlashJournalEntry>
+        {
+            new(t, FlashJournalKind.Security, Detail: FlashSecurity.WrongKey),
+            new(t, FlashJournalKind.Started, ImageSha256: "x", TxId: 0x7E0),
+        };
+        Assert.Equal(1, FlashJournalState.From(e).WrongKeys);
+        e.Add(new(t, FlashJournalKind.Security, Detail: FlashSecurity.Ok));
+        Assert.Equal(0, FlashJournalState.From(e).WrongKeys);
+        e.Add(new(t, FlashJournalKind.Security, Detail: FlashSecurity.Locked));
+        Assert.Equal(t, FlashJournalState.From(e).LockedAt);
+        Assert.NotNull(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(1)));
+        Assert.Null(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(11)));
+    }
+
+    // ---- secondary bootloader ----
+
+    private static FlashImage Sbl(uint call = 0x00E00000, string? type = "SBL") =>
+        VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0x00E00000, Pattern(0x3D0, 9)) }, "E3B1-14C039-AA", 0x7E0, partType: type, call: call), "sbl.vbf");
+
+    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal) WithSbl(SimulatedFlashEcu ecu, FlashImage img, FlashImage? sbl, ushort? commit = 0x0304)
+    {
+        ecu.ExpectedImage = img;
+        var uds = new UdsClient(ecu, 0x7E0) { SeedKey = new SimKey(), PendingRetryDelay = TimeSpan.Zero };
+        var journal = new MemoryFlashJournal();
+        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = sbl, CommitRoutineId = commit }, journal)
+        {
+            ReadVoltage = _ => Task.FromResult<double?>(13.2),
+            Backup = _ => Task.FromResult("b.json"),
+            Delay = _ => Task.CompletedTask,
+        };
+        return (engine, uds, journal);
+    }
+
+    [Fact]
+    public void VbfReader_ReadsPartTypeAndCallAddress()
+    {
+        var sbl = Sbl();
+        Assert.True(sbl.IsSbl);
+        Assert.Equal(0x00E00000u, sbl.CallAddress);
+        Assert.False(Image().IsSbl);
+    }
+
+    [Fact]
+    public async Task Sbl_IsLoadedToRamAndStarted_BeforeTheErase()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(2);
+        var (eng, uds, journal) = WithSbl(ecu, img, Sbl());
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Null(ecu.Memory(0x00E00000)); // RAM, not flash
+        var calls = ecu.Calls.Select(Convert.ToHexString).ToList();
+        int start = calls.FindIndex(c => c.StartsWith("31010301", StringComparison.Ordinal));
+        int erase = calls.FindIndex(c => c.StartsWith("3101FF00", StringComparison.Ordinal));
+        Assert.True(start > 0 && erase > start);
+        Assert.Equal("3101030100E00000", calls[start]);
+        Assert.Equal(1, ecu.Commits);
+        Assert.Equal(2, eng.State.SegmentsDone); // SBL segments are not image progress
+        Assert.Contains(journal.ReadAll(), e => e.Phase == nameof(FlashPhase.SecondaryBootloader));
+    }
+
+    [Fact]
+    public async Task MissingSbl_EraseRefused_ModuleResetBackUnchanged()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(1);
+        var (eng, uds, _) = WithSbl(ecu, img, null);
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x22, ex.Fault?.Nrc);
+        Assert.False(ex.ModuleMayBeInBootloader);
+        Assert.Contains("Nothing was erased", ex.Message);
+        Assert.True(ecu.ApplicationValid);
+        Assert.False(ecu.InBootloader);
+        Assert.False(eng.State.Open);
+    }
+
+    [Fact]
+    public async Task SessionLostAfterSbl_RestartLoadsTheSblAgain()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(2, 3000);
+        int seen = 0;
+        ecu.Faults = (req, _) => req[0] == 0x36 && req[1] == 0x03 && ecu.SblRunning && ecu.TransferBlocksWritten > 5 && seen++ == 0 ? SimFlashFault.SessionDrop : null;
+        var (eng, uds, _) = WithSbl(ecu, img, Sbl());
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Equal(2, ecu.Calls.Count(c => c.Length >= 4 && c[0] == 0x31 && c[2] == 0x03 && c[3] == 0x01));
+    }
+
+    [Fact]
+    public async Task CheckRoutineNotSupported_ContinuesToReset()
+    {
+        var ecu = new SimulatedFlashEcu { CheckRoutineSupported = false };
+        var img = Image(1);
+        var (eng, uds, _) = WithSbl(ecu, img, null, commit: null);
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+    }
+
+    [Fact]
+    public void Layout_RefusesSblMistakes()
+    {
+        var img = Image(1);
+        Assert.Contains("secondary bootloader", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = Sbl() }));
+        Assert.Contains("no call address", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0xE00000, new byte[16]) }, partType: "SBL"), "s.vbf") }));
+        Assert.Contains("outside the SBL", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl(call: 0x00F00000) }));
+        Assert.Contains("not SBL", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl(type: "EXE") }));
+        Assert.Null(FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl() }));
+    }
+
+    [Fact]
+    public async Task Preflight_WarnsWhenAFordFileHasNoSbl()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var exe = VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0x10000, new byte[16]) }, "JL3A-14C204-AA", 0x7E0, partType: "EXE"), "exe.vbf");
+        var r = await FlashPreflight.RunAsync(new UdsClient(ecu, 0x7E0), new FlashPlan { TxId = 0x7E0, Image = exe }, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx);
+        Assert.Contains(r.Items, i => i.Name == "Secondary bootloader" && i.Status == PreflightStatus.Warn);
+        var ok = await FlashPreflight.RunAsync(new UdsClient(ecu, 0x7E0), new FlashPlan { TxId = 0x7E0, Image = exe, Sbl = Sbl() }, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx);
+        Assert.Contains(ok.Items, i => i.Name == "Secondary bootloader" && i.Status == PreflightStatus.Pass);
+    }
+
+    [Fact]
+    public async Task SecurityHold_DoesNotBlockConfirmingAFinishedModule()
+    {
+        // The flash finished but the link dropped at the reset; afterwards a wrong key was recorded for this module. Resume only
+        // reads the part number (no seed), so the hold must not stop it.
+        var ecu = new SimulatedFlashEcu();
+        var img = Image(1);
+        var (eng, uds, journal, _) = Make(ecu, img);
+        await eng.RunAsync(uds);
+        var t = DateTimeOffset.UtcNow;
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Started, ImageSha256: img.Sha256, TxId: 0x7E0));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Backup, Detail: "b"));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Phase, Phase: nameof(FlashPhase.Reset)));
+        journal.Append(new FlashJournalEntry(t, FlashJournalKind.Security, Detail: FlashSecurity.WrongKey));
+        Assert.NotNull(eng.SecurityHold);
+        int before = ecu.Calls.Count;
+        var r = await eng.RunAsync(uds);
+        Assert.True(r.PartNumberConfirmed);
+        Assert.DoesNotContain(ecu.Calls.Skip(before), c => c[0] is 0x10 or 0x27 or 0x31 or 0x34 or 0x36);
     }
 }

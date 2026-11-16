@@ -30,6 +30,12 @@ public sealed class FlashImage
     /// <summary>dataFormatIdentifier for RequestDownload (VBF <c>data_format_identifier</c>; 0x00 = uncompressed, unencrypted).</summary>
     public byte DataFormat { get; init; }
     public required string Sha256 { get; init; }
+    /// <summary>VBF <c>sw_part_type</c>: SBL (secondary bootloader, loaded to RAM), EXE (strategy), DATA (calibration), ... Null when absent.</summary>
+    public string? PartType { get; init; }
+    /// <summary>VBF <c>call</c>: where the bootloader starts an SBL (the address sent with routine 0x0301). Null when absent.</summary>
+    public uint? CallAddress { get; init; }
+    /// <summary>True for a secondary bootloader file (<c>sw_part_type = SBL</c>).</summary>
+    public bool IsSbl => string.Equals(PartType, "SBL", StringComparison.OrdinalIgnoreCase);
     /// <summary>Checks that could not be confirmed (e.g. a file checksum whose algorithm is not known). Shown to the operator; not fatal.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
     public long TotalBytes => Segments.Sum(s => (long)s.Data.Length);
@@ -121,11 +127,13 @@ public static class VbfReader
         byte fmt = fields.TryGetValue("data_format_identifier", out var df) && TryParseUInt(df, out uint d) ? (byte)d : (byte)0;
         string? part = fields.TryGetValue("sw_part_number", out var pn) ? pn.Trim('"') : null;
         var erase = fields.TryGetValue("erase", out var er) ? ParseErase(er) : new List<EraseRegion>();
+        string? type = fields.TryGetValue("sw_part_type", out var pt) ? pt.Trim('"', ' ') : null;
+        uint? call = fields.TryGetValue("call", out var cl) && TryParseUInt(cl, out uint c) ? c : null;
         var img = FlashImage.FromSegments(name, segments, erase, part, ecu, fmt);
         return new FlashImage
         {
             Name = img.Name, Segments = img.Segments, Erase = img.Erase, SoftwarePartNumber = img.SoftwarePartNumber, EcuTxId = img.EcuTxId,
-            DataFormat = img.DataFormat, Sha256 = Convert.ToHexString(SHA256.HashData(file)), Warnings = warnings,
+            DataFormat = img.DataFormat, Sha256 = Convert.ToHexString(SHA256.HashData(file)), Warnings = warnings, PartType = type, CallAddress = call,
         };
     }
 
@@ -186,7 +194,8 @@ public static class VbfReader
     }
 
     /// <summary>Writes a VBF in the layout <see cref="Parse"/> reads. For tests and DEMO images only.</summary>
-    public static byte[] Write(IReadOnlyList<FlashSegment> segments, string? partNumber = null, uint? ecuTxId = null, IReadOnlyList<EraseRegion>? erase = null)
+    public static byte[] Write(IReadOnlyList<FlashSegment> segments, string? partNumber = null, uint? ecuTxId = null, IReadOnlyList<EraseRegion>? erase = null,
+        string? partType = null, uint? call = null)
     {
         var bin = new MemoryStream();
         foreach (var s in segments)
@@ -196,6 +205,8 @@ public static class VbfReader
         }
         var sb = new StringBuilder("vbf_version = 2.2;\r\nheader {\r\n    // synthetic test image\r\n");
         if (partNumber is not null) sb.Append($"    sw_part_number = \"{partNumber}\";\r\n");
+        if (partType is not null) sb.Append($"    sw_part_type = {partType};\r\n");
+        if (call is uint ca) sb.Append($"    call = 0x{ca:X8};\r\n");
         if (ecuTxId is uint id) sb.Append($"    ecu_address = 0x{id:X3};\r\n");
         if (erase is { Count: > 0 }) sb.Append("    erase = { ").Append(string.Join(", ", erase.Select(r => $"{{ 0x{r.Address:X8}, 0x{r.Length:X8} }}"))).Append(" };\r\n");
         sb.Append($"    file_checksum = 0x{Crc32(segments.SelectMany(s => s.Data)):X8};\r\n}}");

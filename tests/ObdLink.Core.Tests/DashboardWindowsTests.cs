@@ -138,4 +138,21 @@ public class DashboardWindowsTests
         Assert.Equal(new[] { "rpm", "speed" }, dup.Items.Select(i => i.Key));
         Assert.Equal(GaugeFaces.Analog, dup.Items[1].Face);
     }
+
+    [Fact]
+    public void WriteCardUndo_WritesTheOldValueBack_OnlyOverWhatTheCardLeft()
+    {
+        var spec = new DashAction { Kind = DashActionKind.WriteDid, Module = "726", Id = "4045", Data = "0102" };
+        Assert.Null(DashActions.UndoFor(spec, null, new byte[] { 1, 2 }, new byte[] { 1, 2 }));          // old value unread: no undo
+        Assert.Null(DashActions.UndoFor(new DashAction { Kind = DashActionKind.Routine, Module = "726", Id = "0202" }, new byte[] { 9 }, new byte[0], new byte[0]));
+        var undo = DashActions.UndoFor(spec, new byte[] { 0x0A, 0x0B }, new byte[] { 1, 2 }, new byte[] { 1, 2 })!;
+        Assert.Equal("2E 4045 0A0B", undo.Plan.RequestHex);
+        Assert.Equal(0x726u, undo.Plan.TxId);
+        Assert.Null(undo.Refusal(new byte[] { 1, 2 }));
+        Assert.Contains("already holds the old value", undo.Refusal(new byte[] { 0x0A, 0x0B }));
+        Assert.Contains("changed since", undo.Refusal(new byte[] { 7, 7 }));
+        // A write the module did not keep (read back differs): undo still allowed over what it read back.
+        var partial = DashActions.UndoFor(spec, new byte[] { 0x0A, 0x0B }, new byte[] { 1, 2 }, new byte[] { 1, 0 })!;
+        Assert.Null(partial.Refusal(new byte[] { 1, 0 }));
+    }
 }

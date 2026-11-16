@@ -9,6 +9,7 @@ public sealed record SimFlashFault(SimFlashFaultKind Kind, byte Nrc = 0)
     public static readonly SimFlashFault DropResponse = new(SimFlashFaultKind.DropResponse);
     public static readonly SimFlashFault Pending = new(SimFlashFaultKind.Pending);
     public static readonly SimFlashFault LinkDown = new(SimFlashFaultKind.LinkDown);
+    public static readonly SimFlashFault SessionDrop = new(SimFlashFaultKind.SessionDrop);
     public static readonly SimFlashFault LinkDownAfter = new(SimFlashFaultKind.LinkDownAfter);
     public static SimFlashFault Negative(byte nrc) => new(SimFlashFaultKind.Nrc, nrc);
 }
@@ -25,6 +26,8 @@ public enum SimFlashFaultKind
     LinkDown,
     /// <summary>The module answers this NRC without processing the request.</summary>
     Nrc,
+    /// <summary>The module falls back to the default session (as after an S3 timeout) just before handling the request.</summary>
+    SessionDrop,
     /// <summary>The module processes the request, then the adapter/port dies before the answer arrives (IOException from then on).</summary>
     LinkDownAfter,
 }
@@ -65,7 +68,7 @@ public class SimulatedFlashEcu : IDiagChannel
     /// <summary>Session drops caused by <see cref="S3"/>.</summary>
     public int SessionTimeouts { get; private set; }
     /// <summary>Drops the session right now, as an S3 timeout would (for fault injection).</summary>
-    public void DropSession() { Session = 0x01; Unlocked = false; _dl = null; SessionTimeouts++; }
+    public void DropSession() { Session = 0x01; Unlocked = false; _dl = null; SessionTimeouts++; SblRunning = false; _ram.Clear(); }
     private DateTime? _lastRequest;
     /// <summary>Some bootloaders ignore TesterPresent in their default session (no answer at all). Recovery must still reach them.</summary>
     public bool IgnoreTesterPresentInBootloader { get; set; }
@@ -78,13 +81,29 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool InBootloader { get; private set; }
     public bool Unlocked { get; private set; }
     public bool ApplicationValid { get; private set; } = true;
+    /// <summary>The next seed request(s) answer NRC 0x37 (required time delay not expired).</summary>
+    public int SecurityDelaysLeft { get; set; }
+    /// <summary>Wrong keys accepted before the module answers NRC 0x36 and locks.</summary>
+    public int MaxKeyAttempts { get; set; } = 3;
+    public int WrongKeys { get; private set; }
+    public bool SecurityLocked { get; private set; }
+    /// <summary>Ford-style: the erase is refused (NRC 0x22) until a secondary bootloader was downloaded to <see cref="SblRam"/> and started
+    /// with routine 0x0301 and its call address.</summary>
+    public bool RequiresSbl { get; set; }
+    /// <summary>RAM the SBL is downloaded to (no erase needed). Default 0x00E00000, 64 KiB.</summary>
+    public EraseRegion SblRam { get; set; } = new(0x00E00000, 0x10000);
+    public bool SblRunning { get; private set; }
+    /// <summary>When false, the ISO check routine 0xFF01 answers NRC 0x31 (as on modules that don't have it).</summary>
+    public bool CheckRoutineSupported { get; set; } = true;
+    public int Commits { get; private set; }
+    private readonly Dictionary<uint, byte[]> _ram = new();
 
     protected readonly Queue<byte[]> Deferred = new();
     private readonly Dictionary<uint, byte[]> _memory = new();
     private readonly List<EraseRegion> _erased = new();
     protected int ErasePollsLeft;
     private Download? _dl;
-    private sealed class Download { public uint Address; public byte[] Data = Array.Empty<byte>(); public int Received; public byte Expected = 1; public byte? Last; }
+    private sealed class Download { public bool Ram; public uint Address; public byte[] Data = Array.Empty<byte>(); public int Received; public byte Expected = 1; public byte? Last; }
 
     public SimulatedFlashEcu(uint txId = 0x7E0) => TxId = txId;
 
@@ -102,6 +121,7 @@ public class SimulatedFlashEcu : IDiagChannel
         if (S3 is TimeSpan s3 && Session != 0x01 && _lastRequest is DateTime last && now - last > s3) DropSession();
         _lastRequest = now;
         var fault = Faults?.Invoke(request, index);
+        if (fault?.Kind == SimFlashFaultKind.SessionDrop) DropSession();
         switch (fault?.Kind)
         {
             case SimFlashFaultKind.LinkDown: LinkDown = true; throw new IOException("The port is closed (simulated adapter unplugged)");
@@ -148,8 +168,15 @@ public class SimulatedFlashEcu : IDiagChannel
             case 0x27 or 0x31 or 0x34 or 0x36 or 0x37 when InBootloader && Session != 0x02:
                 return Neg(sid, 0x7F); // serviceNotSupportedInActiveSession (bootloader dropped to its default session)
             case 0x27 when r.Length >= 2:
-                if (r[1] % 2 == 1) return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
-                if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; return new byte[] { 0x67, r[1] }; }
+                if (r[1] % 2 == 1)
+                {
+                    if (SecurityLocked) return Neg(0x27, 0x37);
+                    if (SecurityDelaysLeft > 0) { SecurityDelaysLeft--; return Neg(0x27, 0x37); }
+                    return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
+                }
+                if (SecurityLocked) return Neg(0x27, 0x36);
+                if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; WrongKeys = 0; return new byte[] { 0x67, r[1] }; }
+                if (++WrongKeys >= MaxKeyAttempts) { SecurityLocked = true; return Neg(0x27, 0x36); }
                 return Neg(0x27, 0x35);
             case 0x31 when r.Length >= 4: return Routine(r);
             case 0x34: return RequestDownload(r);
@@ -157,12 +184,13 @@ public class SimulatedFlashEcu : IDiagChannel
             case 0x37:
                 if (_dl is null) return Neg(0x37, 0x24);
                 if (_dl.Received != _dl.Data.Length) return Neg(0x37, 0x24);
-                _memory[_dl.Address] = _dl.Data; _dl = null;
+                if (_dl.Ram) _ram[_dl.Address] = _dl.Data; else _memory[_dl.Address] = _dl.Data;
+                _dl = null;
                 return new byte[] { 0x77 };
             case 0x11 when r.Length >= 2:
                 Resets++;
-                ApplicationValid = CheckImage();
-                InBootloader = !ApplicationValid; Session = 0x01; Unlocked = false; _erased.Clear();
+                if (!ApplicationValid) ApplicationValid = CheckImage(); // untouched software stays valid; erased/written software must match the image
+                InBootloader = !ApplicationValid; Session = 0x01; Unlocked = false; _erased.Clear(); SblRunning = false; _ram.Clear();
                 return new byte[] { 0x51, r[1] };
             case 0x22 when InBootloader: return Neg(0x22, 0x22); // bootloader: no application data
             case 0x22 when r.Length >= 3 && r[1] == 0xF1 && r[2] == 0x88:
@@ -177,6 +205,17 @@ public class SimulatedFlashEcu : IDiagChannel
         ushort rid = (ushort)(r[2] << 8 | r[3]);
         byte type = (byte)(r[1] & 0x7F);
         if (!InBootloader || !Unlocked) return Neg(0x31, InBootloader ? (byte)0x33 : (byte)0x22);
+        if (rid == 0x0301 && type == 0x01)
+        {
+            if (r.Length < 8) return Neg(0x31, 0x13);
+            uint call = U32(r, 4);
+            if (!_ram.Any(kv => call >= kv.Key && call < kv.Key + kv.Value.Length)) return Neg(0x31, 0x31); // nothing loaded there
+            SblRunning = true;
+            return new byte[] { 0x71, 0x01, 0x03, 0x01 };
+        }
+        if (rid == 0x0304 && type == 0x01) { Commits++; return new byte[] { 0x71, 0x01, 0x03, 0x04, 0x00 }; }
+        if (rid == 0xFF00 && type == 0x01 && RequiresSbl && !SblRunning) return Neg(0x31, 0x22);
+        if (rid == 0xFF01 && !CheckRoutineSupported) return Neg(0x31, 0x31);
         if (rid == 0xFF00 && type == 0x01)
         {
             if (r.Length >= 12) _erased.Add(new EraseRegion(U32(r, 4), U32(r, 8)));
@@ -207,8 +246,9 @@ public class SimulatedFlashEcu : IDiagChannel
         for (int i = 0; i < aBytes; i++) addr = addr << 8 | r[3 + i];
         for (int i = 0; i < lBytes; i++) len = len << 8 | r[3 + aBytes + i];
         if (ErasePollsLeft > 0) return Neg(0x34, 0x22); // erase still running
-        if (!_erased.Any(e => addr >= e.Address && (long)addr + len <= (long)e.Address + e.Length)) return Neg(0x34, 0x70);
-        _dl = new Download { Address = addr, Data = new byte[len] };
+        bool ram = addr >= SblRam.Address && (long)addr + len <= (long)SblRam.Address + SblRam.Length;
+        if (!ram && !_erased.Any(e => addr >= e.Address && (long)addr + len <= (long)e.Address + e.Length)) return Neg(0x34, 0x70);
+        _dl = new Download { Address = addr, Data = new byte[len], Ram = ram };
         return new byte[] { 0x74, 0x20, (byte)(MaxBlockLength >> 8), (byte)MaxBlockLength };
     }
 
