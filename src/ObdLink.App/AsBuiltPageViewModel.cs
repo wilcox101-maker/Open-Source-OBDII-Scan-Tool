@@ -424,8 +424,10 @@ public sealed class AsBuiltPageViewModel : ObservableObject
     {
         var ab = FordAbFile.Load(_open("Factory .ab", "Ford As-Built|*.ab|All files|*.*", _asBuiltDir()));
         var bad = ab.Lines.Count(l => !l.ChecksumValid);
-        SetFactory(ab, $"Factory .ab: VIN …{VinTail(ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines, {bad} bad checksums");
-        _log.Message(bad > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Import factory .ab", FactoryInfo);
+        SetFactory(ab, $"Factory .ab: VIN …{VinTail(ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines, {bad} bad checksums"
+            + (ab.Skipped.Count > 0 ? $", {ab.Skipped.Count} line(s) skipped (block above 99)" : ""));
+        _log.Message(bad > 0 || ab.Skipped.Count > 0 ? LogEventLevel.Warning : LogEventLevel.Information, "Import factory .ab", FactoryInfo);
+        foreach (var skip in ab.Skipped) _log.Message(LogEventLevel.Warning, "Import factory .ab", "Skipped " + skip);
         return Task.CompletedTask;
     }
 
@@ -445,7 +447,9 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         ShowLines(abt.Lines);
         var bad = abt.Lines.Count(l => !l.ChecksumValid);
         FactoryDiff.Clear();
-        var info = $".abt: {string.Join(",", abt.Modules.Select(m => m.ToString("X3")))}, {abt.Lines.Count} lines, {bad} bad checksums";
+        var info = $".abt: {string.Join(",", abt.Modules.Select(m => m.ToString("X3")))}, {abt.Lines.Count} lines, {bad} bad checksums"
+            + (abt.Skipped.Count > 0 ? $", {abt.Skipped.Count} line(s) skipped (block above 99)" : "");
+        foreach (var skip in abt.Skipped) _log.Message(LogEventLevel.Warning, "Import .abt", "Skipped " + skip);
         if (Factory is not null)
         {
             ShowDiff(abt.Modules.SelectMany(m => AsBuiltDiff.Compare(Factory.Lines, abt.Lines, m)).ToList());

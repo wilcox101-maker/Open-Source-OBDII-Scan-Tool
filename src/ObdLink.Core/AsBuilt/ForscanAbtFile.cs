@@ -19,6 +19,8 @@ public sealed class ForscanAbtFile
     public List<AsBuiltLine> Lines { get; } = new();
     /// <summary>Comment index ("Block n") each line appeared under. Kept so export round-trips byte-identically.</summary>
     public Dictionary<AsBuiltAddress, int> BlockIndex { get; } = new();
+    /// <summary>KB-R2: lines that couldn't be represented (block/line above 99), with why. Not imported.</summary>
+    public List<string> Skipped { get; } = new();
     public IEnumerable<ushort> Modules => Lines.Select(l => l.Address.Module).Distinct();
     public ushort Module => Modules.Single();
 
@@ -41,7 +43,9 @@ public sealed class ForscanAbtFile
             if (l.StartsWith(';')) continue;
             var m = Regex.Match(l, @"^([0-9A-Fa-f]{3})([G-V][0-9A-F])([G-V][0-9A-F])((?:[0-9A-Fa-f]{2})+)$");
             if (!m.Success) throw new FormatException($"Unrecognized .abt line '{l}'");
-            var a = new AsBuiltAddress(Convert.ToUInt16(m.Groups[1].Value, 16), DecodeCode(m.Groups[2].Value), DecodeCode(m.Groups[3].Value));
+            AsBuiltAddress a;
+            try { a = new AsBuiltAddress(Convert.ToUInt16(m.Groups[1].Value, 16), DecodeCode(m.Groups[2].Value), DecodeCode(m.Groups[3].Value)); }
+            catch (AsBuiltRangeException ex) { f.Skipped.Add($"{l}: {ex.Message}"); continue; }
             var b = Convert.FromHexString(m.Groups[4].Value);
             var line = new AsBuiltLine(a, b[..^1], b[^1]);
             f.Lines.Add(line); f.BlockIndex[a] = idx;

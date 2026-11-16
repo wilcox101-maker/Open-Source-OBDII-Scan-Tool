@@ -1,3 +1,18 @@
+## v0.23.10
+
+**As-Built blocks above 99 are skipped and reported, not crashes (KB-R2).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- FORScan's .abt documentation shows some PCMs have As-Built blocks **above 99** (e.g. `7E0-162-01`, https://forum.forscan.org/viewtopic.php?p=36323). This tool stores block and line numbers as BCD bytes (0–99), and how the checksum treats higher blocks is unknown.
+- Before: such a line made `.ab` and `.abt` imports fail as a whole (byte overflow / out-of-range error).
+- Now: those lines are **skipped and listed**; everything else in the file imports. The import summary says "N line(s) skipped (block above 99)" and the event log lists each one. Nothing is guessed or written for them. A typed address like `7E0-162-01` gives a clear message instead of an overflow.
+- Reading a module's blocks from the vehicle is unaffected (the read sweeps stop at block 16/20).
+
+Internal: `AsBuiltRangeException` (a `FormatException`), thrown by `AsBuiltAddress.Parse` / `AsBuiltLine.Parse` / `ToBcd` for numbers above 99; `ForscanAbtFile.Skipped`, `FordAbFile.Skipped`; `AsBuiltPageViewModel` reports them. Tests `AsBuiltRangeTests` (4; removing the skip or the 3-digit check makes them fail).
+
+### Windows + truck verify
+1. **DEMO / any PC:** As-Built → Import .abt with a file that has one line edited to block code `M4` (= block 100): the import succeeds, the summary says 1 line skipped, the event log names it.
+2. **Truck:** none (Dale's 2017 F-150 files have no block above 99).
+
 ## v0.23.9
 
 **Transmission reset goes to the PCM when there's no TCM (KB-R3).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
