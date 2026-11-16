@@ -1,3 +1,22 @@
+## v0.17.0
+
+**Command line: `obdcli` (read-only toward the vehicle).** Includes v0.16.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download:** the app as before (`ObdLinkApp-win-x64-v0.17.0.zip`), plus **`obdcli-win-x64`**, a separate self-contained `obdcli.exe` (CI artifact for now).
+
+- `obdcli info | scan | dtcs | live | monitor | asbuilt-read | options`. Full reference: `docs/CLI.md`. `--json` for scripts.
+- `--port COM5` for a real adapter, `--demo` for the simulator (no vehicle needed).
+- It never writes to the vehicle: every UDS client has a closed write gate, and a test checks the source for write calls.
+- `options` works offline on a FORScan `.abt`: list the community options with current values, or `--set "ADDR PATTERN=DIGITS"` into a **new** file (checksums recomputed, conflicts refused). Load it in the app to write it through the normal safe path.
+
+Internal: the module scan with alternate-bus retries is now Core `ModuleScanFlow` (PR #29), shared by the app and the CLI.
+
+### Windows + truck verify
+1. Unzip `obdcli-win-x64`, run `obdcli --demo info`, `obdcli --demo scan`, `obdcli --demo dtcs`, `obdcli --demo monitor --bus ms --seconds 3`: output as in `docs/CLI.md`.
+2. App scan on DEMO still marks modules found and remembers MS-CAN modules found by retry (same as v0.16.0).
+3. Truck (close the app first; one program per adapter): `obdcli info --port COMx`, `obdcli scan --port COMx`, `obdcli dtcs --port COMx`. Compare the DTC list with the app's Read all modules.
+4. Truck: `obdcli asbuilt-read --port COMx --module 726 --out bcm.abt`, then `obdcli options --abt bcm.abt --search tire` and compare current values with FORScan.
+
 ## v0.16.0
 
 **As-Built change history and undo.** Includes v0.15.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
