@@ -113,7 +113,7 @@ Source: `UdsServices`. "Gated" = state-changing: refused in read-only mode and, 
 | 0x22 | ReadDataByIdentifier |  |  | identify, As-Built read, enhanced PIDs (Live Data, dashboards) |
 | 0x23 | ReadMemoryByAddress |  |  | Core only (UdsMemory) |
 | 0x27 | SecurityAccess | yes | yes | seed/key plug-ins; flash engine |
-| 0x28 | CommunicationControl | yes | yes | Core only (ControlLease, restore 28 00); bench-first |
+| 0x28 | CommunicationControl | yes | yes | flash bus quieting (functional 28 83 01, restore 28 80 01); Core ControlLease; bench-first |
 | 0x2A | ReadDataByPeriodicIdentifier |  |  | Core only (UdsPeriodic) |
 | 0x2C | DynamicallyDefineDataIdentifier | yes | yes | Core only (UdsDynamicData) |
 | 0x2E | WriteDataByIdentifier | yes |  | As-Built write / restore / undo; dashboard write cards |
@@ -127,7 +127,7 @@ Source: `UdsServices`. "Gated" = state-changing: refused in read-only mode and, 
 | 0x3B | WriteDataByLocalIdentifier (KWP2000) | yes |  | console only |
 | 0x3D | WriteMemoryByAddress | yes |  | console only |
 | 0x3E | TesterPresent |  | yes | module scan, keep-alive (3E 80), flash preflight |
-| 0x85 | ControlDTCSetting | yes | yes | Core only (ControlLease, restore 85 01); bench-first |
+| 0x85 | ControlDTCSetting | yes | yes | flash bus quieting (functional 85 82, restore 85 81); Core ControlLease; bench-first |
 | 0x86 | ResponseOnEvent | yes | yes | console only |
 | 0x87 | LinkControl | yes | yes | console only |
 

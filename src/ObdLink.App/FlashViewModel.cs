@@ -260,6 +260,7 @@ public sealed class FlashViewModel : ObservableObject
             ReadModulePart = ReadPart,
             Host = _power,
             Progress = _progress,
+            QuietBus = true,   // FORScan-style "stop activity on buses"; restored afterwards (see FlashEngine.QuietBus)
         };
         _stop = new CancellationTokenSource();
         Running = true; Retries = 0; Percent = 0;

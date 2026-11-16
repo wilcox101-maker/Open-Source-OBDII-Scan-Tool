@@ -328,6 +328,7 @@ public static class FlashWarnings
             "PC on AC power. Sleep is blocked while flashing.",
             $"Target module 0x{plan.TxId:X3}; file {plan.Image.Name}" + (plan.Image.SoftwarePartNumber is string p ? $" ({p})" : "") + ".",
             "An interrupted flash can leave the module inoperable until it is recovered. A backup is saved first.",
+            "Other modules on the same bus are told to stop sending (and to stop logging faults) during the flash. Gauges and warning lights may go dark or flash; they return when it finishes, or within seconds of an interruption. Some U-codes may be stored: clear them afterwards.",
         };
         if (adapter?.Kind == AdapterKind.ObdLinkMxPlus)
             lines.Add("Wireless link (OBDLink MX+): keep the PC close to the truck. A wired OBDLink EX is recommended for flashing.");

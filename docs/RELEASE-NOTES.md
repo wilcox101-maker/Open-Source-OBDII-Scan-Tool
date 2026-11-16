@@ -1,3 +1,20 @@
+## v0.22.1
+
+**Flashing: other modules are told to stop talking during a flash, and are put back afterwards** (FORScan's "stop activity on buses"). Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only; nothing has flashed a real module. Unsigned. Ford products only.
+
+- **Before programming**, every module on the target's bus gets functional (0x7DF) extended session `10 83`, DTC setting off `85 82` and normal messages off `28 83 01`. This frees the bus for the download and stops other modules from logging faults about the silent target.
+- **While quiet**, a functional TesterPresent `3E 80` goes out at least every 2 s, during the download too, so no module drops back to normal halfway (S3 is 5 s).
+- **Afterwards**, `28 80 01` and `85 81` are sent (retried, and allowed even if read-only mode was switched on mid-job). `10 81` is sent only after a successful flash: after a failure the target stays in its programming session for recovery. If the link drops, every module recovers by itself within 5 s.
+- The flash confirmation now says gauges and warning lights may go dark during the flash and some U-codes may be stored.
+- Limits: the requests are suppressed (no reply), so a module that refuses keeps talking; modules on another bus (MS-CAN) are not reached. Ford module behaviour [UNVERIFIED].
+
+Internal: `FlashEngine.QuietBus / FunctionalTxId` (keep-alive timing uses the engine's `Now`), new `FlashPhase.QuietBus`; `UdsControl` disable/set DTC setting and communication take `suppressResponse` (silence = success). Tests `FlashBusQuietTests` (7): bystander modules with their own S3 timers on a virtual clock stay quiet through a 15 s+ download and are restored in order; a programming failure restores traffic without `10 81` or a reset; a lost link is an interruption, not a restore error; a re-entered session quiets again and restores once; an SBL flash with a quiet bus completes; a failure before the erase (module reset back) restores the whole bus including `10 81`; off = nothing functional. Removing the per-step keep-alive or sending `10 81` after a failure each fails a test.
+
+### Windows + truck verify
+1. **DEMO:** flash a DEMO module; the log shows "quieting the bus" before the programming session and "bus restored: functional 28 80 01, 85 81, 10 81" at the end.
+2. **DEMO:** the flash confirmation lists the "other modules ... stop sending" line.
+3. **Truck:** none (no real-module flashing yet).
+
 ## v0.22.0
 
 **Flash hardening and dashboard undo.** Keep-alive and lost-session recovery came in v0.21.2; this release adds what is around them. Includes v0.21.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.

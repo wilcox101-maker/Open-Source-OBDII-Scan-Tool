@@ -48,19 +48,23 @@ public static class UdsControl
     // ---- 85 ControlDTCSetting -------------------------------------------------------------------------------------
 
     /// <summary>85 02: the module stops updating DTC status bits (used around procedures that would set faults). Restore = 85 01.</summary>
-    public static async Task<ControlLease> DisableDtcSettingAsync(this UdsClient uds, CancellationToken ct = default)
+    /// <remarks><paramref name="suppressResponse"/> sets the suppress-positive-response bit (85 82 / restore 85 81): used for functional
+    /// (0x7DF) requests, where silence is success and a reply cannot be tied to one module.</remarks>
+    public static async Task<ControlLease> DisableDtcSettingAsync(this UdsClient uds, CancellationToken ct = default, bool suppressResponse = false)
     {
-        await SetDtcSettingAsync(uds, enabled: false, ct);
-        return new ControlLease(uds, $"DTC setting off (85 02) on 0x{uds.TargetTxId:X3}", c => DtcSetting(uds.RestoreAsync, enabled: true, c));
+        await SetDtcSettingAsync(uds, enabled: false, ct, suppressResponse);
+        return new ControlLease(uds, $"DTC setting off (85 02) on 0x{uds.TargetTxId:X3}", c => DtcSetting(uds.RestoreAsync, enabled: true, suppressResponse, c));
     }
 
     /// <summary>85 01 / 85 02 without a lease.</summary>
-    public static Task SetDtcSettingAsync(this UdsClient uds, bool enabled, CancellationToken ct = default) => DtcSetting(uds.RequestAsync, enabled, ct);
+    public static Task SetDtcSettingAsync(this UdsClient uds, bool enabled, CancellationToken ct = default, bool suppressResponse = false)
+        => DtcSetting(uds.RequestAsync, enabled, suppressResponse, ct);
 
-    private static async Task DtcSetting(Func<byte[], CancellationToken, Task<byte[]>> send, bool enabled, CancellationToken ct)
+    private static async Task DtcSetting(Func<byte[], CancellationToken, Task<byte[]>> send, bool enabled, bool suppress, CancellationToken ct)
     {
         byte sub = enabled ? (byte)0x01 : (byte)0x02;
-        var r = await send(new byte[] { 0x85, sub }, ct);
+        var r = await send(new byte[] { 0x85, (byte)(sub | (suppress ? 0x80 : 0)) }, ct);
+        if (suppress && r.Length == 0) return;
         if (r.Length < 2 || r[0] != 0xC5 || (r[1] & 0x7F) != sub)
             throw new InvalidDataException($"ControlDTCSetting reply does not confirm sub-function 0x{sub:X2}: {Convert.ToHexString(r)}");
     }
@@ -71,23 +75,26 @@ public static class UdsControl
     /// 28 with a disabling control type. Restore = 28 00 (enable Rx and Tx) for the same groups. Disabling normal messages
     /// silences the module on the bus: other modules may set U-codes or degrade, so only on a stationary vehicle.
     /// </summary>
-    public static async Task<ControlLease> DisableCommunicationAsync(this UdsClient uds, CommunicationControlType type, CommunicationGroups groups = CommunicationGroups.Normal, CancellationToken ct = default)
+    public static async Task<ControlLease> DisableCommunicationAsync(this UdsClient uds, CommunicationControlType type, CommunicationGroups groups = CommunicationGroups.Normal,
+        CancellationToken ct = default, bool suppressResponse = false)
     {
         if (type == CommunicationControlType.EnableRxAndTx) throw new ArgumentException("Use SetCommunicationAsync to enable; a lease is for a disabling type", nameof(type));
-        await SetCommunicationAsync(uds, type, groups, ct);
+        await SetCommunicationAsync(uds, type, groups, ct, suppressResponse);
         return new ControlLease(uds, $"communication {type} ({groups}) on 0x{uds.TargetTxId:X3}",
-            c => Communication(uds.RestoreAsync, CommunicationControlType.EnableRxAndTx, groups, c));
+            c => Communication(uds.RestoreAsync, CommunicationControlType.EnableRxAndTx, groups, suppressResponse, c));
     }
 
-    public static Task SetCommunicationAsync(this UdsClient uds, CommunicationControlType type, CommunicationGroups groups = CommunicationGroups.Normal, CancellationToken ct = default)
-        => Communication(uds.RequestAsync, type, groups, ct);
+    public static Task SetCommunicationAsync(this UdsClient uds, CommunicationControlType type, CommunicationGroups groups = CommunicationGroups.Normal,
+        CancellationToken ct = default, bool suppressResponse = false)
+        => Communication(uds.RequestAsync, type, groups, suppressResponse, ct);
 
-    private static async Task Communication(Func<byte[], CancellationToken, Task<byte[]>> send, CommunicationControlType type, CommunicationGroups groups, CancellationToken ct)
+    private static async Task Communication(Func<byte[], CancellationToken, Task<byte[]>> send, CommunicationControlType type, CommunicationGroups groups, bool suppress, CancellationToken ct)
     {
         if (!Enum.IsDefined(type)) throw new ArgumentOutOfRangeException(nameof(type), type, "Only control types 00-03 are supported");
         if (groups is not (CommunicationGroups.Normal or CommunicationGroups.NetworkManagement or CommunicationGroups.Both))
             throw new ArgumentOutOfRangeException(nameof(groups), groups, "Communication groups must be Normal, NetworkManagement or Both");
-        var r = await send(new byte[] { 0x28, (byte)type, (byte)groups }, ct);
+        var r = await send(new byte[] { 0x28, (byte)((byte)type | (suppress ? 0x80 : 0)), (byte)groups }, ct);
+        if (suppress && r.Length == 0) return;
         if (r.Length < 2 || r[0] != 0x68 || (r[1] & 0x7F) != (byte)type)
             throw new InvalidDataException($"CommunicationControl reply does not confirm control type 0x{(byte)type:X2}: {Convert.ToHexString(r)}");
     }

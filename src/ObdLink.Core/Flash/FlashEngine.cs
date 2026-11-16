@@ -7,7 +7,7 @@ namespace ObdLink.Core.Flash;
 
 public enum FlashPhase
 {
-    Preflight, Backup, ExtendedSession, ProgrammingSession, SecurityAccess, SecondaryBootloader, Erase, Download, TransferExit,
+    Preflight, Backup, QuietBus, ExtendedSession, ProgrammingSession, SecurityAccess, SecondaryBootloader, Erase, Download, TransferExit,
     CheckDependencies, Reset, Verify, Done,
 }
 
@@ -63,9 +63,21 @@ public sealed class FlashEngine
     public TimeSpan KeepAliveInterval { get; init; } = Uds.TesterPresentKeeper.DefaultInterval;
     /// <summary>Automatic re-entries into programming (from the erase) after the session or security was lost. Then the job stays open for resume.</summary>
     public int MaxSessionRecoveries { get; init; } = 1;
+    /// <summary>
+    /// Bus quieting (pre-programming, ISO 14229-1 / FORScan "stop activity on buses"): before the programming session, every
+    /// module on the target's bus gets functional (<see cref="FunctionalTxId"/>) 10 83, 85 82 and 28 83 01 (extended session, DTC
+    /// setting off, normal messages off), kept alive by functional 3E 80. Afterwards 28 80 01 and 85 81 are sent (through a closed
+    /// write gate too), plus 10 81 after a successful flash only: after a failure the target stays in its programming session.
+    /// If the link drops, the modules return to normal on their own when S3 (5 s) expires. Modules on another bus are not reached.
+    /// </summary>
+    public bool QuietBus { get; init; }
+    /// <summary>Functional request ID for bus quieting (OBD/UDS 11-bit functional address).</summary>
+    public uint FunctionalTxId { get; init; } = 0x7DF;
 
-    private UdsClient? _uds;
+    private UdsClient? _uds, _bus;
     private bool _inSession, _unlocked;
+    private ControlLease? _commLease, _dtcLease;
+    private DateTimeOffset _lastBusKeepAlive;
     /// <summary>Set once an erase or a download request has been sent: from then on the module's software may be incomplete.</summary>
     private bool _memoryTouched;
     /// <summary>Clock for journal entries and the security hold (tests replace it).</summary>
@@ -102,6 +114,9 @@ public sealed class FlashEngine
 
         using var awake = Host.KeepAwake();
         _retries = 0; _segment = 0; _bytesDone = 0; _uds = uds; _inSession = false; _unlocked = false; _memoryTouched = false;
+        _bus = QuietBus ? new UdsClient(uds.Channel, FunctionalTxId) { Gate = uds.Gate, Clock = uds.Clock } : null;
+        _commLease = null; _dtcLease = null;
+        bool flashed = false;
         bool inBootloader = resume;
         try
         {
@@ -165,6 +180,8 @@ public sealed class FlashEngine
             try { await uds.EcuResetAsync(_plan.Reset, none); }
             catch (Exception ex) when (ex is TimeoutException or UdsNegativeResponseException) { Log.Warning("Flash: no clean reply to ECU reset ({Err}); the module may already be rebooting", ex.Message); }
             await Delay(_plan.Retry.PostResetDelay);
+            flashed = true;
+            await RestoreBusAsync(success: true);
 
             SetPhase(FlashPhase.Verify, "reading back the software part number");
             string? after = null;
@@ -186,6 +203,7 @@ public sealed class FlashEngine
             {
                 string msg = failed.Message + " Nothing was erased or written; the module was reset back to its normal software.";
                 Write(FlashJournalKind.Abandoned, detail: "failed before erase; module unchanged and reset to its application: " + failed.Message);
+                await RestoreBusAsync(success: true);   // the target runs its application again: the whole bus can go back to default
                 Report(msg);
                 throw new FlashFailedException(msg, failed.Phase, false, failed.Fault, ex);
             }
@@ -194,11 +212,69 @@ public sealed class FlashEngine
             if (ReferenceEquals(failed, ex)) throw;
             throw failed;
         }
+        finally
+        {
+            if (!flashed) await RestoreBusAsync(success: false);
+            _bus = null;
+        }
+    }
+
+    /// <summary>Functional 10 83 → 85 82 → 28 83 01 (all suppressed). Re-sent on every entry into programming; the leases are taken once.</summary>
+    private async Task QuietBusAsync()
+    {
+        if (_bus is null) return;
+        SetPhase(FlashPhase.QuietBus, $"quieting the bus: functional 0x{FunctionalTxId:X3} 10 83, 85 82, 28 83 01");
+        try
+        {
+            await _bus.RequestAsync(new byte[] { 0x10, 0x83 }, CancellationToken.None);
+            if (_dtcLease is null) _dtcLease = await _bus.DisableDtcSettingAsync(CancellationToken.None, suppressResponse: true);
+            else await _bus.SetDtcSettingAsync(false, CancellationToken.None, suppressResponse: true);
+            if (_commLease is null) _commLease = await _bus.DisableCommunicationAsync(CommunicationControlType.DisableRxAndTx, CommunicationGroups.Normal, CancellationToken.None, suppressResponse: true);
+            else await _bus.SetCommunicationAsync(CommunicationControlType.DisableRxAndTx, CommunicationGroups.Normal, CancellationToken.None, suppressResponse: true);
+            _lastBusKeepAlive = Now();
+        }
+        catch (Exception ex) when (FlashFaults.Classify(ex).Action != FlashFaultAction.LinkLost && ex is not Safety.ReadOnlyModeException)
+        {
+            // Functional requests are suppressed: nothing can confirm them, and a module that refuses keeps talking. Not a reason to stop.
+            Log.Warning("Flash: bus quieting not confirmed ({Err}); continuing", ex.Message);
+        }
+    }
+
+    /// <summary>Functional 3E 80 when due, so the quieted modules stay in their extended session (and quiet).</summary>
+    private async Task KeepBusQuietAsync(bool force = false)
+    {
+        if (_bus is null || (_commLease is null && _dtcLease is null)) return;
+        var now = Now();
+        if (!force && now - _lastBusKeepAlive < KeepAliveInterval) return;
+        _lastBusKeepAlive = now;
+        try { await _bus.TesterPresentAsync(true, CancellationToken.None); }
+        catch (Exception ex) when (FlashFaults.Classify(ex).Action != FlashFaultAction.LinkLost) { /* keep-alive only */ }
+    }
+
+    /// <summary>28 80 01 and 85 81 (retried, pass a closed gate); after a successful flash also 10 81. Never throws.</summary>
+    private async Task RestoreBusAsync(bool success)
+    {
+        if (_bus is null || (_commLease is null && _dtcLease is null)) return;
+        var bus = _bus;
+        var failed = new List<string>();
+        foreach (var lease in new[] { _commLease, _dtcLease })
+            if (lease is not null)
+                try { await lease.RestoreAsync(); } catch (Exception ex) { failed.Add($"{lease.Description}: {ex.Message}"); }
+        if (success)
+            try { await bus.RequestAsync(new byte[] { 0x10, 0x81 }, CancellationToken.None); } catch (Exception ex) { failed.Add($"10 81: {ex.Message}"); }
+        _commLease = null; _dtcLease = null;
+        string detail = failed.Count == 0
+            ? $"bus restored: functional 28 80 01, 85 81{(success ? ", 10 81" : "")}"
+            : $"bus restore incomplete ({string.Join("; ", failed)}); the modules return to normal within 5 s (S3) or at the next ignition cycle";
+        if (failed.Count > 0) Log.Warning("Flash: {Detail}", detail); else Log.Information("Flash: {Detail}", detail);
+        try { Write(FlashJournalKind.Phase, phase: FlashPhase.QuietBus.ToString(), detail: detail); } catch (Exception ex) { Log.Warning("Flash: journal write failed: {Err}", ex.Message); }
+        Report(detail);
     }
 
     /// <summary>Programming session → security → erase → download → check. Run again from the top after a lost session.</summary>
     private async Task ProgramAsync(UdsClient uds, CancellationToken stop)
     {
+        await QuietBusAsync();
         SetPhase(FlashPhase.ExtendedSession, "extended session");
         await TryOptionalAsync(uds, new byte[] { 0x10, 0x03 }, "extended session");
 
@@ -271,10 +347,13 @@ public sealed class FlashEngine
     /// </summary>
     private async Task WaitAsync(TimeSpan t)
     {
-        if (!_inSession || _uds is null) { await Delay(t); return; }
+        bool quiet = _bus is not null && (_commLease is not null || _dtcLease is not null);
+        if ((!_inSession || _uds is null) && !quiet) { await Delay(t); return; }
         for (var left = t; left > TimeSpan.Zero; left -= KeepAliveInterval)
         {
             await Delay(left < KeepAliveInterval ? left : KeepAliveInterval);
+            await KeepBusQuietAsync(force: true);
+            if (!_inSession || _uds is null) continue;
             try { await _uds.TesterPresentAsync(true, CancellationToken.None); }
             catch (Exception ex) when (ex is TimeoutException or UdsNegativeResponseException or IsoTpException or DiagLinkException or InvalidDataException)
             { /* keep-alive only; the next real step reports real problems */ }
@@ -485,6 +564,7 @@ public sealed class FlashEngine
             Exception err;
             try
             {
+                await KeepBusQuietAsync();
                 var r = await uds.RequestAsync(req, CancellationToken.None);
                 if (r.Length > 0 && valid(r)) return r;
                 throw new InvalidDataException($"Unexpected reply to {what}: {Convert.ToHexString(r)}");

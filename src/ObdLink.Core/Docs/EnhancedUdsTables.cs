@@ -35,7 +35,7 @@ public static class EnhancedUdsTables
         (0x22, "ReadDataByIdentifier", "identify, As-Built read, enhanced PIDs (Live Data, dashboards)"),
         (0x23, "ReadMemoryByAddress", "Core only (UdsMemory)"),
         (0x27, "SecurityAccess", "seed/key plug-ins; flash engine"),
-        (0x28, "CommunicationControl", "Core only (ControlLease, restore 28 00); bench-first"),
+        (0x28, "CommunicationControl", "flash bus quieting (functional 28 83 01, restore 28 80 01); Core ControlLease; bench-first"),
         (0x2A, "ReadDataByPeriodicIdentifier", "Core only (UdsPeriodic)"),
         (0x2C, "DynamicallyDefineDataIdentifier", "Core only (UdsDynamicData)"),
         (0x2E, "WriteDataByIdentifier", "As-Built write / restore / undo; dashboard write cards"),
@@ -49,7 +49,7 @@ public static class EnhancedUdsTables
         (0x3B, "WriteDataByLocalIdentifier (KWP2000)", "console only"),
         (0x3D, "WriteMemoryByAddress", "console only"),
         (0x3E, "TesterPresent", "module scan, keep-alive (3E 80), flash preflight"),
-        (0x85, "ControlDTCSetting", "Core only (ControlLease, restore 85 01); bench-first"),
+        (0x85, "ControlDTCSetting", "flash bus quieting (functional 85 82, restore 85 81); Core ControlLease; bench-first"),
         (0x86, "ResponseOnEvent", "console only"),
         (0x87, "LinkControl", "console only"),
     };
