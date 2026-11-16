@@ -54,22 +54,81 @@ public sealed class DashboardEngine
         foreach (var e in enhanced.Where(e => e.Enabled)) { Enhanced[e.Key] = e; Scheduler.Add(e.Key, e.Key == "gear" ? 0 : 2); }
     }
 
+    /// <summary>
+    /// v0.14.0: ask for up to six Mode 01 PIDs in one request (J1979 on CAN). PIDs missing from a batch are read one by one in
+    /// the same cycle. Turned off for the rest of the engine's life after <see cref="MaxBatchMisses"/> incomplete batches in a
+    /// row (an ECU without multi-PID support answers nothing or only the first PID), so it never costs more than single requests
+    /// for long.
+    /// </summary>
+    public bool BatchObd { get; set; } = true;
+    public int MaxBatchMisses { get; set; } = 3;
+    private int _batchMisses;
+    /// <summary>Mode 01 requests sent (single or batched), for diagnostics and tests.</summary>
+    public long Mode01Requests { get; private set; }
+
+    private static byte? ObdPid(string key) => key == "mil" ? (byte)0x01 : J1979.Get(key)?.Pid;
+
+    private static void Store(Dictionary<string, double> res, string key, byte[] data)
+    {
+        if (key == "mil") { var (mil, n) = J1979.DecodeMonitorStatus(data); res["mil"] = mil ? 1 : 0; res["dtcCount"] = n; }
+        else res[key] = J1979.Get(key)!.Decode(data);
+    }
+
+    /// <summary>Sends batches for the due OBD-II items; returns the items answered (already completed in the scheduler).</summary>
+    private async Task<HashSet<PollScheduler.Item>> PollBatchedAsync(List<PollScheduler.Item> obd, Dictionary<string, double> res, CancellationToken ct)
+    {
+        var done = new HashSet<PollScheduler.Item>();
+        foreach (var chunk in obd.Chunk(J1979.MaxPidsPerRequest))
+        {
+            if (!BatchObd || chunk.Length < 2) break;
+            var req = new byte[] { 0x01 }.Concat(chunk.Select(i => ObdPid(i.Key)!.Value)).ToArray();
+            var got = new Dictionary<byte, byte[]>();
+            try
+            {
+                Mode01Requests++;
+                foreach (var r in (await Send(ObdService.Functional11, null, req, ct)).OrderBy(x => x.SourceId))
+                    foreach (var (pid, data) in J1979.ParseMultiPid(r.Payload)) got.TryAdd(pid, data);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { Serilog.Log.Debug("Dashboard batch {Req} failed: {Err}", Convert.ToHexString(req), ex.Message); }
+            foreach (var item in chunk)
+                if (got.TryGetValue(ObdPid(item.Key)!.Value, out var data))
+                {
+                    try { Store(res, item.Key, data); Scheduler.Completed(item, _now(), true); done.Add(item); }
+                    catch (ArgumentException ex) { Serilog.Log.Debug("Dashboard batch decode {Item}: {Err}", item.Key, ex.Message); }
+                }
+            // A batch that leaves out any requested PID costs a batch plus single requests, so it counts as a miss.
+            bool complete = chunk.All(i => got.ContainsKey(ObdPid(i.Key)!.Value));
+            if (complete) _batchMisses = 0;
+            else if (++_batchMisses >= MaxBatchMisses)
+            {
+                BatchObd = false;
+                Serilog.Log.Information("Multi-PID Mode 01 requests came back incomplete {N} times in a row; polling PIDs one at a time from now on", _batchMisses);
+            }
+        }
+        return done;
+    }
+
     /// <summary>One cycle: polls whatever is due and returns key -> value (base units). "mil" = 1/0, "dtcCount" = n.</summary>
     public async Task<Dictionary<string, double>> PollOnceAsync(CancellationToken ct = default)
     {
         var start = _now(); var res = new Dictionary<string, double>();
-        foreach (var item in Scheduler.Due(start))
+        var due = Scheduler.Due(start, BatchObd ? 2 * J1979.MaxPidsPerRequest : 6);
+        var batched = BatchObd ? await PollBatchedAsync(due.Where(i => ObdPid(i.Key) is not null).ToList(), res, ct) : new();
+        foreach (var item in due.Where(i => !batched.Contains(i)))
         {
             bool ok = false;
             try
             {
                 if (item.Key == "mil")
                 {
+                    Mode01Requests++;
                     var r = (await Send(ObdService.Functional11, null, new byte[] { 0x01, 0x01 }, ct)).FirstOrDefault(x => x.Payload.Length >= 3 && x.Payload[0] == 0x41 && x.Payload[1] == 0x01);
                     if (r != null) { var (mil, n) = J1979.DecodeMonitorStatus(r.Payload[2..]); res["mil"] = mil ? 1 : 0; res["dtcCount"] = n; ok = true; }
                 }
                 else if (J1979.Get(item.Key) is { } d)
                 {
+                    Mode01Requests++;
                     var r = (await Send(ObdService.Functional11, null, new byte[] { 0x01, d.Pid }, ct)).FirstOrDefault(x => x.Payload.Length >= 2 + d.Bytes && x.Payload[0] == 0x41 && x.Payload[1] == d.Pid);
                     if (r != null) { res[item.Key] = d.Decode(r.Payload[2..]); ok = true; }
                 }

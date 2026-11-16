@@ -498,7 +498,7 @@ public sealed class DashboardViewModel : ObservableObject
         Active = true; var s = _settings();
         try
         {
-            _engine = new DashboardEngine(ch);
+            _engine = new DashboardEngine(ch) { BatchObd = s.Dashboard.BatchObdRequests };
             _engine.Scheduler.BaseMs = s.Dashboard.RefreshMs;
             await _bus.WaitAsync(ct);
             try { await _engine.DiscoverAsync(ct); } finally { _bus.Release(); }

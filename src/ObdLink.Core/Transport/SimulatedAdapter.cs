@@ -183,7 +183,26 @@ public sealed class SimulatedAdapter
     /// <summary>MIL + emission DTC count reported by PID 01 (synthetic: MIL on, 2 DTCs to match Mode 03).</summary>
     public byte MonitorStatusA { get; set; } = 0x82;
 
-    private string Obd(byte[] r) => (r[0], r.Length > 1 ? r[1] : (byte)0) switch
+    /// <summary>When false, the SYNTHETIC ECU answers only the first PID of a multi-PID Mode 01 request (like ECUs without support).</summary>
+    public bool MultiPidSupported { get; set; } = true;
+
+    /// <summary>SYNTHETIC multi-PID Mode 01 (J1979, up to 6 PIDs): one reply with every requested PID the drive cycle encodes; unsupported ones are left out.</summary>
+    private string? ObdMulti(byte[] r)
+    {
+        if (r.Length < 3 || r[0] != 0x01 || r.Length > 7 || r.Skip(1).Any(p => p % 0x20 == 0)) return null;
+        var pids = MultiPidSupported ? r.Skip(1) : r.Skip(1).Take(1);
+        var st = DriveCycle.At(Clock());
+        var body = new List<byte> { 0x41 };
+        foreach (var pid in pids)
+        {
+            var d = pid == 0x01 ? new byte[] { MonitorStatusA, 0x07, 0xE5, 0x00 } : DriveCycle.Encode(pid, st);
+            if (d is null) continue;
+            body.Add(pid); body.AddRange(d);
+        }
+        return body.Count == 1 ? "NO DATA" : Multi(0x7E8, body.ToArray());
+    }
+
+    private string Obd(byte[] r) => ObdMulti(r) ?? (r[0], r.Length > 1 ? r[1] : (byte)0) switch
     {
         (0x01, 0x00 or 0x20 or 0x40) => Multi(0x7E8, new byte[] { 0x41, r[1] }.Concat(DriveCycle.Bitmap(r[1])).ToArray()),
         (0x01, 0x01) => Multi(0x7E8, new byte[] { 0x41, 0x01, MonitorStatusA, 0x07, 0xE5, 0x00 }),

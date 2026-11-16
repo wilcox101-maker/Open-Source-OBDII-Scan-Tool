@@ -44,6 +44,33 @@ public static class J1979
     public static PidDef? Get(byte pid) => All.FirstOrDefault(p => p.Pid == pid);
     public static PidDef? Get(string key) => All.FirstOrDefault(p => p.Key == key);
 
+    /// <summary>Data length of a Mode 01 PID this app can poll (PID 01 monitor status = 4), or null when unknown.</summary>
+    public static int? DataLength(byte pid) => pid == 0x01 ? 4 : Get(pid)?.Bytes;
+
+    /// <summary>J1979 on CAN allows up to six PIDs in one Mode 01 request.</summary>
+    public const int MaxPidsPerRequest = 6;
+
+    /// <summary>
+    /// v0.14.0: splits one ECU's reply to a multi-PID request ("41 pidA dataA pidB dataB ..."). Each PID's length comes from
+    /// <see cref="DataLength"/>; parsing stops at the first PID whose length is unknown or whose data is cut short (the PIDs
+    /// before it are kept), and at padding (a 00 PID byte after at least one record). Returns an empty map for a non-41 reply.
+    /// </summary>
+    public static IReadOnlyDictionary<byte, byte[]> ParseMultiPid(byte[] payload)
+    {
+        var map = new Dictionary<byte, byte[]>();
+        if (payload.Length < 2 || payload[0] != 0x41) return map;
+        int i = 1;
+        while (i < payload.Length)
+        {
+            byte pid = payload[i];
+            if (pid == 0x00 && map.Count > 0) break;
+            if (DataLength(pid) is not int n || i + 1 + n > payload.Length) break;
+            map.TryAdd(pid, payload[(i + 1)..(i + 1 + n)]);
+            i += 1 + n;
+        }
+        return map;
+    }
+
     /// <summary>PID 01 (monitor status): A bit 7 = MIL on, A bits 0-6 = number of emission DTCs.</summary>
     public static (bool Mil, int DtcCount) DecodeMonitorStatus(byte[] d) => ((d[0] & 0x80) != 0, d[0] & 0x7F);
 
