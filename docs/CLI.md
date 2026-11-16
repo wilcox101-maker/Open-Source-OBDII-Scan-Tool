@@ -36,6 +36,7 @@ Exit codes: `0` OK, `1` error (adapter, vehicle, file), `2` usage error.
 | `asbuilt-read --module 726 [--out 726.abt]` | Reads every As-Built block of one module; `--out` saves a FORScan-format `.abt`. |
 | `options --abt 726.abt [--tab NAME] [--search TEXT]` | Offline: lists the 2015-2020 F-150 community-sheet options for the file's lines, with the current value and meaning. |
 | `options --abt 726.abt --set "ADDR PATTERN=DIGITS" [--set ...] --out 726-new.abt` | Offline: edits options and writes a **new** `.abt` (checksums recomputed, conflicting edits refused, the input file is never overwritten). Load the new file in the app (Import .abt) to review it and write it through the normal safe path. |
+| `vbf-info --file image.vbf` | Offline: checks a VBF flash file against the flash engine's reader: header fields, every block's address, length and checksum. A block whose stored checksum is not CRC-16/CCITT-FALSE is shown as MISMATCH, with the other common 16-bit checksum it matches if any. Exit 0 = the app would accept the file, 3 = it would refuse it. Never touches the vehicle. |
 
 ## J2534 pass-thru devices (VCM II / VCMM, Mongoose, clones, DIY)
 - `obdcli j2534-list` shows what is installed. Most J2534 drivers are **32-bit**: use the **x86** `obdcli` build

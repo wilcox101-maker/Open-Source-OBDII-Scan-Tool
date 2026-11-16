@@ -482,4 +482,51 @@ public class FlashEngineTests
         }
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
+
+    /// <summary>A VBF whose block checksums use CRC-16/XMODEM (init 0) instead of CCITT-FALSE: Inspect names it, Parse refuses it.</summary>
+    private static byte[] XmodemVbf()
+    {
+        var good = VbfReader.Write(new[] { new FlashSegment(0x8000, Pattern(64, 5)) });
+        var data = Pattern(64, 5);
+        ushort crc = 0;
+        foreach (var b in data) { crc ^= (ushort)(b << 8); for (int i = 0; i < 8; i++) crc = (crc & 0x8000) != 0 ? (ushort)(crc << 1 ^ 0x1021) : (ushort)(crc << 1); }
+        good[^2] = (byte)(crc >> 8); good[^1] = (byte)crc;
+        return good;
+    }
+
+    [Fact]
+    public void Vbf_Inspect_NamesTheChecksumAFileReallyUses()
+    {
+        var ok = VbfReader.Inspect(VbfReader.Write(new[] { new FlashSegment(0x8000, Pattern(64, 5)) }, "P-1", 0x7E0));
+        Assert.True(ok.ReaderAccepts);
+        Assert.Equal("\"P-1\"", ok.Header["sw_part_number"]);
+        var x = VbfReader.Inspect(XmodemVbf());
+        Assert.False(x.ReaderAccepts);
+        Assert.Contains("XMODEM", x.Blocks[0].AlternativeMatch);
+        Assert.Throws<FlashImageException>(() => VbfReader.Parse(XmodemVbf()));
+        Assert.NotNull(VbfReader.Inspect(Encoding.ASCII.GetBytes("garbage")).Error);
+    }
+
+    [Fact]
+    public async Task Cli_VbfInfo_AcceptsGoodFile_RefusesOtherChecksumWithExit3()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "vbfinfo-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var good = Path.Combine(dir, "good.vbf"); File.WriteAllBytes(good, VbfReader.Write(new[] { new FlashSegment(0x8000, Pattern(300, 1)) }, "JL3A-1", 0x7E0));
+            var bad = Path.Combine(dir, "bad.vbf"); File.WriteAllBytes(bad, XmodemVbf());
+            var o = new StringWriter(); var e = new StringWriter();
+            Assert.Equal(0, await ObdLink.Cli.Cli.RunAsync(new[] { "vbf-info", "--file", good }, o, e));
+            Assert.Contains("reader accepts", o.ToString());
+            o = new StringWriter();
+            Assert.Equal(3, await ObdLink.Cli.Cli.RunAsync(new[] { "vbf-info", "--file", bad }, o, e));
+            Assert.Contains("XMODEM", o.ToString());
+            Assert.Contains("REFUSE", o.ToString());
+            o = new StringWriter();
+            Assert.Equal(0, await ObdLink.Cli.Cli.RunAsync(new[] { "vbf-info", "--file", good, "--json" }, o, e));
+            Assert.True(System.Text.Json.JsonDocument.Parse(o.ToString()).RootElement.GetProperty("accepted").GetBoolean());
+        }
+        finally { Directory.Delete(dir, true); }
+    }
 }
