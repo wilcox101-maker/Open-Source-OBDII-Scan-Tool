@@ -20,7 +20,7 @@ Every run needs writes turned on, the battery check and the typed phrase. Pyrote
 | [Battery Monitoring System (BMS) reset](#bcm-bms-reset) | BCM 0x726 | Community | `10 03, 31 01 20 1A, wait 15 s, 10 01` | yes |
 | [TPMS sensor training](#bcm-tpms-training) | BCM 0x726 | NeedsCapture | — | yes |
 | [PCM Keep Alive Memory (KAM) reset](#pcm-kam-reset) | PCM 0x7E0 | NeedsCapture | — | — |
-| [TCM Keep Alive Memory reset / clear adaptive tables](#tcm-kam-reset) | TCM 0x7E1 | NeedsCapture | — | — |
+| [Transmission KAM reset / clear adaptive tables (TCM, or PCM without a TCM)](#tcm-kam-reset) | TCM 0x7E1 | NeedsCapture | — | — |
 | [Steering angle sensor calibration](#sas-calibration) | ABS 0x760 | NeedsCapture | — | — |
 | [PSCM pull-drift compensation reset](#pscm-pull-drift-reset) | PSCM 0x730 | NeedsCapture | — | — |
 | [ABS service bleed](#abs-service-bleed) | ABS 0x760 | NeedsCapture | — | — |
@@ -129,7 +129,7 @@ Returns the PCM's adaptive learning (fuel trims, idle air, adaptive airflow) to 
 
 - Ford PCED text on KAM reset (quoted): <https://fordraptorforum.com/threads/pcm.23710>
 
-## TCM Keep Alive Memory reset / clear adaptive tables
+## Transmission KAM reset / clear adaptive tables (TCM, or PCM without a TCM)
 
 <a id="tcm-kam-reset"></a>Key `tcm-kam-reset` · TCM 0x7E1 · **NeedsCapture** · 6R80 / 10R80. On the 2017 F-150 3.5L NA (6R80) the TCM may be inside the PCM: the address is [UNVERIFIED].
 
@@ -146,6 +146,8 @@ Clears the transmission's learned shift adaptations.
 **Warnings:**
 
 - TCM KAM reset and "clear adaptive tables" are separate functions in Ford's tools; a TSB requires TCM KAM first. Disconnecting the battery does not clear TCM KAM. Do not clear PCM KAM for this.
+
+**Target:** TCM 0x7E1; on a vehicle without a TCM, the PCM 0x7E0. No TCM on this vehicle (it didn't answer the scan or isn't in its module list), so the transmission is controlled by the PCM: this procedure targets the PCM (0x7E0). It is the PCM's transmission adaptive reset, not the PCM KAM reset.
 
 **Not runnable:** no public source gives this procedure's identifiers yet. It can be added after a capture on the truck (see docs/SERVICE-PROCEDURES.md).
 

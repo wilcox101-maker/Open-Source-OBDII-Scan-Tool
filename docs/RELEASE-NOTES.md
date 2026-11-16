@@ -1,3 +1,18 @@
+## v0.23.9
+
+**Transmission reset goes to the PCM when there's no TCM (KB-R3).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- The service-procedure catalog listed the transmission KAM / adaptive reset on the **TCM (0x7E1)**. Dale's 2017 F-150 3.5L has **no TCM**: FORScan lists 20 modules and the factory As-Built record has none, so the 6R80 is controlled by the PCM (our judgment from those files).
+- A procedure can now name a **fallback module**. The transmission reset falls back to the **PCM (0x7E0)**. After a scan, if the TCM didn't answer, or isn't in this vehicle's module list, and the PCM is there, the Routines tab selects the PCM, and the card says why. It also says this is the PCM's transmission adaptive reset, not the PCM KAM reset. A TCM that answers keeps it. Before a scan the card says "Scan first".
+- The procedure is still **NeedsCapture** (no public identifiers), so it can't be run either way; this only makes sure it will target the right module once identifiers exist. Renamed "Transmission KAM reset / clear adaptive tables (TCM, or PCM without a TCM)".
+- `docs/SERVICE-PROCEDURES.md` shows the target and the fallback.
+
+Internal: `ProcedureTarget`, `ServiceProcedure.Fallback / TargetNote`, `ServiceProcedures.ResolveFor(p, present)`; `RoutinesViewModel.ResolvedProcedure` used for module selection, the card and Run; `MainViewModel` passes found / absent / not scanned per module and calls `Routines.VehicleChanged()` after a scan. Tests: resolution rules (no TCM → PCM, TCM present, not scanned, neither present, no fallback) and a source test of the tab wiring; both checked to fail with the change removed.
+
+### Windows + truck verify
+1. **DEMO:** Routines → Service procedure → "Transmission KAM reset …" before scanning: the card says *Scan first …*. Scan modules: if the DEMO vehicle has no TCM answering, the module list jumps to the PCM and the card says *No TCM on this vehicle …*; if a DEMO TCM answers, it stays on the TCM.
+2. **Truck (Phase 1, read-only):** after a scan, picking the procedure selects the **PCM**. Don't run it (it can't run yet).
+
 ## v0.23.8
 
 **No bus quieting when flashing SYNC (KB-R1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only (nothing flashed on the truck yet). Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
