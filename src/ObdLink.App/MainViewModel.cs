@@ -835,10 +835,10 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         RefreshBackups();
     }
 
-    // ---------------- v0.2.2 adapter firmware check (logic in FirmwareViewModel since v0.22.2) ----------------
+    // ---------------- v0.2.2 adapter firmware check (logic in FirmwareViewModel since v0.22.3) ----------------
     public bool FirmwareCheckEnabled { get => _settings.FirmwareCheck; set => S(() => _settings.FirmwareCheck = value, "automatic adapter firmware check", value, nameof(FirmwareCheckEnabled)); }
     public string FirmwareUpdaterPath { get => _settings.FirmwareUpdaterPath ?? ""; set => S(() => _settings.FirmwareUpdaterPath = string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('"'), "firmware updater path override", value, nameof(FirmwareUpdaterPath)); }
-    /// <summary>v0.22.2: adapter firmware check, package download and official updater (moved out of this class).</summary>
+    /// <summary>v0.22.3: adapter firmware check, package download and official updater (moved out of this class).</summary>
     public FirmwareViewModel Firmware { get; private set; } = null!;
 
     // ---------------- v0.7.0 user-supplied SecurityAccess (seed/key) plug-ins ----------------

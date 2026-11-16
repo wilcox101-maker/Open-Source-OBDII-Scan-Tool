@@ -330,7 +330,7 @@ public sealed class FlashViewModel : ObservableObject
         Percent = Math.Round(p.Fraction * 100, 1);
         BytesText = $"{p.BytesDone:N0} / {p.BytesTotal:N0} bytes" + (p.SegmentCount > 0 && p.Segment > 0 ? $" · segment {p.Segment}/{p.SegmentCount}" : "")
             + (p.Phase is FlashPhase.Download or FlashPhase.TransferExit ? " · " + _rate.Describe() : "");
-        // v0.22.2: the measured speed goes in the log once a minute, so the first real run shows how fast the adapter link is.
+        // v0.22.3: the measured speed goes in the log once a minute, so the first real run shows how fast the adapter link is.
         if (_rate.BytesPerSecond is double bps && DateTimeOffset.UtcNow - _rateLogged > TimeSpan.FromMinutes(1))
         {
             _rateLogged = DateTimeOffset.UtcNow;

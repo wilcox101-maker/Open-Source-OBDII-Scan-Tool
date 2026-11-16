@@ -1,6 +1,6 @@
-## v0.22.2
+## v0.22.3
 
-**Low-risk items from the 2026-11-16 risk review.** Includes v0.22.1 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+**Low-risk items from the 2026-11-16 risk review.** Includes v0.22.2 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
 
 - **Flash speed and time left.** While a flash downloads, the progress line shows the measured speed and an estimate of the time left (measured from the first acknowledged byte, restarted after a session re-entry or resume), and the log records the speed once a minute. The first real flash will show how fast the adapter link actually is; the debug log also times each host-segmented message (`ISO-TP host send: … ms/frame`).
 - **Checking a download.** Every CI build now carries `SHA256SUMS.txt` (app, `obdcli` x64 and x86), and the build log prints the hash of each `.exe`. README → *Checking a download* explains how to compare them. Code signing via the free SignPath Foundation programme needs an application by the repository owner.
@@ -12,6 +12,23 @@ Internal: `FlashRate`, `FirmwareViewModel` (bindings `Firmware.*`), CI checksum 
 1. DEMO: flash the DEMO image: the progress line shows `… KB/s, about … left` during the download.
 2. Connect DEMO, then a real adapter: the firmware banner and Settings → firmware buttons (Check, Get/Run official updater, Open folder/page) work as before.
 3. Download the CI artifact, run `Get-FileHash .\OBDLinkDiag.exe -Algorithm SHA256`: it matches `SHA256SUMS.txt` and the CI log.
+
+## v0.22.2
+
+**Dashboard DID write cards never guess.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only, not pressed on the truck. Unsigned. Ford products only.
+
+- **A lost or "pending" reply is settled by reading back.** Before, a write whose answer was lost (timeout), or answered "response pending" on an ELM-style adapter that can't wait for the final answer, showed *Failed* even when the module had stored the value. Now the card waits 0.5 s and reads the DID back (up to 3 tries): *verified*, *did not land (safe to try again)*, or, if it can't be read either, *may or may not have landed: read the DID again before writing anything else*. The write is never sent twice.
+- **Refusals say what to do next.** A negative response means nothing was changed (ISO 14229-1); the card says so and gives the usual cause: wrong length (0x13), conditions (0x22: ignition ON engine OFF, stopped), not writable / out of range (0x31), needs security access (0x33, which write cards don't do), programming failure (0x72: check the battery, don't repeat), wrong session (0x7E/0x7F).
+- **A different read-back offers a next step:** turn the ignition OFF for 10 s and ON and read again (some values apply only after a reset), or **Undo…**. A write the module accepted but didn't keep gets the same advice and no Undo (the old value is still there).
+- **Undo** goes through the same settle step.
+- Output holds were already kept alive by the connection's session keep-alive (2 s TesterPresent for any module in a non-default session); no change needed (recovery plan D5).
+
+Internal: `Dashboard/DashWrite.WriteAndSettleAsync` → `DashWriteOutcome(Verdict, ReadBack, ReplyLost, Nrc, Message)`; `DashActionCardVm` uses it for write and undo. Tests `DashWriteTests` (15); removing the settle step fails 5.
+
+### Windows + truck verify
+1. **DEMO:** a WriteDid card on a DID the DEMO module answers: Write → the status ends in *verified*. Undo → *verified*.
+2. **DEMO:** a WriteDid card on a DID the DEMO module doesn't support (e.g. 4040): Write → *the module refused the write (NRC 0x31 …); nothing was changed. Out of range: …* and no Undo button.
+3. **Truck:** none (write cards stay DEMO-only until Phase 3 verification).
 
 ## v0.22.1
 

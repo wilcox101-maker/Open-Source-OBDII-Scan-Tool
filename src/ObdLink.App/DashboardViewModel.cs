@@ -760,6 +760,16 @@ public sealed class DashboardViewModel : ObservableObject
     // ---- window ----
     public bool WindowOpen { get; private set; }
 
+    /// <summary>Outputs this window's write cards are holding right now.</summary>
+    public bool HoldingOutputs => Items.Any(i => i.Action is { Holding: true });
+
+    /// <summary>
+    /// v0.22.3: returns every held output to its module and waits for the answers (each release never throws). Used when the app
+    /// closes, so control goes back to the module before the adapter is disconnected instead of relying on the module's S3 timeout.
+    /// </summary>
+    public Task ReleaseAllAsync(string why) =>
+        Task.WhenAll(Items.Select(i => i.Action).OfType<DashActionCardVm>().Where(c => c.Holding).Select(c => c.ReleaseAsync(why)));
+
     /// <summary>Called when this window opens or closes. Closing releases any output this window holds.</summary>
     public void SetWindowOpen(bool open)
     {

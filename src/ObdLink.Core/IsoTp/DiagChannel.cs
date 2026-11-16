@@ -83,7 +83,7 @@ public sealed class ElmDiagChannel : IDiagChannel
                     sinceFc = 0;
                 }
             }
-            // v0.22.2: how long a host-segmented message takes on this link (one adapter command per CAN frame).
+            // v0.22.3: how long a host-segmented message takes on this link (one adapter command per CAN frame).
             Serilog.Log.Debug("ISO-TP host send: {Bytes} bytes in {Frames} frames, {Ms} ms ({PerFrame:0.0} ms/frame)",
                 request.Length, frames.Count, sw.ElapsedMilliseconds, sw.Elapsed.TotalMilliseconds / frames.Count);
             if (last.Error == ElmError.NoData) return Array.Empty<DiagResponse>();

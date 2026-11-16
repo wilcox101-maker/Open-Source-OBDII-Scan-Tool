@@ -10,7 +10,7 @@ namespace ObdLink.App;
 /// <summary>
 /// Adapter firmware: the automatic check against OBDLink's public feed after connect (never in DEMO), the verified package
 /// download, and launching OBDLink's official updater. This app never flashes adapter firmware. Moved out of MainViewModel in
-/// v0.22.2 (bindings: <c>Firmware.*</c>); the two settings (check on/off, updater path) stay on the Settings page.
+/// v0.22.3 (bindings: <c>Firmware.*</c>); the two settings (check on/off, updater path) stay on the Settings page.
 /// </summary>
 public sealed class FirmwareViewModel : ObservableObject
 {

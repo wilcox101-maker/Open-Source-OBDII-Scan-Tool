@@ -212,7 +212,7 @@ public class V050Tests
         Assert.Null(noVin.SelectLabel);
         Assert.False(VehicleSelection.AfterIdentify("2017 Ford F-150", "x", vinRead: false, moduleCount: 0).RebuildModules);
 
-        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs")) + File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "FirmwareViewModel.cs")); // firmware code moved to FirmwareViewModel in v0.22.2
+        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs")) + File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "FirmwareViewModel.cs")); // firmware code moved to FirmwareViewModel in v0.22.3
         Assert.Contains("VehicleSelection.DropDemoProfile", vm);
         Assert.Contains("VehicleSelection.AfterIdentify", vm);
         Assert.Contains("AsBuiltSupportPolicy", vm);
