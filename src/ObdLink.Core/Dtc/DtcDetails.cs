@@ -44,11 +44,24 @@ public sealed record DtcDataRecord(byte Number, byte? IdentifierCount, ushort? F
     public string Hex => Convert.ToHexString(Data);
 }
 
+/// <summary>19 0B-0E: which single DTC to report.</summary>
+public enum DtcOccurrence : byte { FirstFailed = 0x0B, FirstConfirmed = 0x0C, MostRecentFailed = 0x0D, MostRecentConfirmed = 0x0E }
+
+/// <summary>19 14 entry: DTC and its fault detection counter (-128..+127).</summary>
+public sealed record DtcFdc(uint Code, sbyte Counter)
+{
+    public string Display => new DtcRecord(Code, 0).Display;
+}
+
+/// <summary>19 05 reply: the DTC that stored the snapshot, and the snapshot (layout module-specific, kept raw).</summary>
+public sealed record DtcSnapshotByRecord(DtcRecord Dtc, DtcDataRecord Snapshot);
+
 public sealed record DtcDetail(DtcDataRecord Dtc3, byte Status, IReadOnlyList<DtcDataRecord> Snapshots, IReadOnlyList<DtcDataRecord> Extended, IReadOnlyList<string> Notes);
 
 /// <summary>
-/// Phase 1 (read-only) DTC detail over UDS service 0x19: count (01), snapshot identification (03), snapshot by DTC (04),
-/// extended data by DTC (06). Every request here is a read; nothing is cleared or changed.
+/// Read-only DTC detail over UDS service 0x19: count (01), snapshot identification (03), snapshot by DTC (04) and by record (05),
+/// extended data by DTC (06), supported DTCs (0A), first/most recent (0B-0E), fault detection counters (14), permanent (15).
+/// Every request here is a read; nothing is cleared or changed.
 /// </summary>
 public sealed class UdsDtcReader(UdsClient uds)
 {
@@ -122,6 +135,60 @@ public sealed class UdsDtcReader(UdsClient uds)
         catch (UdsNegativeResponseException ex) { notes.Add($"Extended data (19 06): NRC 0x{ex.Nrc:X2} {UdsNrc.Describe(ex.Nrc)}"); }
 
         return new DtcDetail(new DtcDataRecord(0, null, null, D(dtc)), status, snaps, ext, notes);
+    }
+
+    /// <summary>19 0A: every DTC the module supports, with its current status.</summary>
+    public async Task<List<DtcRecord>> SupportedAsync(CancellationToken ct = default)
+        => ParseDtcStatusList(await uds.RequestAsync(new byte[] { 0x19, 0x0A }, ct), 0x0A);
+
+    /// <summary>19 15: DTCs with permanent status (cannot be cleared by 14; they clear when the monitor passes).</summary>
+    public async Task<List<DtcRecord>> PermanentAsync(CancellationToken ct = default)
+        => ParseDtcStatusList(await uds.RequestAsync(new byte[] { 0x19, 0x15 }, ct), 0x15);
+
+    /// <summary>19 0B / 0C / 0D / 0E: the first or most recent failed or confirmed DTC, or null when the module has none.</summary>
+    public async Task<DtcRecord?> OccurrenceAsync(DtcOccurrence which, CancellationToken ct = default)
+    {
+        byte sub = (byte)which;
+        return ParseDtcStatusList(await uds.RequestAsync(new byte[] { 0x19, sub }, ct), sub).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// 19 14: fault detection counter per DTC (signed: +127 = failed, -128 = passed, between = maturing). Shows which faults are
+    /// close to setting before they do.
+    /// </summary>
+    public async Task<List<DtcFdc>> FaultDetectionCountersAsync(CancellationToken ct = default)
+    {
+        var r = await uds.RequestAsync(new byte[] { 0x19, 0x14 }, ct);
+        if (r.Length < 2 || r[0] != 0x59 || r[1] != 0x14 || (r.Length - 2) % 4 != 0)
+            throw new InvalidDataException($"Malformed 19 14 reply: {Convert.ToHexString(r)}");
+        var list = new List<DtcFdc>();
+        for (int i = 2; i + 4 <= r.Length; i += 4) list.Add(new DtcFdc((uint)(r[i] << 16 | r[i + 1] << 8 | r[i + 2]), unchecked((sbyte)r[i + 3])));
+        return list;
+    }
+
+    /// <summary>19 05: one snapshot record by number, with the DTC that stored it. Null when the record is empty.</summary>
+    public async Task<DtcSnapshotByRecord?> SnapshotByRecordAsync(byte record, CancellationToken ct = default)
+    {
+        var r = await uds.RequestAsync(new byte[] { 0x19, 0x05, record }, ct);
+        if (r.Length < 2 || r[0] != 0x59 || r[1] != 0x05) throw new InvalidDataException($"Malformed 19 05 reply: {Convert.ToHexString(r)}");
+        if (r.Length < 7) return null;
+        var dtc = new DtcRecord((uint)(r[3] << 16 | r[4] << 8 | r[5]), r[6]);
+        byte? count = r.Length >= 8 ? r[7] : null;
+        var rest = r.Length > 8 ? r[8..] : Array.Empty<byte>();
+        var snap = count == 1 && rest.Length >= 2
+            ? new DtcDataRecord(r[2], count, (ushort)(rest[0] << 8 | rest[1]), rest[2..])
+            : new DtcDataRecord(r[2], count, null, rest);
+        return new DtcSnapshotByRecord(dtc, snap);
+    }
+
+    /// <summary>Parses 59 [sub] [availabilityMask] then (DTC, status) records. The sub-function must be echoed and records must be whole.</summary>
+    public static List<DtcRecord> ParseDtcStatusList(byte[] r, byte sub)
+    {
+        if (r.Length < 3 || r[0] != 0x59 || r[1] != sub || (r.Length - 3) % 4 != 0)
+            throw new InvalidDataException($"Malformed 19 {sub:X2} reply: {Convert.ToHexString(r)}");
+        var list = new List<DtcRecord>();
+        for (int i = 3; i + 4 <= r.Length; i += 4) list.Add(new DtcRecord((uint)(r[i] << 16 | r[i + 1] << 8 | r[i + 2]), r[i + 3]));
+        return list;
     }
 
     public static string Format(string display, DtcDetail d)
