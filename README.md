@@ -74,7 +74,7 @@ Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-
 - As-Built block → UDS DID mapping `0xDE00 + (block-1)` and 5 data bytes per line come from community convention. Confirm both with a capture before writing.
 - F-150 2017 module addresses and bus assignments come from community reports (each row has a `Confidence`). The scanner probes both buses.
 - Multi-frame transmit uses host-side ISO-TP with `ATCAF0`. It hasn't been timed on real MX+ hardware over Bluetooth.
-- UDS 0x78 (response pending): the client re-requests only for idempotent services. Since v0.6.1 a write that gets 0x78, no reply, or a link drop is settled by reading the block back, and the result says so.
+- UDS 0x78 (response pending): over the ELM/STN interface the client re-requests only for idempotent services (a transport that can keep receiving waits up to P2* instead, per ISO 14229-2). Since v0.6.1 a write that gets 0x78, no reply, or a link drop is settled by reading the block back, and the result says so.
 - 0x27 SecurityAccess: no proprietary algorithms are included. Since v0.7.0 you can add your own seed/key plug-in (Settings → Security access; template in `tools/SeedKeyPluginSample`). Off by default; only plug-ins you approve by SHA-256 load.
 - The DTC DB is a small stub of SAE generic titles.
 - The battery threshold of 12.5 V is a project default, not an OEM specification.
