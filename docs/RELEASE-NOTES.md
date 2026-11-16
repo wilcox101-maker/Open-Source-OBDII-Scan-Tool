@@ -1,3 +1,20 @@
+## v0.16.0
+
+**As-Built change history and undo.** Includes v0.15.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.16.0.zip`** (normal Intel/AMD PCs).
+
+- Every As-Built block write or restore that passes its read-back check is recorded in `asbuilt-history.jsonl` in the backups folder: when, module-block, write/restore, bytes changed, the data before and after, and the backup file taken before it. Writes that changed nothing, or failed their read-back, are not recorded (they are in the Events log as before).
+- As-Built tab → **Change history** (next to Options and Compare to factory) lists them, newest first.
+- **Undo last write of this module…** restores the backup taken before the module's most recent recorded change. It goes through the normal restore: VIN match, a fresh backup, battery check, typed WRITE and read-back. The undo is recorded too.
+- The history stores backup file names, not full paths, so it keeps working when the portable Data folder is moved. It lives next to the backups (which already contain the full VIN) and is not added to the diagnostics capture.
+
+### Windows + truck verify
+1. DEMO: As-Built → BCM → Read → change a byte (and its Check) → Write + verify… (writes on). Change history shows one "write" row with the before/after data.
+2. DEMO: Identify vehicle first (the undo, like any restore, needs the VIN), then Undo last write of this module… → confirmations → the grid after Read shows the old data, and Change history has a "restore" row on top.
+3. DEMO: copy the whole Data folder elsewhere and run from there: Change history still lists the rows, and Undo still finds the backup.
+4. Truck: no write is needed to check this. Leave history testing to DEMO until As-Built writes on the truck are verified.
+
 ## v0.15.0
 
 **Phase 3 start: As-Built options by name.** Includes v0.14.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

@@ -170,7 +170,9 @@ public class SecurityScrubTests
         Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);", src);
         // Session keep-alive (3E 80) must reach the module on its own bus, never wander to another one.
         Assert.Contains("(t, work, ct) => router.RunAsync(t, work, allowFallback: false, ct: ct)", src);
-        Assert.Equal(4, Count(src, "allowFallback: false"));
+        // v0.16.0: undo of the last As-Built write is a restore, so it never hunts another bus either.
+        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", src);
+        Assert.Equal(5, Count(src, "allowFallback: false"));
         // Routine start / stop / results never fall back to another bus (third OnBus argument).
         var routines = Src("ObdLink.App/RoutinesViewModel.cs");
         Assert.Contains("try { await _onBus(m, async () => r = await f(), false); }", routines);
