@@ -150,9 +150,32 @@ public static class FlashPreflight
 {
     public const int LinkProbes = 8;
 
+    /// <summary>Above this estimated transfer time the preflight warns.</summary>
+    public static readonly TimeSpan LongFlash = TimeSpan.FromMinutes(45);
+
+    /// <summary>
+    /// Rough transfer time for <paramref name="bytes"/> in TransferData messages of <paramref name="maxMessage"/> bytes, from the measured
+    /// TesterPresent round trip. Host-side segmentation: one adapter command per CAN frame, each waiting ~100 ms (ATST19) plus the round
+    /// trip. Adapter-side (STPX): one command per block plus moving its hex text over a 115 200 baud link. An estimate, not a promise.
+    /// </summary>
+    public static TimeSpan EstimateTransfer(long bytes, int maxMessage, double roundTripMs, bool adapterSegmentation)
+    {
+        int perBlock = Math.Max(1, maxMessage - 2);
+        long blocks = (bytes + perBlock - 1) / perBlock;
+        double ms;
+        if (adapterSegmentation)
+            ms = blocks * (roundTripMs + maxMessage * 2 * 10 * 1000.0 / 115_200);
+        else
+        {
+            long frames = blocks * (1 + (maxMessage - 6 + 7 - 1) / 7); // first frame (6 data bytes) + ceil(rest / 7) consecutive frames
+            ms = frames * (100 + roundTripMs);
+        }
+        return TimeSpan.FromMilliseconds(ms);
+    }
+
     public static async Task<FlashPreflightReport> RunAsync(UdsClient uds, FlashPlan plan, Func<CancellationToken, Task<double?>> readVoltage,
         AdapterProfile? adapter, IHostPower? host = null, Func<UdsClient, CancellationToken, Task<string?>>? readModulePart = null,
-        CancellationToken ct = default, bool resume = false)
+        CancellationToken ct = default, bool resume = false, bool? adapterSegmentation = null)
     {
         host ??= UnknownHostPower.Instance;
         var items = new List<PreflightItem>();
@@ -225,6 +248,16 @@ public static class FlashPreflight
                 : FlashImageChecks.SameProgram(have, want)
                     ? new("Module part number", PreflightStatus.Pass, $"module reports {have}; file is {want}")
                     : new("Module part number", PreflightStatus.Warn, $"module reports {have}; file is {want}. The first four characters (the vehicle program code) differ: make sure the file is meant for this module."));
+        }
+
+        // Transfer time (v0.22.5): a long flash multiplies every other risk, so say up front how long this one is likely to take.
+        if (adapterSegmentation is bool seg && times.Count > 0)
+        {
+            var est = EstimateTransfer(plan.Image.TotalBytes + (plan.Sbl?.TotalBytes ?? 0), plan.MaxBlockLength, times.Average(), seg);
+            string how = seg ? "adapter segments each block (STPX)" : "one adapter command per CAN frame";
+            items.Add(est > LongFlash
+                ? new("Transfer time", PreflightStatus.Warn, $"rough estimate {FlashRate.Duration(est)} ({how}). That is a long time in the programming session: keep the charger on and the PC awake" + (seg ? "." : "; turn on Settings → Adapter segments long requests if the adapter is an OBDLink."))
+                : new("Transfer time", PreflightStatus.Pass, $"rough estimate {FlashRate.Duration(est)} ({how})"));
         }
 
         // Secondary bootloader

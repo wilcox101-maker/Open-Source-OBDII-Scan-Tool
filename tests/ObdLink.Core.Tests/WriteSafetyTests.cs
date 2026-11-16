@@ -289,6 +289,7 @@ public class IsoTpTransmitTests
     private static async Task<(SimulatedAdapter sim, UdsClient uds)> Bcm()
     {
         var (sim, _, ch) = await AsBuiltServiceSafetyTests.Connect();
+        sim.StpxSupported = false; // these tests cover host-side ISO-TP flow control (v0.22.5: STN adapters use STPX first, StpxTests)
         sim.Dids[0x726] = new() { [0xDE00] = new byte[14] };
         return (sim, new UdsClient(ch, 0x726));
     }

@@ -79,6 +79,15 @@ public sealed class SimulatedAdapter
     public string? Protocol { get; private set; }
     private uint _header = 0x7DF;
     private bool _caf = true;
+    private int? _stpxPending;
+    /// <summary>Answer STPX (STN adapter-side ISO-TP transmit). False: the command is refused with "?", as on older firmware.</summary>
+    public bool StpxSupported { get; set; } = true;
+    /// <summary>STPX commands received (answered or refused).</summary>
+    public int StpxCommands { get; private set; }
+    /// <summary>Messages received through STPX data entry.</summary>
+    public int StpxMessages { get; private set; }
+    /// <summary>STCFCPA arguments received (flow-control address pairs).</summary>
+    public List<string> FlowControlPairs { get; } = new();
     private readonly IsoTp.IsoTpReassembler _rxAsm = new();
 
     public MockTransport CreateTransport() { var t = new MockTransport(Respond); _transport = t; return t; }
@@ -163,6 +172,18 @@ public sealed class SimulatedAdapter
         if (c == "ATRV") return $"{Voltage:0.0}V".Replace(',', '.');
         if (c.StartsWith("ATSP")) { Protocol = "ATSP" + c[4..]; return "OK"; }
         if (c == "ATDP") return Protocol == "ATSP2" ? "SAE J1850 VPW" : "ISO 15765-4 (CAN 11/500)";
+        if (c.StartsWith("STCFCPA")) { FlowControlPairs.Add(c[7..]); return "OK"; }
+        if (c.StartsWith("STPX"))
+        {
+            StpxCommands++;   // v0.22.5: data-entry mode only (l:n), as the app uses it. The adapter segments the message itself.
+            if (!StpxSupported) return "?";
+            var m = System.Text.RegularExpressions.Regex.Match(c, @"L:(\d+)");
+            if (!m.Success) return "?";
+            int n = int.Parse(m.Groups[1].Value);
+            if (n > (Profile == SimProfile.MxPlus || Profile == SimProfile.Ex ? 4095 : 2048)) return "OUT OF MEMORY";
+            _stpxPending = n;
+            return "DATA";
+        }
         if (c.StartsWith("STP")) { Protocol = c[3..]; return "OK"; }
         if (c.StartsWith("ATSH")) { _header = Convert.ToUInt32(c[4..], 16); return "OK"; }
         if (c.StartsWith("ATCRA")) return "OK";
@@ -170,7 +191,15 @@ public sealed class SimulatedAdapter
         if (c == "ATCAF1") { _caf = true; return "OK"; }
         if (c.StartsWith("AT") || c.StartsWith("ST")) return "?";
         byte[] req;
-        try { req = Convert.FromHexString(c); } catch { return "?"; } // ELM answers "?" to a malformed command
+        try { req = Convert.FromHexString(c); } catch { _stpxPending = null; return "?"; } // ELM answers "?" to a malformed command
+        if (_stpxPending is int want)
+        {
+            _stpxPending = null;
+            if (req.Length != want) return "?";
+            StpxMessages++;
+            Sent.Add((_header, c));
+            return _header == 0x7DF ? Obd(req) : Uds(_header, req);
+        }
         Sent.Add((_header, c));
         if (!_caf)
         {   // raw frame mode: host performs ISO-TP

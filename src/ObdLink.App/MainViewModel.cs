@@ -288,6 +288,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     public string AdapterDefaultPort { get => _settings.Adapter.Port ?? ""; set => S(() => _settings.Adapter.Port = string.IsNullOrWhiteSpace(value) ? "" : value.Trim(), "default port", value, nameof(AdapterDefaultPort)); }
     public string AdapterKind { get => _settings.Adapter.Kind; set => S(() => _settings.Adapter.Kind = value, "adapter kind", value, nameof(AdapterKind)); }
     public int AdapterTimeoutMs { get => _settings.Adapter.TimeoutMs; set => S(() => _settings.Adapter.TimeoutMs = value, "adapter timeout ms", value, nameof(AdapterTimeoutMs)); }
+    public bool AdapterSegmentation { get => _settings.Adapter.AdapterSegmentation; set { S(() => _settings.Adapter.AdapterSegmentation = value, "adapter-side segmentation (STPX)", value, nameof(AdapterSegmentation)); if (_session is not null) _session.StpxDisabled = !value; } }
     public bool BatchObdRequests { get => _settings.Dashboard.BatchObdRequests; set => S(() => _settings.Dashboard.BatchObdRequests = value, "multi-PID OBD-II requests (applies when polling restarts)", value, nameof(BatchObdRequests)); }
     public int DashboardRefreshMs { get => _settings.Dashboard.RefreshMs; set => S(() => _settings.Dashboard.RefreshMs = value, "dashboard refresh ms (applies when the dashboard restarts)", value, nameof(DashboardRefreshMs)); }
     public bool DashboardFordPids { get => _settings.Dashboard.FordEnhancedPids; set => S(() => _settings.Dashboard.FordEnhancedPids = value, "Ford enhanced PIDs (Mode 22, UNVERIFIED)", value, nameof(DashboardFordPids)); }
@@ -743,6 +744,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = RawConsole.ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
             _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m) { SeedKey = _seedKey }, Safety(), Paths.BackupsDir);
             _router = new BusRouter(_session, () => CanSwitchBus, (lvl, ch, msg) => EventLog.Message(lvl, ch, msg));
+            _session.StpxDisabled = !_settings.Adapter.AdapterSegmentation; // v0.22.5
             StartSessions();
             ApplySeedKey();
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);

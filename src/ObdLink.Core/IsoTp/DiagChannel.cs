@@ -42,8 +42,47 @@ public sealed class ElmDiagChannel : IDiagChannel
     public async Task<IReadOnlyList<DiagResponse>> RequestAsync(byte[] request, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         timeout ??= LongTimeoutFor(request);
-        if (request.Length > 7) return await SendMultiFrameAsync(request, timeout, ct);
+        if (request.Length > 7)
+        {
+            if (request.Length <= _session.StpxMaxBytes && await SendStpxAsync(request, timeout, ct) is { } viaAdapter) return viaAdapter;
+            return await SendMultiFrameAsync(request, timeout, ct);
+        }
         var r = await _session.Link.SendAsync(Convert.ToHexString(request), timeout, ct);
+        if (r.Error == ElmError.NoData) return Array.Empty<DiagResponse>();
+        if (!r.Ok) throw new DiagLinkException(r.Error, string.Join(" | ", r.Lines));
+        return ParseFrames(r.Lines, Use29Bit);
+    }
+
+    /// <summary>Counts how multi-frame requests went out on this channel (adapter-side STPX vs host-side frames). For tests and logs.</summary>
+    public int StpxSends { get; private set; }
+    public int HostSegmentedSends { get; private set; }
+
+    /// <summary>
+    /// v0.22.5: adapter-side ISO-TP transmit with the STN <c>STPX l:n</c> data-entry command (OBDLink FRPM rev F): the adapter
+    /// segments the message, waits for the module's flow control and paces consecutive frames by its STmin itself, so a 4 KB
+    /// TransferData is one adapter command instead of ~585. Returns null when the adapter refused STPX (nothing was sent on the
+    /// bus); the caller then falls back to host-side segmentation, and after a <c>?</c> STPX stays off for this connection.
+    /// [UNVERIFIED on hardware]: reply formatting after STPX and its flow-control matching for Ford module pairs.
+    /// </summary>
+    private async Task<IReadOnlyList<DiagResponse>?> SendStpxAsync(byte[] request, TimeSpan? timeout, CancellationToken ct)
+    {
+        await _session.EnsureFlowControlPairAsync(ct);
+        string cmd = $"STPX l:{request.Length}" + (timeout is TimeSpan t ? $", t:{(int)Math.Clamp(t.TotalMilliseconds, 1, 65535)}" : "");
+        // The link waits for the module's answer plus the time to move the hex text over the UART / Bluetooth link.
+        var linkWait = (timeout ?? TimeSpan.FromSeconds(5)) + TimeSpan.FromSeconds(10);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var r = await _session.Link.SendWithDataAsync(cmd, Convert.ToHexString(request), linkWait, ct);
+        if (string.Equals(r.Command, cmd, StringComparison.Ordinal))
+        {
+            // The prompt never came: refused before anything was transmitted.
+            bool unsupported = r.Lines.Any(l => l == "?");
+            if (unsupported) _session.StpxDisabled = true;
+            Serilog.Log.Information("STPX refused ({Reply}); {What}", string.Join(" | ", r.Lines),
+                unsupported ? "using host-side ISO-TP for the rest of this connection" : "using host-side ISO-TP for this message");
+            return null;
+        }
+        StpxSends++;
+        Serilog.Log.Debug("ISO-TP adapter send (STPX): {Bytes} bytes, {Ms} ms", request.Length, sw.ElapsedMilliseconds);
         if (r.Error == ElmError.NoData) return Array.Empty<DiagResponse>();
         if (!r.Ok) throw new DiagLinkException(r.Error, string.Join(" | ", r.Lines));
         return ParseFrames(r.Lines, Use29Bit);
@@ -62,6 +101,7 @@ public sealed class ElmDiagChannel : IDiagChannel
         var link = _session.Link;
         var frames = IsoTpCodec.Segment(request);
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        HostSegmentedSends++;
         await link.SendAsync("ATCAF0", ct: ct);
         try
         {

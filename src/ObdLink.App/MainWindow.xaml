@@ -721,6 +721,7 @@
                     <DockPanel><TextBlock Text="Default port" Width="110" VerticalAlignment="Center"/><TextBox Text="{Binding AdapterDefaultPort, UpdateSourceTrigger=LostFocus}" ToolTip="e.g. COM5; selected at startup if present"/></DockPanel>
                     <DockPanel><TextBlock Text="Adapter" Width="110" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding AdapterKinds}" SelectedItem="{Binding AdapterKind}"/></DockPanel>
                     <DockPanel><TextBlock Text="Timeout (ms)" Width="110" VerticalAlignment="Center"/><TextBox Text="{Binding AdapterTimeoutMs, UpdateSourceTrigger=LostFocus}"/></DockPanel>
+                    <CheckBox Content="Adapter segments long requests (STPX, faster)" IsChecked="{Binding AdapterSegmentation}" Margin="0,4,0,0" ToolTip="OBDLink EX / MX+: long requests (As-Built writes, flash blocks) are split into CAN frames by the adapter itself: one command instead of one per frame. Turns itself off for the connection if the adapter refuses it. Untick to use the older host-side method."/>
                     <CheckBox Content="Show simulator ports (DEMO-MX+, DEMO-EX)" IsChecked="{Binding SimulatorEnabled}"/>
                   </StackPanel>
                 </Border>

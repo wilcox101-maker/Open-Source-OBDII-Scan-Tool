@@ -94,10 +94,33 @@ public sealed class ElmLink : IAsyncDisposable
         return !(c.StartsWith("STPX", StringComparison.Ordinal) || c.StartsWith("ATWM", StringComparison.Ordinal));
     }
 
-    private async Task<ElmResponse> SendCoreAsync(string command, TimeSpan timeout, CancellationToken ct)
+    /// <summary>
+    /// STN data-entry command (e.g. <c>STPX l:n</c>): sends <paramref name="command"/>, and only if the adapter answers with its
+    /// <c>DATA&gt;</c> prompt sends <paramref name="data"/> as the next line. Both happen inside one hold of the command gate, so no
+    /// other command can land in between. Returns the prompt reply when the adapter refused the command (<c>?</c>, <c>OUT OF
+    /// MEMORY</c>): nothing reached the bus then. Never resent after a link drop (the data line is a vehicle request).
+    /// </summary>
+    public async Task<ElmResponse> SendWithDataAsync(string command, string data, TimeSpan timeout, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await EnsureOpenAsync(ct).ConfigureAwait(false);
+            var prompt = await SendCoreAsync(command, TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
+            if (!IsDataPrompt(prompt)) return prompt;
+            string shown = data.Length > 48 ? $"{data[..48]}… ({data.Length / 2} bytes)" : data;
+            return await SendCoreAsync(data, timeout, ct, shown).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>True when a reply is the STN <c>DATA&gt;</c> data-entry prompt.</summary>
+    public static bool IsDataPrompt(ElmResponse r) => r.Lines.Count > 0 && string.Equals(r.Lines[^1], "DATA", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<ElmResponse> SendCoreAsync(string command, TimeSpan timeout, CancellationToken ct, string? shown = null)
     {
         _transport.DiscardInput();
-        Traffic?.Invoke(">>", command);
+        Traffic?.Invoke(">>", shown ?? command);
         _log.Debug(">> {Cmd}", command);
         await _transport.WriteAsync(command + "\r", ct).ConfigureAwait(false);
 

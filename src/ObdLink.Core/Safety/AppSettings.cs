@@ -139,6 +139,8 @@ public sealed class AdapterDefaults
     /// <summary>EX (USB/UART) host baud; 115200 is the STN default. Ignored over Bluetooth (MX+).</summary>
     public int Baud { get; set; } = 115200;
     public int TimeoutMs { get; set; } = 1000;
+    /// <summary>v0.22.5: let STN adapters (OBDLink EX / MX+) segment long requests themselves (STPX). Off: one adapter command per CAN frame.</summary>
+    public bool AdapterSegmentation { get; set; } = true;
     /// <summary>"Auto", "EX" or "MX+" (only changes hints/defaults; the adapter is still identified via STI/STDI).</summary>
     public string Kind { get; set; } = "Auto";
 }

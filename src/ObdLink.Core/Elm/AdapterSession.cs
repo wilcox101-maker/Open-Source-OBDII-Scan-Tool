@@ -35,7 +35,33 @@ public sealed class AdapterSession
     /// Called after every raw-console AT/ST command and after the link reconnects. The next request re-asserts
     /// ATE0/ATL0/ATS0/ATH1/ATCAF1 and the last protocol the app selected before it sets a header.
     /// </summary>
-    public void Invalidate() { _header = null; _stale = true; }
+    public void Invalidate() { _header = null; _stale = true; _fcPairs.Clear(); }
+
+    // ---- v0.22.5: adapter-side ISO-TP transmit (STPX) ----
+    private readonly HashSet<(uint, uint)> _fcPairs = new();
+    /// <summary>Current CAN target (request ID) and expected reply ID, as last set by <see cref="SetCanTargetAsync"/>.</summary>
+    public uint? TargetTx { get; private set; }
+    public uint? TargetRx { get; private set; }
+    /// <summary>Off by the user (Settings) or after the adapter refused STPX once this connection.</summary>
+    public bool StpxDisabled { get; set; }
+
+    /// <summary>
+    /// Largest message the adapter segments itself with STPX (OBDLink FRPM rev F: EX / MX+ 4 KB; other STN-based OBDLinks 2 KB),
+    /// or 0 when STPX is not available (plain ELM, or turned off).
+    /// </summary>
+    public int StpxMaxBytes => !IsStn || StpxDisabled ? 0 : Profile.Kind is AdapterKind.ObdLinkEx or AdapterKind.ObdLinkMxPlus ? 4095 : 2048;
+
+    /// <summary>
+    /// Registers the current target with the adapter's ISO-TP flow-control matching (STCFCPA tx, rx) once per connection, so its
+    /// own segmentation recognises the module's flow-control frames. Ford module pairs (e.g. 726/72E) are not in the default list.
+    /// Best effort: an adapter that refuses it still has its defaults.
+    /// </summary>
+    public async Task EnsureFlowControlPairAsync(CancellationToken ct = default)
+    {
+        if (TargetTx is not uint tx || TargetRx is not uint rx || !IsStn || !_fcPairs.Add((tx, rx))) return;
+        string f(uint id) => id > 0x7FF ? id.ToString("X8") : id.ToString("X3");
+        await Try($"STCFCPA {f(tx)}, {f(rx)}", ct);
+    }
 
     /// <summary>Re-applies the base settings and the app's last protocol if <see cref="Invalidate"/> was called. No traffic otherwise.</summary>
     public async Task EnsureReadyAsync(CancellationToken ct = default)
@@ -162,6 +188,7 @@ public sealed class AdapterSession
         await EnsureReadyAsync(ct);
         bool ext = txId > 0x7FF;
         string h = ext ? txId.ToString("X8") : txId.ToString("X3");
+        TargetTx = txId; TargetRx = rxId;
         if (_header == h) return;
         await Expect($"ATSH{h}", ct);
         if (rxId is uint rx) await Expect(ext ? $"ATCRA{rx:X8}" : $"ATCRA{rx:X3}", ct);
