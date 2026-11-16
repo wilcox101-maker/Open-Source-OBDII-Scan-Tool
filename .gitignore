@@ -14,3 +14,7 @@ samples/real-logs/
 **/Data/firmware/
 *.bin
 !tests/**/Fixtures/**
+
+# KB-R7: no keys or algorithms in this repo. Seed/key plug-ins (source and DLLs) live outside it; see KeyGuardTests.
+**/Data/plugins/
+*.dll
