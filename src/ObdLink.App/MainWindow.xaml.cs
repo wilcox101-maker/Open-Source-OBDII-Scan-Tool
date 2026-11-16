@@ -177,7 +177,7 @@ public partial class MainWindow : Window
     private void ZoomReset_Click(object s, RoutedEventArgs e) => SetZoom(1);
     private void FullScreen_Click(object s, RoutedEventArgs e) => ToggleFullScreen();
     private void Nav_Click(object s, RoutedEventArgs e) => Go((string)((FrameworkElement)s).Tag);
-    private void ConsoleHelp_Click(object s, RoutedEventArgs e) { Go("Console"); _vm.ConsoleInput = "help"; _vm.ConsoleSendCommand.Execute(null); }
+    private void ConsoleHelp_Click(object s, RoutedEventArgs e) { Go("Console"); _vm.RawConsole.ConsoleInput = "help"; _vm.RawConsole.ConsoleSendCommand.Execute(null); }
     private void GitHub_Click(object s, RoutedEventArgs e)
     {
         _vm.EventLog.UserAction("Open GitHub page");
