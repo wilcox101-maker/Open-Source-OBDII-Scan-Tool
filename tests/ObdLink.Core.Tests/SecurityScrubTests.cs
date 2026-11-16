@@ -165,14 +165,17 @@ public class SecurityScrubTests
     public void State_changing_commands_do_not_hunt_another_bus()
     {
         var src = Src("ObdLink.App/MainViewModel.cs");
-        Assert.Contains("await OnBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), allowFallback: false);", src);
         Assert.Contains("await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);", src);
         Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);", src);
         // Session keep-alive (3E 80) must reach the module on its own bus, never wander to another one.
         Assert.Contains("(t, work, ct) => router.RunAsync(t, work, allowFallback: false, ct: ct)", src);
         // v0.16.0: undo of the last As-Built write is a restore, so it never hunts another bus either.
         Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", src);
-        Assert.Equal(5, Count(src, "allowFallback: false"));
+        Assert.Equal(4, Count(src, "allowFallback: false"));
+        // DTC clear (moved to DtcViewModel): the only OnBus call there with fallback off, on the selected module's own bus.
+        var dtc = Src("ObdLink.App/DtcViewModel.cs");
+        Assert.Contains("await _onBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), false);", dtc);
+        Assert.Equal(1, Count(dtc, ", false);"));
         // Routine start / stop / results never fall back to another bus (third OnBus argument).
         var routines = Src("ObdLink.App/RoutinesViewModel.cs");
         Assert.Contains("try { await _onBus(m, async () => r = await f(), false); }", routines);
