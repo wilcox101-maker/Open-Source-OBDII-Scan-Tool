@@ -7,7 +7,7 @@ namespace ObdLink.Core.Flash;
 
 public enum FlashPhase
 {
-    Preflight, Backup, QuietBus, ExtendedSession, ProgrammingSession, SecurityAccess, Erase, Download, TransferExit,
+    Preflight, Backup, QuietBus, ExtendedSession, ProgrammingSession, SecurityAccess, SecondaryBootloader, Erase, Download, TransferExit,
     CheckDependencies, Reset, Verify, Done,
 }
 
@@ -73,18 +73,26 @@ public sealed class FlashEngine
     public bool QuietBus { get; init; }
     /// <summary>Functional request ID for bus quieting (OBD/UDS 11-bit functional address).</summary>
     public uint FunctionalTxId { get; init; } = 0x7DF;
-    /// <summary>Clock for the functional keep-alive while the bus is quiet (tests pass a virtual clock).</summary>
-    public Func<DateTime> Now { get; init; } = () => DateTime.UtcNow;
 
     private UdsClient? _uds, _bus;
     private bool _inSession, _unlocked;
     private ControlLease? _commLease, _dtcLease;
-    private DateTime _lastBusKeepAlive;
+    private DateTimeOffset _lastBusKeepAlive;
+    /// <summary>Set once an erase or a download request has been sent: from then on the module's software may be incomplete.</summary>
+    private bool _memoryTouched;
+    /// <summary>Clock for journal entries and the security hold (tests replace it).</summary>
+    public Func<DateTimeOffset> Now { get; init; } = () => DateTimeOffset.UtcNow;
 
     public FlashJournalState State => FlashJournalState.From(_journal.ReadAll());
 
     /// <summary>Marks an open job as abandoned by the operator (the journal keeps everything). The backup is never deleted.</summary>
     public void Abandon(string reason) => Write(FlashJournalKind.Abandoned, detail: reason);
+
+    /// <summary>Why security access must not be tried on this module now (earlier wrong key, recent lockout), or null.</summary>
+    public string? SecurityHold => FlashSecurity.Hold(State, _plan.Retry.LockoutHold, Now());
+
+    /// <summary>The operator fixed the key provider (or waited out a lockout) and allows one more security attempt.</summary>
+    public void ClearSecurityHold(string reason) => Write(FlashJournalKind.Security, detail: FlashSecurity.HoldCleared, phase: reason);
 
     public async Task<FlashResult> RunAsync(UdsClient uds, CancellationToken stop = default)
     {
@@ -97,10 +105,15 @@ public sealed class FlashEngine
         if (ReadVoltage is null) throw new FlashFailedException("Flashing needs a battery voltage reading; none is available.", "Start", false);
         if (!resume && Backup is null) throw new FlashFailedException("Flashing needs a backup step; none was supplied.", "Start", false);
         if (uds.Gate is { ReadOnly: true }) throw new FlashFailedException("Read-only mode is on. Turn on writes for this session before flashing.", "Start", false);
+        // A security hold blocks anything that would send a seed. A resume past the reset may only need the part-number check, so it
+        // is checked again right before the programming session instead.
+        if (!(resume && st.ReachedReset) && SecurityHold is string hold)
+            throw new FlashFailedException(hold, "Start", resume, new FlashFault(FlashFaultAction.Security, "security hold"));
+        if (FlashImageChecks.Layout(_plan) is string layout) throw new FlashFailedException($"The flash file cannot be sent safely: {layout}.", "Start", resume);
         if (uds.TargetTxId != _plan.TxId) throw new ArgumentException($"Client targets 0x{uds.TargetTxId:X3}, plan targets 0x{_plan.TxId:X3}", nameof(uds));
 
         using var awake = Host.KeepAwake();
-        _retries = 0; _segment = 0; _bytesDone = 0; _uds = uds; _inSession = false; _unlocked = false;
+        _retries = 0; _segment = 0; _bytesDone = 0; _uds = uds; _inSession = false; _unlocked = false; _memoryTouched = false;
         _bus = QuietBus ? new UdsClient(uds.Channel, FunctionalTxId) { Gate = uds.Gate, Clock = uds.Clock } : null;
         _commLease = null; _dtcLease = null;
         bool flashed = false;
@@ -147,6 +160,7 @@ public sealed class FlashEngine
                 stop.ThrowIfCancellationRequested();
             }
 
+            if (SecurityHold is string held) throw new FlashFailedException(held, "Start", resume, new FlashFault(FlashFaultAction.Security, "security hold"));
             inBootloader = true; // from the first programming-session request on, the module may be in its bootloader
             for (int round = 0; ; round++)
             {
@@ -154,8 +168,10 @@ public sealed class FlashEngine
                 catch (FlashSessionLostException ex) when (round < MaxSessionRecoveries)
                 {
                     _retries++; _inSession = false; _unlocked = false;
-                    Write(FlashJournalKind.Phase, phase: _phase.ToString(), detail: $"session lost ({ex.Fault?.Reason}); re-entering programming from the erase");
+                    _segment = 0; _bytesDone = 0;
+                    Write(FlashJournalKind.Restarted, phase: _phase.ToString(), detail: $"session lost ({ex.Fault?.Reason}); re-entering programming from the erase");
                     Report("programming session lost; re-entering from the erase");
+                    if (SecurityHold is string again) throw new FlashFailedException(again, _phase.ToString(), true, new FlashFault(FlashFaultAction.Security, "security hold"), ex);
                 }
             }
 
@@ -178,17 +194,23 @@ public sealed class FlashEngine
             return new FlashResult(confirmed, after, _retries, sw.Elapsed, resume ? st.Attempts + 1 : 1, msg);
         }
         catch (OperationCanceledException) when (_phase < FlashPhase.ExtendedSession) { throw; } // stopped before anything was sent
-        catch (FlashInterruptedException ex) { Write(FlashJournalKind.Interrupted, detail: ex.Message); Report(ex.Message); throw; }
-        catch (FlashFailedException ex) { Record(ex, inBootloader); throw; }
         catch (Exception ex)
         {
-            var fault = FlashFaults.Classify(ex);
-            FlashFailedException wrapped = fault.Action == FlashFaultAction.LinkLost
-                ? new FlashInterruptedException($"{_phase}: {fault.Reason}", _phase.ToString(), fault, ex)
-                : new FlashFailedException($"{_phase}: {fault.Reason}", _phase.ToString(), inBootloader, fault, ex);
-            if (wrapped is FlashInterruptedException) Write(FlashJournalKind.Interrupted, detail: wrapped.Message); else Record(wrapped, inBootloader);
-            Report(wrapped.Message);
-            throw wrapped;
+            FlashFailedException failed = ex as FlashFailedException ?? Wrap(ex, inBootloader);
+            // Nothing erased or written on a fresh job: the module's own software is intact. Reset it back into that software
+            // and close the job, instead of leaving it open as "may be in the bootloader".
+            if (!resume && inBootloader && !_memoryTouched && await ReturnToApplicationAsync(uds))
+            {
+                string msg = failed.Message + " Nothing was erased or written; the module was reset back to its normal software.";
+                Write(FlashJournalKind.Abandoned, detail: "failed before erase; module unchanged and reset to its application: " + failed.Message);
+                await RestoreBusAsync(success: true);   // the target runs its application again: the whole bus can go back to default
+                Report(msg);
+                throw new FlashFailedException(msg, failed.Phase, false, failed.Fault, ex);
+            }
+            if (failed is FlashInterruptedException) Write(FlashJournalKind.Interrupted, detail: failed.Message); else Record(failed, inBootloader);
+            Report(failed.Message);
+            if (ReferenceEquals(failed, ex)) throw;
+            throw failed;
         }
         finally
         {
@@ -264,12 +286,26 @@ public sealed class FlashEngine
         await SecurityAsync(uds);
         _unlocked = true;
 
+        if (_plan.Sbl is { } sbl) await LoadSecondaryBootloaderAsync(uds, sbl);
+
         if (_plan.Erase)
+        {
+            bool first = !_memoryTouched;
             foreach (var region in _plan.EraseRegions)
             {
                 SetPhase(FlashPhase.Erase, $"erasing 0x{region.Address:X8} (+{region.Length:N0} bytes)");
-                await RoutineAsync(uds, "erase", _plan.EraseRoutineId, _plan.BuildEraseOption(region), _plan.Retry.EraseTimeout);
+                _memoryTouched = true;
+                try { await RoutineAsync(uds, "erase", _plan.EraseRoutineId, _plan.BuildEraseOption(region), _plan.Retry.EraseTimeout); }
+                catch (FlashFailedException ex) when (first && ex is not FlashInterruptedException && ex.InnerException is UdsNegativeResponseException { Nrc: not 0x78 })
+                {
+                    // A negative response means the request was not carried out (ISO 14229-1): the very first erase was refused, so
+                    // nothing has been erased yet (typically: the module needs its SBL first).
+                    _memoryTouched = false;
+                    throw;
+                }
+                first = false;
             }
+        }
 
         for (int i = 0; i < _plan.Image.Segments.Count; i++)
         {
@@ -280,10 +316,25 @@ public sealed class FlashEngine
             await DownloadSegmentAsync(uds, i, _plan.Image.Segments[i]);
         }
 
+        if (_plan.CommitRoutineId is ushort commit)
+        {
+            SetPhase(FlashPhase.CheckDependencies, $"commit routine 0x{commit:X4}");
+            await RoutineAsync(uds, "commit", commit, null, _plan.Retry.EraseTimeout);
+        }
+
         if (_plan.CheckDependencies)
         {
             SetPhase(FlashPhase.CheckDependencies, "checking programming dependencies");
-            var status = await RoutineAsync(uds, "check", _plan.CheckRoutineId, null, _plan.Retry.EraseTimeout);
+            byte[] status;
+            try { status = await RoutineAsync(uds, "check", _plan.CheckRoutineId, null, _plan.Retry.EraseTimeout); }
+            catch (FlashFailedException ex) when (ex is not FlashInterruptedException && ex.Fault?.Nrc is 0x11 or 0x12 or 0x31)
+            {
+                // Not every bootloader has the ISO check routine (community Ford flashers don't send it). The module checks its software
+                // at the reset anyway: if it is not valid the module stays in its bootloader, the same state as not resetting.
+                Log.Warning("Flash: check routine 0x{Rid:X4} not supported ({Reason}); the module validates its software at reset", _plan.CheckRoutineId, ex.Fault?.Reason);
+                Report($"check routine not supported by this module (NRC 0x{ex.Fault?.Nrc:X2}); continuing to reset");
+                return;
+            }
             if (_plan.CheckPassed is { } ok && !ok(status))
                 throw new FlashFailedException($"The module's check routine reported a problem (status {Convert.ToHexString(status)}).", _phase.ToString(), true,
                     new FlashFault(FlashFaultAction.Fatal, "check routine failed"));
@@ -318,17 +369,73 @@ public sealed class FlashEngine
         _ => f,
     };
 
+    /// <summary>
+    /// Secondary bootloader (Ford VBF <c>sw_part_type = SBL</c>): downloaded to RAM with 34/36/37 like any segment, then started with
+    /// routine <see cref="FlashPlan.SblRoutineId"/> (0x0301) and the file's <c>call</c> address. Flash memory is not touched, so a failure
+    /// here still lets the engine reset the module back into its software. RAM does not survive a reset or a lost session, so every
+    /// attempt (resume, restart) loads it again.
+    /// </summary>
+    private async Task LoadSecondaryBootloaderAsync(UdsClient uds, FlashImage sbl)
+    {
+        SetPhase(FlashPhase.SecondaryBootloader, $"loading secondary bootloader {sbl.Name} ({sbl.TotalBytes:N0} bytes)");
+        Write(FlashJournalKind.Phase, phase: FlashPhase.SecondaryBootloader.ToString(), detail: $"{sbl.Name} SHA-256 {sbl.Sha256}");
+        for (int i = 0; i < sbl.Segments.Count; i++) await DownloadSegmentAsync(uds, i, sbl.Segments[i], sbl);
+        uint call = sbl.CallAddress ?? throw new FlashFailedException("The SBL file has no call address.", _phase.ToString(), true);
+        SetPhase(FlashPhase.SecondaryBootloader, $"starting secondary bootloader at 0x{call:X8}");
+        int aBytes = _plan.AddressAndLengthFormat & 0x0F;
+        var addr = new byte[aBytes];
+        for (int i = 0; i < aBytes; i++) addr[i] = (byte)(call >> (8 * (aBytes - 1 - i)));
+        await StepAsync(uds, $"start secondary bootloader (routine 0x{_plan.SblRoutineId:X4})", FlashMessages.Routine(RoutineControlType.Start, _plan.SblRoutineId, addr),
+            r => r.Length >= 4 && r[0] == 0x71 && (r[2] << 8 | r[3]) == _plan.SblRoutineId);
+    }
+
+    private FlashFailedException Wrap(Exception ex, bool inBootloader)
+    {
+        var fault = FlashFaults.Classify(ex);
+        return fault.Action == FlashFaultAction.LinkLost
+            ? new FlashInterruptedException($"{_phase}: {fault.Reason}", _phase.ToString(), fault, ex)
+            : new FlashFailedException($"{_phase}: {fault.Reason}", _phase.ToString(), inBootloader, fault, ex);
+    }
+
+    /// <summary>
+    /// Best effort after a failure before any erase: ECU reset (11 01) so the module leaves the programming session and runs
+    /// its own software again, then TesterPresent until it answers. Returns false when the module cannot be reached; the job
+    /// then stays open as before. Never throws.
+    /// </summary>
+    private async Task<bool> ReturnToApplicationAsync(UdsClient uds)
+    {
+        Log.Information("Flash: failure before erase; resetting module 0x{Tx:X3} back to its application", _plan.TxId);
+        try { await uds.EcuResetAsync(ResetType.Hard, CancellationToken.None); }
+        catch (Exception e) when (e is not OperationCanceledException) { Log.Warning("Flash: reset after early failure: {Err}", e.Message); }
+        try { await Delay(_plan.Retry.PostResetDelay); } catch (Exception e) when (e is not OperationCanceledException) { /* delay hook failed: probe anyway */ }
+        for (int i = 0; i < 3; i++)
+        {
+            try { await uds.TesterPresentAsync(CancellationToken.None); return true; }
+            catch (UdsNegativeResponseException) { return true; } // an NRC still proves the module is up and talking
+            catch (Exception e) when (e is not OperationCanceledException) { Log.Warning("Flash: module not answering after reset ({Err})", e.Message); }
+            try { await Delay(_plan.Retry.Backoff); } catch (Exception e) when (e is not OperationCanceledException) { /* keep probing */ }
+        }
+        return false;
+    }
+
     private void Record(FlashFailedException ex, bool inBootloader)
     {
         if (inBootloader) Write(FlashJournalKind.Fault, detail: ex.Message);
         else if (State.Open) Write(FlashJournalKind.Abandoned, detail: "failed before the programming session; module unchanged: " + ex.Message);
     }
 
-    private async Task DownloadSegmentAsync(UdsClient uds, int index, FlashSegment seg)
+    /// <param name="sbl">The secondary bootloader the segment belongs to (RAM, not journaled as image progress), or null for the image.</param>
+    private async Task DownloadSegmentAsync(UdsClient uds, int index, FlashSegment seg, FlashImage? sbl = null)
     {
-        int n = index + 1, count = _plan.Image.Segments.Count;
-        SetPhase(FlashPhase.Download, $"segment {n}/{count}: request download 0x{seg.Address:X8} ({seg.Length:N0} bytes)");
-        Write(FlashJournalKind.SegmentStarted, segment: n, detail: $"0x{seg.Address:X8} +{seg.Length}");
+        bool img = sbl is null;
+        int n = index + 1, count = (sbl ?? _plan.Image).Segments.Count;
+        string tag = img ? "segment" : "SBL segment";
+        if (img)
+        {
+            SetPhase(FlashPhase.Download, $"segment {n}/{count}: request download 0x{seg.Address:X8} ({seg.Length:N0} bytes)");
+            Write(FlashJournalKind.SegmentStarted, segment: n, detail: $"0x{seg.Address:X8} +{seg.Length}");
+            _memoryTouched = true;
+        }
         var req = FlashMessages.RequestDownload(_plan.Image.DataFormat, _plan.AddressAndLengthFormat, seg.Address, seg.Length);
         // 0x22/0x70/0x21 right after an erase that could not be polled usually means "not ready yet": retry with a longer pause.
         var resp = await StepAsync(uds, "RequestDownload", req, r => r[0] == 0x74, slowNrcs: new byte[] { 0x21, 0x22, 0x70 });
@@ -345,21 +452,21 @@ public sealed class FlashEngine
             byte expect = counter;
             await StepAsync(uds, $"TransferData block {block + 1} (counter 0x{counter:X2})", td, r => r.Length >= 2 && r[0] == 0x76 && r[1] == expect,
                 retries: _plan.Retry.BlockRetries);
-            offset += len; block++; _bytesDone += len;
-            Write(FlashJournalKind.BlockAcked, segment: n, block: block, counter: counter, offset: offset);
-            Report($"segment {n}/{count}: {offset:N0}/{seg.Length:N0} bytes");
+            offset += len; block++;
+            if (img) { _bytesDone += len; Write(FlashJournalKind.BlockAcked, segment: n, block: block, counter: counter, offset: offset); }
+            Report($"{tag} {n}/{count}: {offset:N0}/{seg.Length:N0} bytes");
             counter = unchecked((byte)(counter + 1)); // 0xFF wraps to 0x00 (ISO 14229-1)
             if (block % VoltageCheckEveryBlocks == 0) await EnsureVoltageAsync(waitIfLow: true);
         }
 
-        SetPhase(FlashPhase.TransferExit, $"segment {n}/{count}: transfer exit");
+        if (img) SetPhase(FlashPhase.TransferExit, $"segment {n}/{count}: transfer exit");
         await StepAsync(uds, "RequestTransferExit", new byte[] { 0x37 }, r => r[0] == 0x77, settle: async () =>
         {
             // The exit may have been accepted while its answer was lost. A second 37 then gets 0x24 (sequence error): that means done.
             try { return await uds.RequestAsync(new byte[] { 0x37 }, CancellationToken.None); }
             catch (UdsNegativeResponseException e) when (e.Nrc == 0x24) { Log.Information("Flash: second transfer exit answered 0x24; the first one was accepted"); return new byte[] { 0x77 }; }
         });
-        Write(FlashJournalKind.SegmentDone, segment: n);
+        if (img) Write(FlashJournalKind.SegmentDone, segment: n);
     }
 
     /// <summary>Starts a long routine (erase / check). If the channel cannot wait out "response pending", polls 31 03 for the result.</summary>
@@ -409,6 +516,8 @@ public sealed class FlashEngine
             try { ok = await uds.SecurityAccessAsync(_plan.SecurityLevel, CancellationToken.None); }
             catch (UdsNegativeResponseException e) when (e.Nrc == 0x37 && attempt == 0)
             {
+                // Delay not expired: no key was sent, the counter is untouched. Wait it out once, keeping the session.
+                Write(FlashJournalKind.Security, detail: FlashSecurity.Delay);
                 Report($"security delay active; waiting {_plan.Retry.SecurityDelay.TotalSeconds:0} s (session kept alive)");
                 await WaitAsync(_plan.Retry.SecurityDelay);
                 continue;
@@ -418,14 +527,28 @@ public sealed class FlashEngine
                 throw new FlashSessionLostException($"Security access: NRC 0x{e.Nrc:X2} {UdsNrc.Describe(e.Nrc)}: the programming session ended.", _phase.ToString(),
                     new FlashFault(FlashFaultAction.SessionLost, "session ended during security access", e.Nrc), e);
             }
+            catch (UdsNegativeResponseException e) when (e.Nrc is 0x35 or 0x36 or 0x37)
+            {
+                // Journaled per module across jobs, so neither a resume nor a new job spends the module's attempt counter again.
+                Write(FlashJournalKind.Security, detail: e.Nrc == 0x35 ? FlashSecurity.WrongKey : FlashSecurity.Locked, phase: $"NRC 0x{e.Nrc:X2}");
+                string why = e.Nrc == 0x35
+                    ? "The module rejected the security key (NRC 0x35). No further key will be sent until the seed/key provider is fixed and the hold is cleared."
+                    : $"The module locked security access (NRC 0x{e.Nrc:X2}). No seed will be requested for {_plan.Retry.LockoutHold.TotalMinutes:0} minutes.";
+                throw new FlashFailedException(why, FlashPhase.SecurityAccess.ToString(), true, new FlashFault(FlashFaultAction.Security, UdsNrc.Describe(e.Nrc), e.Nrc), e);
+            }
             catch (Exception ex) when (FlashFaults.Classify(ex).Action == FlashFaultAction.Retry && attempt < _plan.Retry.StepRetries)
             {
                 _retries++;
                 await WaitAsync(_plan.Retry.Backoff);
                 continue;
             }
-            if (!ok) throw new FlashFailedException($"No security key for module 0x{_plan.TxId:X3} level 0x{_plan.SecurityLevel:X2}. Install a seed/key provider for this module.",
-                FlashPhase.SecurityAccess.ToString(), true, new FlashFault(FlashFaultAction.Security, "no key"));
+            if (!ok)
+            {
+                Write(FlashJournalKind.Security, detail: FlashSecurity.NoKey);
+                throw new FlashFailedException($"No security key for module 0x{_plan.TxId:X3} level 0x{_plan.SecurityLevel:X2}. Install a seed/key provider for this module.",
+                    FlashPhase.SecurityAccess.ToString(), true, new FlashFault(FlashFaultAction.Security, "no key"));
+            }
+            Write(FlashJournalKind.Security, detail: FlashSecurity.Ok);
             return;
         }
     }
@@ -537,5 +660,5 @@ public sealed class FlashEngine
 
     private void Write(FlashJournalKind kind, string? phase = null, int? segment = null, int? block = null, byte? counter = null, long? offset = null,
         string? detail = null, string? sha = null, uint? tx = null)
-        => _journal.Append(new FlashJournalEntry(DateTimeOffset.UtcNow, kind, phase, segment, block, counter, offset, detail, sha, tx));
+        => _journal.Append(new FlashJournalEntry(Now(), kind, phase, segment, block, counter, offset, detail, sha, tx));
 }

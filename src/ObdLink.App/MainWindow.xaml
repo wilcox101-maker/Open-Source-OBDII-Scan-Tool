@@ -457,7 +457,9 @@
               <TextBlock DockPanel.Dock="Top" Margin="4,2" Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Text="{Binding AdapterNote}"/>
               <WrapPanel DockPanel.Dock="Top" Margin="0,4,0,4">
                 <Button Command="{Binding OpenFileCommand}" Margin="0,0,4,0" ToolTip="Open a VBF flash file. Block checksums are checked; a damaged file is refused."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Open file…"/></StackPanel></Button>
-                <Button Command="{Binding DemoImageCommand}" Margin="0,0,12,0" ToolTip="DEMO ports only: a synthetic image for the simulated module"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9F5;"/><TextBlock Text="DEMO image"/></StackPanel></Button>
+                <Button Command="{Binding OpenSblCommand}" Margin="0,0,4,0" ToolTip="Open the secondary bootloader (VBF sw_part_type SBL). It is loaded to the module's RAM and started before the erase."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="SBL file…"/></StackPanel></Button>
+                <Button Command="{Binding ClearSblCommand}" Content="No SBL" Margin="0,0,4,0" ToolTip="Flash without a secondary bootloader"/>
+                <Button Command="{Binding DemoImageCommand}" Margin="0,0,12,0" ToolTip="DEMO ports only: a synthetic image and SBL for the simulated module"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9F5;"/><TextBlock Text="DEMO image"/></StackPanel></Button>
                 <TextBlock Text="Security level 0x" VerticalAlignment="Center"/>
                 <TextBox Width="36" Text="{Binding SecurityLevel, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Margin="0,0,12,0" ToolTip="SecurityAccess seed level for programming (odd). 01 is the ISO convention; Ford modules may differ [UNVERIFIED]"/>
                 <Button Command="{Binding PreflightCommand}" Margin="0,0,4,0" ToolTip="Battery window, link health (8 tester-present probes), file vs module, adapter, PC power. Read-only."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9D5;"/><TextBlock Text="Run checks"/></StackPanel></Button>
@@ -468,7 +470,12 @@
                 <Button Command="{Binding ClearCommand}" Content="Clear log"/>
               </WrapPanel>
               <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Text="{Binding ImageText}"/>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding SblText}"/>
               <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding JobText}"/>
+              <DockPanel DockPanel.Dock="Top" Margin="4,2" Visibility="{Binding HasSecurityHold, Converter={StaticResource BoolVis}}">
+                <Button DockPanel.Dock="Right" Command="{Binding ClearHoldCommand}" Content="Clear security hold…" Margin="8,0,0,0" VerticalAlignment="Top" ToolTip="Allows one more security attempt. Only after fixing the key provider or waiting out the lockout."/>
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Warn}" Text="{Binding SecurityHoldText}"/>
+              </DockPanel>
               <TextBlock DockPanel.Dock="Top" Margin="4,6,4,2" FontWeight="SemiBold" Text="{Binding PreflightText}"/>
               <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Preflight}" Margin="4,0,4,6">
                 <ItemsControl.ItemTemplate>

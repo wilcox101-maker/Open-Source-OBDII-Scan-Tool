@@ -95,6 +95,17 @@ public static class DashActions
         }
     }
 
+    /// <summary>
+    /// Undo for a DID write card: the value read before the write, ready to be written back. Null when that value was not read
+    /// (nothing to put back). The plan goes through <see cref="Plan"/> again, so the same refusals apply.
+    /// </summary>
+    public static DashWriteUndo? UndoFor(DashAction spec, byte[]? before, byte[] written, byte[] readBack)
+    {
+        if (spec.Kind != DashActionKind.WriteDid || before is not { Length: > 0 }) return null;
+        var back = spec.Clone(); back.Data = Convert.ToHexString(before);
+        return new DashWriteUndo(Plan(back), written, readBack);
+    }
+
     /// <summary>Confirmation steps. <paramref name="currentHex"/> is the value read before a DID write, shown as old → new.</summary>
     public static IReadOnlyList<ConfirmationStep> Steps(DashActionPlan p, string label, string module, string? currentHex = null)
     {
@@ -139,4 +150,21 @@ public static class DashActions
         if (t.Length % 2 != 0 || !t.All(Uri.IsHexDigit)) throw new FormatException($"{what} '{s}' is not whole hex bytes");
         return Convert.FromHexString(t);
     }
+}
+
+/// <summary>
+/// Writing back the value a DID write card replaced. <see cref="Plan"/> writes the old value; <see cref="Refusal"/> keeps an undo
+/// from overwriting a value someone or something else has written since (only what this card left there may be undone).
+/// </summary>
+public sealed record DashWriteUndo(DashActionPlan Plan, byte[] Written, byte[] ReadBack)
+{
+    public byte[] Before => Plan.Data;
+
+    /// <summary>Null when the module still holds what the card wrote (or what it read back right after); otherwise why the undo is refused.</summary>
+    public string? Refusal(byte[] current) =>
+        current.AsSpan().SequenceEqual(Written) || current.AsSpan().SequenceEqual(ReadBack) ? null
+        : current.AsSpan().SequenceEqual(Before) ? "The module already holds the old value; nothing to undo."
+        : $"DID 0x{Plan.Id:X4} now holds {Convert.ToHexString(current)}, not the {Convert.ToHexString(Written)} this card wrote. It was changed since; undo refused so that change is not overwritten.";
+
+    public string Summary => $"Undo: write DID 0x{Plan.Id:X4} on 0x{Plan.TxId:X3} back to {Convert.ToHexString(Before)}";
 }

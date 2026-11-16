@@ -84,6 +84,10 @@
                 ToolTip="Sends only after writes are enabled (Settings), the battery check, a confirmation and the typed phrase">
           <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE768;"/><TextBlock Text="{Binding ButtonText}"/></StackPanel>
         </Button>
+        <Button HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6,0,0,0" Command="{Binding UndoCommand}" ToolTip="{Binding UndoTip}" AutomationProperties.Name="Undo write"
+                Visibility="{Binding CanUndo, Converter={StaticResource BoolVis}}">
+          <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo…"/></StackPanel>
+        </Button>
       </DockPanel>
       <DataTemplate.Triggers>
         <DataTrigger Binding="{Binding Holding}" Value="True"><Setter TargetName="Go" Property="Background" Value="{DynamicResource GaugeCrit}"/></DataTrigger>

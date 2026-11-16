@@ -1,6 +1,6 @@
-## v0.21.4
+## v0.22.1
 
-**Flashing: other modules are told to stop talking during a flash, and are put back afterwards** (FORScan's "stop activity on buses"). Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended until the secondary bootloader (SBL) stage lands.
+**Flashing: other modules are told to stop talking during a flash, and are put back afterwards** (FORScan's "stop activity on buses"). Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only; nothing has flashed a real module. Unsigned. Ford products only.
 
 - **Before programming**, every module on the target's bus gets functional (0x7DF) extended session `10 83`, DTC setting off `85 82` and normal messages off `28 83 01`. This frees the bus for the download and stops other modules from logging faults about the silent target.
 - **While quiet**, a functional TesterPresent `3E 80` goes out at least every 2 s, during the download too, so no module drops back to normal halfway (S3 is 5 s).
@@ -8,12 +8,32 @@
 - The flash confirmation now says gauges and warning lights may go dark during the flash and some U-codes may be stored.
 - Limits: the requests are suppressed (no reply), so a module that refuses keeps talking; modules on another bus (MS-CAN) are not reached. Ford module behaviour [UNVERIFIED].
 
-Internal: `FlashEngine.QuietBus / FunctionalTxId / Now`, new `FlashPhase.QuietBus`; `UdsControl` disable/set DTC setting and communication take `suppressResponse` (silence = success). Tests `FlashBusQuietTests` (5): bystander modules with their own S3 timers on a virtual clock stay quiet through a 15 s+ download and are restored in order; a programming failure restores traffic without `10 81` or a reset; a lost link is an interruption, not a restore error; a re-entered session quiets again and restores once; off = nothing functional. Removing the per-step keep-alive or sending `10 81` after a failure each fails a test.
+Internal: `FlashEngine.QuietBus / FunctionalTxId` (keep-alive timing uses the engine's `Now`), new `FlashPhase.QuietBus`; `UdsControl` disable/set DTC setting and communication take `suppressResponse` (silence = success). Tests `FlashBusQuietTests` (7): bystander modules with their own S3 timers on a virtual clock stay quiet through a 15 s+ download and are restored in order; a programming failure restores traffic without `10 81` or a reset; a lost link is an interruption, not a restore error; a re-entered session quiets again and restores once; an SBL flash with a quiet bus completes; a failure before the erase (module reset back) restores the whole bus including `10 81`; off = nothing functional. Removing the per-step keep-alive or sending `10 81` after a failure each fails a test.
 
 ### Windows + truck verify
 1. **DEMO:** flash a DEMO module; the log shows "quieting the bus" before the programming session and "bus restored: functional 28 80 01, 85 81, 10 81" at the end.
 2. **DEMO:** the flash confirmation lists the "other modules ... stop sending" line.
 3. **Truck:** none (no real-module flashing yet).
+
+## v0.22.0
+
+**Flash hardening and dashboard undo.** Keep-alive and lost-session recovery came in v0.21.2; this release adds what is around them. Includes v0.21.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
+
+- **Secondary bootloader (SBL).** Ford software usually ships with an SBL file (`sw_part_type = SBL`, `call = …`). Flash tab: **SBL file…** (or Open file… on an SBL file). After security access the SBL is downloaded to the module's RAM and started with routine 0x0301 and its call address, then the erase and download run as before, followed by commit routine 0x0304. The SBL is loaded again on every attempt. Routine IDs follow an open-source community Ford flasher [UNVERIFIED against Ford documentation]. The DEMO module now requires an SBL, and the DEMO image comes with one.
+- **Security lockout hold** (complements v0.21.3's recovery-safe resume). Every security outcome is journaled per module, across jobs. After a rejected key (NRC 0x35) no further key is sent until you press **Clear security hold…**; after a lockout (0x36, or 0x37 that did not clear) no seed is requested for 10 minutes. The hold is checked before the warnings and the typed FLASH.
+- **Failure before the erase resets the module back.** If a new job fails in the programming session, security access, the SBL stage, or on a first erase refused with a definite NRC, nothing was erased: the app sends ECU reset so the module runs its own software again, checks it answers, and closes the job (*Nothing was erased*). It never does this on a resume, or once anything may have been erased.
+- **Image checks** (preflight and engine): overlapping segments, segments outside the file's erase regions, addresses past 32 bits or too long for the address/length format, an SBL loaded as the image, an SBL without a call address: refused before anything is sent. Warnings: file without `ecu_address`; module and file part numbers with different vehicle-program prefixes; a Ford EXE/DATA file without an SBL.
+- **Check routine not supported** (FF01 answered 11/12/31): the flash continues to the reset; the module validates its software at reset.
+- **Dashboard write-card undo.** After a DID write whose old value was read, the card shows **Undo…**: it re-reads the DID, refuses if it no longer holds what the card wrote, then writes the old value back (writes enabled, battery check, typed WRITE) and reads it back.
+- Test fix: a J2534 timing test failed about 1 run in 6 under parallel load (200 ms wait vs a reply due at 400 ms); the reply now comes at 1.5 s.
+
+Internal: `FlashImage.PartType/CallAddress/IsSbl`, `FlashPlan.Sbl/SblRoutineId/CommitRoutineId`, `FlashRetryPolicy.LockoutHold`, `FlashPhase.SecondaryBootloader`, journal kinds `Security`/`Restarted` (a session re-entry now resets the segment count), `FlashSecurity.Hold`, `FlashEngine.SecurityHold/ClearSecurityHold/Now`, `FlashImageChecks.Layout/SameProgram`; simulator `SecurityDelaysLeft`, `MaxKeyAttempts`, `RequiresSbl`, `CheckRoutineSupported`, `SimFlashFault.SessionDrop`; `DashActions.UndoFor`, `DashWriteUndo`.
+
+### Windows verify (DEMO only; no truck flash)
+1. **DEMO image** on the Flash tab: the SBL line shows *DEMO SBL (synthetic).vbf … started at 0x00E00000*. Run checks: a *Secondary bootloader* row passes. Flash (writes on, type FLASH): the log shows *loading secondary bootloader*, then the erase and both segments; it finishes.
+2. Press **No SBL**, then Flash again: it stops with *Nothing was erased; the module was reset back to its normal software*. No open job remains.
+3. DEMO dashboard: add a WriteDid card for a DID the DEMO module answers on the Live Data page (not F180-F19F or DE00-DEFF). Write a new value, then **Undo…**: the old value comes back and the Undo button disappears. Press Undo on a fresh card: it is not shown (no write yet).
+4. Truck, read-only only: Flash → open a real Ford VBF set (SBL + strategy) → Run checks. Do not press Flash.
 
 ## v0.21.3
 

@@ -6,6 +6,33 @@ namespace ObdLink.Core.Flash;
 public enum FlashJournalKind
 {
     Started, Backup, Phase, SegmentStarted, BlockAcked, SegmentDone, Fault, Interrupted, Resumed, Completed, Abandoned,
+    /// <summary>A SecurityAccess outcome (Detail: one of <see cref="FlashSecurity"/>'s constants). Kept across jobs: lockout belongs to the module.</summary>
+    Security,
+    /// <summary>The module left the programming session mid-job; the engine started again from the session and erase in the same run.</summary>
+    Restarted,
+}
+
+/// <summary>SecurityAccess outcomes recorded in the journal, and the rule that keeps resumes from locking a module out.</summary>
+public static class FlashSecurity
+{
+    public const string Ok = "ok", WrongKey = "wrong-key", Locked = "locked", Delay = "delay", NoKey = "no-key", HoldCleared = "hold-cleared";
+
+    /// <summary>
+    /// Why another key must not be sent now, or null when it may. After a rejected key (NRC 0x35) the provider is presumed wrong:
+    /// sending it again only spends the module's attempt counter, so the operator must clear the hold. After a lockout (NRC 0x36,
+    /// or 0x37 that did not clear) no seed is requested until <paramref name="lockoutHold"/> has passed.
+    /// </summary>
+    public static string? Hold(FlashJournalState st, TimeSpan lockoutHold, DateTimeOffset now)
+    {
+        if (st.WrongKeys > 0)
+            return $"The module rejected the security key on an earlier attempt (NRC 0x35, invalid key). Another try with the same key would count toward its lockout (NRC 0x36). Fix the seed/key provider, then clear the security hold.";
+        if (st.LockedAt is DateTimeOffset at && now - at < lockoutHold)
+        {
+            var left = lockoutHold - (now - at);
+            return $"The module locked security access (too many attempts or a delay that did not clear). Leave the ignition on and wait {Math.Ceiling(left.TotalMinutes):0} more minute(s) before trying again.";
+        }
+        return null;
+    }
 }
 
 /// <summary>One line of the flash journal. Only the fields relevant to <see cref="Kind"/> are set.</summary>
@@ -24,7 +51,8 @@ public sealed record FlashJournalEntry(
 /// <summary>What the journal says about a job: whether one is open, for which image and module, and where it stopped.</summary>
 public sealed record FlashJournalState(
     bool Exists, bool Open, string? ImageSha256, uint? TxId, string? BackupRef, string? LastPhase,
-    int SegmentsDone, long BytesAcked, FlashJournalEntry? LastFault, int Attempts, bool ReachedProgramming = false, bool ReachedReset = false)
+    int SegmentsDone, long BytesAcked, FlashJournalEntry? LastFault, int Attempts, bool ReachedProgramming = false, bool ReachedReset = false,
+    int WrongKeys = 0, DateTimeOffset? LockedAt = null)
 {
     public static readonly FlashJournalState None = new(false, false, null, null, null, null, 0, 0, null, 0);
 
@@ -36,6 +64,8 @@ public sealed record FlashJournalState(
         int segsDone = 0, attempts = 0;
         long bytes = 0;
         FlashJournalEntry? fault = null;
+        int wrongKeys = 0;
+        DateTimeOffset? lockedAt = null;
         bool programming = false, reset = false;
         foreach (var e in entries)
         {
@@ -44,6 +74,15 @@ public sealed record FlashJournalState(
             {
                 case FlashJournalKind.Started: open = true; sha = e.ImageSha256; tx = e.TxId; attempts = 1; segsDone = 0; bytes = 0; fault = null; backup = null; programming = reset = false; break;
                 case FlashJournalKind.Resumed: attempts++; segsDone = 0; bytes = 0; break; // a resume restarts the download from the erase
+                case FlashJournalKind.Restarted: segsDone = 0; bytes = 0; break;
+                case FlashJournalKind.Security:
+                    switch (e.Detail)
+                    {
+                        case FlashSecurity.Ok or FlashSecurity.HoldCleared: wrongKeys = 0; lockedAt = null; break;
+                        case FlashSecurity.WrongKey: wrongKeys++; break;
+                        case FlashSecurity.Locked: lockedAt = e.At; break;
+                    }
+                    break;
                 case FlashJournalKind.Backup: backup = e.Detail; break;
                 case FlashJournalKind.Phase:
                     phase = e.Phase;
@@ -59,7 +98,7 @@ public sealed record FlashJournalState(
                 case FlashJournalKind.Completed or FlashJournalKind.Abandoned: open = false; break;
             }
         }
-        return new(exists, open, sha, tx, backup, phase, segsDone, bytes, fault, attempts, programming, reset);
+        return new(exists, open, sha, tx, backup, phase, segsDone, bytes, fault, attempts, programming, reset, wrongKeys, lockedAt);
     }
 }
 

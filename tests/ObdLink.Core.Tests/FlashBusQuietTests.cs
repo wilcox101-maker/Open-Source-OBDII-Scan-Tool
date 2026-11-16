@@ -69,22 +69,26 @@ public class FlashBusQuietTests
     private static FlashImage Image() => FlashImage.FromSegments("quiet.vbf",
         new[] { new FlashSegment(0x10000, Enumerable.Range(0, 8000).Select(i => (byte)(i * 7)).ToArray()) }, partNumber: "QUIET-NEW", ecuTxId: 0x7E0);
 
-    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal, SimulatedFlashEcu Ecu, Bus Bus, Bystander[] Others, Clock Clock) Make(bool quiet = true)
+    private static FlashImage Sbl() => VbfReader.Parse(VbfReader.Write(
+        new[] { new FlashSegment(0x00E00000, Enumerable.Range(0, 0x3D0).Select(i => (byte)(i * 5)).ToArray()) }, "QUIET-SBL", 0x7E0, partType: "SBL", call: 0x00E00000), "sbl.vbf");
+
+    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal, SimulatedFlashEcu Ecu, Bus Bus, Bystander[] Others, Clock Clock) Make(
+        bool quiet = true, bool requiresSbl = false, FlashImage? sbl = null)
     {
         var clock = new Clock();
         var img = Image();
-        var ecu = new SimulatedFlashEcu { ExpectedImage = img, S3 = TimeSpan.FromSeconds(5), Now = () => clock.Now, ErasePendingReplies = 0 };
+        var ecu = new SimulatedFlashEcu { ExpectedImage = img, S3 = TimeSpan.FromSeconds(5), Now = () => clock.Now, ErasePendingReplies = 0, RequiresSbl = requiresSbl };
         var others = new[] { new Bystander(), new Bystander() };
         var bus = new Bus(ecu, clock, others);
         var uds = new UdsClient(bus, 0x7E0) { SeedKey = new SimKey(), PendingRetryDelay = TimeSpan.Zero };
         var journal = new MemoryFlashJournal();
-        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img }, journal)
+        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = sbl, CommitRoutineId = sbl is null ? null : (ushort)0x0304 }, journal)
         {
             ReadVoltage = _ => Task.FromResult<double?>(13.4),
             Backup = _ => Task.FromResult("backup.json"),
             ReadModulePart = async (u, ct) => Encoding.ASCII.GetString(await u.ReadDataByIdentifierAsync(0xF188, ct)),
             Delay = t => { clock.Now += t; return Task.CompletedTask; },
-            Now = () => clock.Now,
+            Now = () => new DateTimeOffset(clock.Now),
             QuietBus = quiet,
         };
         return (engine, uds, journal, ecu, bus, others, clock);
@@ -137,7 +141,7 @@ public class FlashBusQuietTests
         Assert.DoesNotContain(bus.Log, l => l.Target == 0x7E0 && l.Req[0] == 0x11);
         Assert.Equal(0x02, ecu.Session);
         Assert.All(others, o => { Assert.False(o.CommOff); Assert.False(o.DtcOff); });
-        Assert.True(journal.ReadAll().Last(e => e.Kind == FlashJournalKind.Phase).Detail!.StartsWith("bus restored"));
+        Assert.StartsWith("bus restored", journal.ReadAll().Last(e => e.Kind == FlashJournalKind.Phase).Detail);
         Assert.True(FlashJournalState.From(journal.ReadAll()).Open);
     }
 
@@ -174,5 +178,29 @@ public class FlashBusQuietTests
         Assert.True(r.PartNumberConfirmed);
         Assert.Empty(bus.Functional);
         Assert.All(others, o => Assert.Equal(0x01, o.Session));
+    }
+
+    [Fact]
+    public async Task An_SBL_flash_with_a_quiet_bus_completes_and_restores()
+    {
+        var (eng, uds, _, ecu, bus, others, _) = Make(requiresSbl: true, sbl: Sbl());
+        var r = await eng.RunAsync(uds);
+        Assert.True(r.PartNumberConfirmed);
+        Assert.Equal(1, ecu.Commits);
+        Assert.True(IndexOf(bus, 0x7DF, 0x28, 0x83, 0x01) < bus.Log.FindIndex(l => l.Target == 0x7E0 && Convert.ToHexString(l.Req).StartsWith("31010301", StringComparison.Ordinal)));
+        Assert.All(others, o => { Assert.Equal(0, o.Timeouts); Assert.False(o.CommOff); Assert.Equal(0x01, o.Session); });
+    }
+
+    [Fact]
+    public async Task A_failure_before_the_erase_resets_the_target_back_and_restores_the_whole_bus()
+    {
+        var (eng, uds, _, ecu, bus, others, _) = Make(requiresSbl: true, sbl: null);   // erase refused (0x22): nothing written
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Contains("Nothing was erased", ex.Message);
+        Assert.False(ecu.InBootloader);
+        int reset = bus.Log.FindIndex(l => l.Target == 0x7E0 && l.Req[0] == 0x11);
+        Assert.True(reset >= 0 && reset < IndexOf(bus, 0x7DF, 0x10, 0x81));   // the target runs its software again: 10 81 is safe
+        Assert.Equal(1, bus.Functional.Count(f => Is(f, 0x28, 0x80, 0x01)));
+        Assert.All(others, o => { Assert.False(o.CommOff); Assert.False(o.DtcOff); Assert.Equal(0x01, o.Session); });
     }
 }
