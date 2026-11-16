@@ -37,6 +37,7 @@ public sealed class FlashViewModel : ObservableObject
     private readonly IHostPower _power;
     private readonly IProgress<FlashProgress> _progress;
     private FlashImage? _image;
+    private FlashImage? _sbl;
     private CancellationTokenSource? _stop;
     private SimulatedFlashEcu? _demo;
 
@@ -45,6 +46,8 @@ public sealed class FlashViewModel : ObservableObject
 
     private string _imageText = "No file loaded."; public string ImageText { get => _imageText; private set => Set(ref _imageText, value); }
     private string _preflightText = "Run the checks after loading a file."; public string PreflightText { get => _preflightText; private set => Set(ref _preflightText, value); }
+    private string _sblText = "No SBL loaded. Ford modules usually need the secondary bootloader file (sw_part_type SBL) that comes with the software.";
+    public string SblText { get => _sblText; private set => Set(ref _sblText, value); }
     private string _status = "Idle."; public string Status { get => _status; private set => Set(ref _status, value); }
     private string _bytesText = ""; public string BytesText { get => _bytesText; private set => Set(ref _bytesText, value); }
     private double _percent; public double Percent { get => _percent; private set => Set(ref _percent, value); }
@@ -66,6 +69,8 @@ public sealed class FlashViewModel : ObservableObject
 
     public AsyncCommand OpenFileCommand { get; }
     public AsyncCommand DemoImageCommand { get; }
+    public AsyncCommand OpenSblCommand { get; }
+    public RelayCommand ClearSblCommand { get; }
     public AsyncCommand PreflightCommand { get; }
     public AsyncCommand FlashCommand { get; }
     public AsyncCommand ResumeCommand { get; }
@@ -91,6 +96,8 @@ public sealed class FlashViewModel : ObservableObject
 
         OpenFileCommand = C("Flash: open VBF file", OpenFileAsync, needsBus: false);
         DemoImageCommand = C("Flash: load DEMO image", DemoImageAsync, needsBus: false);
+        OpenSblCommand = C("Flash: open SBL file", OpenSblAsync, needsBus: false);
+        ClearSblCommand = new RelayCommand("Flash: remove SBL", log, _ => { if (!Running) SetSbl(null); });
         PreflightCommand = C("Flash: preflight", PreflightAsync);
         FlashCommand = C("Flash: start", () => RunAsync(resume: false));
         ResumeCommand = C("Flash: resume", () => RunAsync(resume: true));
@@ -117,7 +124,7 @@ public sealed class FlashViewModel : ObservableObject
             : st.Open ? $"Open job for 0x{st.TxId:X3}: {st.LastPhase ?? "started"}, {st.SegmentsDone} segment(s) done, {st.BytesAcked:N0} bytes acknowledged, attempt {st.Attempts}. Last fault: {st.LastFault?.Detail ?? "none"}. Backup: {Path.GetFileName(st.BackupRef ?? "-")}. Open the same file, then Resume."
             : "Last job finished or was abandoned.";
         SecurityHoldText = m is null ? "" : FlashSecurity.Hold(st, new FlashRetryPolicy().LockoutHold, DateTimeOffset.UtcNow) ?? "";
-        foreach (var c in new[] { OpenFileCommand, DemoImageCommand, PreflightCommand, FlashCommand, ResumeCommand, AbandonCommand, ClearHoldCommand }) c.RaiseCanExecuteChanged();
+        foreach (var c in new[] { OpenFileCommand, DemoImageCommand, OpenSblCommand, PreflightCommand, FlashCommand, ResumeCommand, AbandonCommand, ClearHoldCommand }) c.RaiseCanExecuteChanged();
     }
 
     private IFlashJournal Journal(ModuleRow m) => new FileFlashJournal(Path.Combine(_dir, $"flash-{m.Def.TxId:X3}.jsonl"));
@@ -126,8 +133,30 @@ public sealed class FlashViewModel : ObservableObject
     {
         var dlg = new OpenFileDialog { Filter = "VBF flash files (*.vbf)|*.vbf|All files (*.*)|*.*", Title = "Open flash file", InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(_dir) };
         if (DialogService.ShowFileDialog(dlg) != true) return Task.CompletedTask;
-        SetImage(VbfReader.Read(dlg.FileName));
+        var img = VbfReader.Read(dlg.FileName);
+        if (img.IsSbl) { SetSbl(img); Add("That file is a secondary bootloader; it was loaded as the SBL. Now open the strategy or calibration file."); return Task.CompletedTask; }
+        SetImage(img);
         return Task.CompletedTask;
+    }
+
+    private Task OpenSblAsync()
+    {
+        var dlg = new OpenFileDialog { Filter = "VBF flash files (*.vbf)|*.vbf|All files (*.*)|*.*", Title = "Open secondary bootloader (SBL) file", InitialDirectory = ObdLink.Core.Storage.AppPaths.Ensure(_dir) };
+        if (DialogService.ShowFileDialog(dlg) != true) return Task.CompletedTask;
+        var sbl = VbfReader.Read(dlg.FileName);
+        if (!sbl.IsSbl) throw new InvalidOperationException($"{sbl.Name} is not a secondary bootloader (sw_part_type is {sbl.PartType ?? "missing"}). Open it with Open file… instead.");
+        if (sbl.CallAddress is null) throw new InvalidOperationException($"{sbl.Name} has no call address; it can't be started.");
+        SetSbl(sbl);
+        return Task.CompletedTask;
+    }
+
+    private void SetSbl(FlashImage? sbl)
+    {
+        _sbl = sbl;
+        SblText = sbl is null ? "No SBL loaded."
+            : $"SBL {sbl.Name}: {sbl.TotalBytes:N0} bytes, started at 0x{sbl.CallAddress:X8}" + (sbl.SoftwarePartNumber is string p ? $", part {p}" : "") + $". SHA-256 {sbl.Sha256[..8]}…";
+        Preflight.Clear(); PreflightText = "Run the checks.";
+        if (sbl is not null) { Add($"Loaded SBL {sbl.Name}"); _log.Message(LogEventLevel.Information, "Flash", SblText); }
     }
 
     private Task DemoImageAsync()
@@ -135,7 +164,10 @@ public sealed class FlashViewModel : ObservableObject
         if (_port() is not { IsSimulated: true }) throw new InvalidOperationException("The DEMO image is only for DEMO ports (the simulated module). Open a real VBF file for a vehicle.");
         var m = _module() ?? throw new InvalidOperationException("Select a module first");
         var segs = Enumerable.Range(0, 2).Select(i => new FlashSegment(0x00010000u + (uint)i * 0x10000, Enumerable.Range(0, 6000).Select(b => (byte)(b * 13 + i)).ToArray())).ToList();
-        SetImage(VbfReader.Parse(VbfReader.Write(segs, "DEMO-14C204-SIM", m.Def.TxId), "DEMO (synthetic).vbf"));
+        SetImage(VbfReader.Parse(VbfReader.Write(segs, "DEMO-14C204-SIM", m.Def.TxId, partType: "EXE"), "DEMO (synthetic).vbf"));
+        // The simulated module wants an SBL first, like Ford modules: a small synthetic one for its RAM at 0x00E00000.
+        SetSbl(VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0x00E00000, Enumerable.Range(0, 0x400).Select(b => (byte)(b * 5)).ToArray()) },
+            "DEMO-14C039-SBL", m.Def.TxId, partType: "SBL", call: 0x00E00000), "DEMO SBL (synthetic).vbf"));
         return Task.CompletedTask;
     }
 
@@ -156,7 +188,8 @@ public sealed class FlashViewModel : ObservableObject
         var img = _image ?? throw new InvalidOperationException("Open a flash file first");
         if (!byte.TryParse(SecurityLevel, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var lvl) || lvl % 2 == 0)
             throw new InvalidOperationException($"Security level '{SecurityLevel}' must be an odd hex byte (e.g. 01)");
-        return (m, new FlashPlan { TxId = m.Def.TxId, Image = img, SecurityLevel = lvl });
+        // With an SBL (a Ford VBF set) each file is committed with routine 0x0304, as community Ford flashers do [UNVERIFIED].
+        return (m, new FlashPlan { TxId = m.Def.TxId, Image = img, SecurityLevel = lvl, Sbl = _sbl, CommitRoutineId = _sbl is null ? null : (ushort)0x0304 });
     }
 
     private bool Demo => _port() is { IsSimulated: true };
@@ -165,7 +198,7 @@ public sealed class FlashViewModel : ObservableObject
     {
         if (Demo)
         {
-            if (_demo is null || _demo.TxId != m.Def.TxId) _demo = new SimulatedFlashEcu(m.Def.TxId);
+            if (_demo is null || _demo.TxId != m.Def.TxId) _demo = new SimulatedFlashEcu(m.Def.TxId) { RequiresSbl = true };
             _demo.ExpectedImage = plan.Image;
             return new UdsClient(_demo, m.Def.TxId) { SeedKey = new DemoKey(), Gate = new WriteGate(() => _safety().Gate.ReadOnly) };
         }

@@ -783,4 +783,111 @@ public class FlashEngineTests
         Assert.NotNull(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(1)));
         Assert.Null(FlashSecurity.Hold(FlashJournalState.From(e), TimeSpan.FromMinutes(10), t.AddMinutes(11)));
     }
+
+    // ---- secondary bootloader ----
+
+    private static FlashImage Sbl(uint call = 0x00E00000, string? type = "SBL") =>
+        VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0x00E00000, Pattern(0x3D0, 9)) }, "E3B1-14C039-AA", 0x7E0, partType: type, call: call), "sbl.vbf");
+
+    private static (FlashEngine Engine, UdsClient Uds, MemoryFlashJournal Journal) WithSbl(SimulatedFlashEcu ecu, FlashImage img, FlashImage? sbl, ushort? commit = 0x0304)
+    {
+        ecu.ExpectedImage = img;
+        var uds = new UdsClient(ecu, 0x7E0) { SeedKey = new SimKey(), PendingRetryDelay = TimeSpan.Zero };
+        var journal = new MemoryFlashJournal();
+        var engine = new FlashEngine(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = sbl, CommitRoutineId = commit }, journal)
+        {
+            ReadVoltage = _ => Task.FromResult<double?>(13.2),
+            Backup = _ => Task.FromResult("b.json"),
+            Delay = t => { ecu.Advance(t); return Task.CompletedTask; },
+        };
+        return (engine, uds, journal);
+    }
+
+    [Fact]
+    public void VbfReader_ReadsPartTypeAndCallAddress()
+    {
+        var sbl = Sbl();
+        Assert.True(sbl.IsSbl);
+        Assert.Equal(0x00E00000u, sbl.CallAddress);
+        Assert.False(Image().IsSbl);
+    }
+
+    [Fact]
+    public async Task Sbl_IsLoadedToRamAndStarted_BeforeTheErase()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(2);
+        var (eng, uds, journal) = WithSbl(ecu, img, Sbl());
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Null(ecu.Memory(0x00E00000)); // RAM, not flash
+        var calls = ecu.Calls.Select(Convert.ToHexString).ToList();
+        int start = calls.FindIndex(c => c.StartsWith("31010301", StringComparison.Ordinal));
+        int erase = calls.FindIndex(c => c.StartsWith("3101FF00", StringComparison.Ordinal));
+        Assert.True(start > 0 && erase > start);
+        Assert.Equal("3101030100E00000", calls[start]);
+        Assert.Equal(1, ecu.Commits);
+        Assert.Equal(2, eng.State.SegmentsDone); // SBL segments are not image progress
+        Assert.Contains(journal.ReadAll(), e => e.Phase == nameof(FlashPhase.SecondaryBootloader));
+    }
+
+    [Fact]
+    public async Task MissingSbl_EraseRefused_ModuleResetBackUnchanged()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(1);
+        var (eng, uds, _) = WithSbl(ecu, img, null);
+        var ex = await Assert.ThrowsAsync<FlashFailedException>(() => eng.RunAsync(uds));
+        Assert.Equal((byte)0x22, ex.Fault?.Nrc);
+        Assert.False(ex.ModuleMayBeInBootloader);
+        Assert.Contains("Nothing was erased", ex.Message);
+        Assert.True(ecu.ApplicationValid);
+        Assert.False(ecu.InBootloader);
+        Assert.False(eng.State.Open);
+    }
+
+    [Fact]
+    public async Task SessionLostAfterSbl_RestartLoadsTheSblAgain()
+    {
+        var ecu = new SimulatedFlashEcu { RequiresSbl = true };
+        var img = Image(2, 3000);
+        int seen = 0;
+        ecu.Faults = (req, _) => req[0] == 0x36 && req[1] == 0x03 && ecu.SblRunning && ecu.TransferBlocksWritten > 5 && seen++ == 0 ? SimFlashFault.SessionDrop : null;
+        var (eng, uds, _) = WithSbl(ecu, img, Sbl());
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+        Assert.Equal(2, ecu.Calls.Count(c => c.Length >= 4 && c[0] == 0x31 && c[2] == 0x03 && c[3] == 0x01));
+    }
+
+    [Fact]
+    public async Task CheckRoutineNotSupported_ContinuesToReset()
+    {
+        var ecu = new SimulatedFlashEcu { CheckRoutineSupported = false };
+        var img = Image(1);
+        var (eng, uds, _) = WithSbl(ecu, img, null, commit: null);
+        await eng.RunAsync(uds);
+        AssertFlashed(ecu, img);
+    }
+
+    [Fact]
+    public void Layout_RefusesSblMistakes()
+    {
+        var img = Image(1);
+        Assert.Contains("secondary bootloader", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = Sbl() }));
+        Assert.Contains("no call address", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0xE00000, new byte[16]) }, partType: "SBL"), "s.vbf") }));
+        Assert.Contains("outside the SBL", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl(call: 0x00F00000) }));
+        Assert.Contains("not SBL", FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl(type: "EXE") }));
+        Assert.Null(FlashImageChecks.Layout(new FlashPlan { TxId = 0x7E0, Image = img, Sbl = Sbl() }));
+    }
+
+    [Fact]
+    public async Task Preflight_WarnsWhenAFordFileHasNoSbl()
+    {
+        var ecu = new SimulatedFlashEcu();
+        var exe = VbfReader.Parse(VbfReader.Write(new[] { new FlashSegment(0x10000, new byte[16]) }, "JL3A-14C204-AA", 0x7E0, partType: "EXE"), "exe.vbf");
+        var r = await FlashPreflight.RunAsync(new UdsClient(ecu, 0x7E0), new FlashPlan { TxId = 0x7E0, Image = exe }, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx);
+        Assert.Contains(r.Items, i => i.Name == "Secondary bootloader" && i.Status == PreflightStatus.Warn);
+        var ok = await FlashPreflight.RunAsync(new UdsClient(ecu, 0x7E0), new FlashPlan { TxId = 0x7E0, Image = exe, Sbl = Sbl() }, _ => Task.FromResult<double?>(13.1), AdapterProfiles.ObdLinkEx);
+        Assert.Contains(ok.Items, i => i.Name == "Secondary bootloader" && i.Status == PreflightStatus.Pass);
+    }
 }

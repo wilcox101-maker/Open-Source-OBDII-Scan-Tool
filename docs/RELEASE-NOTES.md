@@ -1,3 +1,25 @@
+## v0.22.0
+
+**Flash hardening and dashboard undo.** Includes v0.21.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Nothing has flashed a real module. Unsigned. Ford products only.
+
+- **Secondary bootloader (SBL).** Ford software usually ships with an SBL file (`sw_part_type = SBL`, `call = …`). Flash tab: **SBL file…** (or Open file… on an SBL file). After security access the SBL is downloaded to the module's RAM and started with routine 0x0301 and its call address, then the erase and download run as before, followed by commit routine 0x0304. The SBL is loaded again on every attempt. Routine IDs follow an open-source community Ford flasher [UNVERIFIED against Ford documentation]. The DEMO module now requires an SBL, and the DEMO image comes with one.
+- **Keep-alive.** Inside the programming session, every wait (retry backoff, response-pending settle, low-battery pause, the 10 s security delay, routine polling) now sends TesterPresent every 2 s. Before, a 10 s wait let the module's ~5 s session timer expire and the next step failed.
+- **Lost session.** 7F/7E (service not supported in this session), 33 after security, or 24 to TransferData mid-flash now mean "the module left the programming session": the app enters it again, redoes security and the SBL, and restarts from the erase, once per run. A second loss leaves the job open for Resume.
+- **Resume can't lock the module out.** Every security outcome is journaled per module, across jobs. After a rejected key (NRC 0x35) no further key is sent until you press **Clear security hold…**; after a lockout (0x36, or 0x37 that did not clear) no seed is requested for 10 minutes. The hold is checked before the warnings and the typed FLASH.
+- **Failure before the erase resets the module back.** If a new job fails in the programming session, security access, the SBL stage, or on a first erase refused with a definite NRC, nothing was erased: the app sends ECU reset so the module runs its own software again, checks it answers, and closes the job (*Nothing was erased*). It never does this on a resume, or once anything may have been erased.
+- **Image checks** (preflight and engine): overlapping segments, segments outside the file's erase regions, addresses past 32 bits or too long for the address/length format, an SBL loaded as the image, an SBL without a call address: refused before anything is sent. Warnings: file without `ecu_address`; module and file part numbers with different vehicle-program prefixes; a Ford EXE/DATA file without an SBL.
+- **Check routine not supported** (FF01 answered 11/12/31): the flash continues to the reset; the module validates its software at reset.
+- **Dashboard write-card undo.** After a DID write whose old value was read, the card shows **Undo…**: it re-reads the DID, refuses if it no longer holds what the card wrote, then writes the old value back (writes enabled, battery check, typed WRITE) and reads it back.
+- Test fix: a J2534 timing test failed about 1 run in 6 under parallel load (200 ms wait vs a reply due at 400 ms); the reply now comes at 1.5 s.
+
+Internal: `FlashImage.PartType/CallAddress/IsSbl`, `FlashPlan.Sbl/SblRoutineId/CommitRoutineId`, `FlashRetryPolicy.KeepAliveEvery/SessionRestarts/LockoutHold`, `FlashPhase.SecondaryBootloader`, `FlashFaultAction.SessionLost`, `SessionLostException`, journal kinds `Security`/`Restarted`, `FlashSecurity.Hold`, `FlashEngine.SecurityHold/ClearSecurityHold/Now`, `FlashImageChecks.Layout/SameProgram`; simulator `S3`/`Advance`, `SecurityDelaysLeft`, `MaxKeyAttempts`, `RequiresSbl`, `CheckRoutineSupported`, `SimFlashFault.SessionDrop`; `DashActions.UndoFor`, `DashWriteUndo`.
+
+### Windows verify (DEMO only; no truck flash)
+1. **DEMO image** on the Flash tab: the SBL line shows *DEMO SBL (synthetic).vbf … started at 0x00E00000*. Run checks: a *Secondary bootloader* row passes. Flash (writes on, type FLASH): the log shows *loading secondary bootloader*, then the erase and both segments; it finishes.
+2. Press **No SBL**, then Flash again: it stops with *Nothing was erased; the module was reset back to its normal software*. No open job remains.
+3. DEMO dashboard: add a WriteDid card for a DID the DEMO module answers on the Live Data page (not F180-F19F or DE00-DEFF). Write a new value, then **Undo…**: the old value comes back and the Undo button disappears. Press Undo on a fresh card: it is not shown (no write yet).
+4. Truck, read-only only: Flash → open a real Ford VBF set (SBL + strategy) → Run checks. Do not press Flash.
+
 ## v0.21.0
 
 **As-Built write recovery: every write is journaled, and a write that did not finish is found and fixed.** Includes v0.20.1 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.

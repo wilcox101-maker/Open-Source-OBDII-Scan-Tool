@@ -29,6 +29,14 @@ public sealed class FlashPlan
     /// <summary>Decides whether the check routine's status record means "valid". Default: any positive reply passes (meaning of the status bytes is module-specific).</summary>
     public Func<byte[], bool>? CheckPassed { get; init; }
     public ResetType Reset { get; init; } = ResetType.Hard;
+    /// <summary>Secondary bootloader (VBF <c>sw_part_type = SBL</c>) loaded to RAM and started after security access, before the erase.
+    /// Ford modules generally refuse the erase without it. Null: none.</summary>
+    public FlashImage? Sbl { get; init; }
+    /// <summary>Routine that starts the SBL at its call address. 0x0301 per community Ford flashers (VBFlasher). [UNVERIFIED against Ford documentation]</summary>
+    public ushort SblRoutineId { get; init; } = 0x0301;
+    /// <summary>Routine run after the image's last segment and before the dependency check. Community Ford flashers send 0x0304 here
+    /// [UNVERIFIED]. Null (default): not sent.</summary>
+    public ushort? CommitRoutineId { get; init; }
     /// <summary>Upper bound for one TransferData message (SID + counter + data), below the module's maxNumberOfBlockLength. ISO-TP caps a message at 4095 bytes.</summary>
     public int MaxBlockLength { get; init; } = 4095;
 
@@ -211,6 +219,12 @@ public static class FlashPreflight
                     : new("Module part number", PreflightStatus.Warn, $"module reports {have}; file is {want}. The first four characters (the vehicle program code) differ: make sure the file is meant for this module."));
         }
 
+        // Secondary bootloader
+        if (plan.Sbl is { } sblImg)
+            items.Add(new("Secondary bootloader", PreflightStatus.Pass, $"{sblImg.Name}, {sblImg.TotalBytes:N0} bytes, started at 0x{sblImg.CallAddress:X8}"));
+        else if (plan.Image.PartType is string type)
+            items.Add(new("Secondary bootloader", PreflightStatus.Warn, $"No SBL file loaded. Ford {type} files usually need one: without it the module normally refuses the erase (nothing is changed, the module is reset back)."));
+
         // Adapter and host
         if (adapter?.Kind == AdapterKind.ObdLinkMxPlus)
             items.Add(new("Adapter", PreflightStatus.Warn, "OBDLink MX+ is a wireless link. A dropout mid-flash can leave the module unbootable until recovery. Wired OBDLink EX recommended."));
@@ -235,32 +249,48 @@ public static class FlashImageChecks
     /// </summary>
     public static string? Layout(FlashPlan plan)
     {
-        int aBytes = plan.AddressAndLengthFormat & 0x0F, lBytes = plan.AddressAndLengthFormat >> 4;
+        if (plan.Image.IsSbl)
+            return "This file is a secondary bootloader (sw_part_type SBL). Load it as the SBL and open the strategy or calibration file as the image";
+        if (plan.Sbl is { } sbl)
+        {
+            if (sbl.PartType is not null && !sbl.IsSbl) return $"The SBL file is of type {sbl.PartType}, not SBL";
+            if (sbl.CallAddress is not uint call) return "The SBL file has no call address (VBF 'call')";
+            if (!sbl.Segments.Any(s => call >= s.Address && (ulong)call < (ulong)s.Address + s.Length))
+                return $"The SBL call address 0x{call:X8} is outside the SBL's own data";
+            if (sbl.EcuTxId is uint t && t != plan.TxId) return $"The SBL file is for module 0x{t:X3}, not 0x{plan.TxId:X3}";
+            if (Geometry(sbl.Segments, Array.Empty<EraseRegion>(), plan.AddressAndLengthFormat, checkEraseFormat: false) is string s2) return "SBL: " + s2;
+        }
+        return Geometry(plan.Image.Segments, plan.Image.Erase, plan.AddressAndLengthFormat, checkEraseFormat: plan.EraseOption is null);
+    }
+
+    private static string? Geometry(IReadOnlyList<FlashSegment> segments, IReadOnlyList<EraseRegion> erase, byte alfid, bool checkEraseFormat)
+    {
+        int aBytes = alfid & 0x0F, lBytes = alfid >> 4;
         if (aBytes is < 1 or > 4 || lBytes is < 1 or > 4)
-            return $"Address/length format 0x{plan.AddressAndLengthFormat:X2} is not supported (1-4 bytes each)";
+            return $"Address/length format 0x{alfid:X2} is not supported (1-4 bytes each)";
         static bool Fits(ulong v, int bytes) => bytes >= 8 || v < 1UL << (bytes * 8);
 
-        var segs = plan.Image.Segments.OrderBy(x => x.Address).ToList();
+        var segs = segments.OrderBy(x => x.Address).ToList();
         for (int i = 0; i < segs.Count; i++)
         {
             var s = segs[i];
             ulong end = (ulong)s.Address + s.Length;
             if (end > 1UL << 32) return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) runs past the end of the 32-bit address space";
             if (!Fits(s.Address, aBytes) || !Fits(s.Length, lBytes))
-                return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) does not fit address/length format 0x{plan.AddressAndLengthFormat:X2}";
+                return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) does not fit address/length format 0x{alfid:X2}";
             if (i + 1 < segs.Count && end > segs[i + 1].Address)
                 return $"Segments 0x{s.Address:X8} and 0x{segs[i + 1].Address:X8} overlap";
         }
-        if (plan.Image.Erase.Count > 0)
+        if (erase.Count > 0)
         {
-            foreach (var r in plan.Image.Erase)
+            foreach (var r in erase)
             {
                 if ((ulong)r.Address + r.Length > 1UL << 32) return $"Erase region 0x{r.Address:X8} (+{r.Length:N0} bytes) runs past the end of the 32-bit address space";
-                if (plan.EraseOption is null && (!Fits(r.Address, aBytes) || !Fits(r.Length, lBytes)))
-                    return $"Erase region 0x{r.Address:X8} (+{r.Length:N0} bytes) does not fit address/length format 0x{plan.AddressAndLengthFormat:X2}";
+                if (checkEraseFormat && (!Fits(r.Address, aBytes) || !Fits(r.Length, lBytes)))
+                    return $"Erase region 0x{r.Address:X8} (+{r.Length:N0} bytes) does not fit address/length format 0x{alfid:X2}";
             }
             foreach (var s in segs)
-                if (!plan.Image.Erase.Any(r => s.Address >= r.Address && (ulong)s.Address + s.Length <= (ulong)r.Address + r.Length))
+                if (!erase.Any(r => s.Address >= r.Address && (ulong)s.Address + s.Length <= (ulong)r.Address + r.Length))
                     return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) is not inside any erase region in the file";
         }
         return null;

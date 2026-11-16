@@ -74,6 +74,16 @@ public class SimulatedFlashEcu : IDiagChannel
     public int WrongKeys { get; private set; }
     public bool SecurityLocked { get; private set; }
     public int SessionDrops { get; private set; }
+    /// <summary>Ford-style: the erase is refused (NRC 0x22) until a secondary bootloader was downloaded to <see cref="SblRam"/> and started
+    /// with routine 0x0301 and its call address.</summary>
+    public bool RequiresSbl { get; set; }
+    /// <summary>RAM the SBL is downloaded to (no erase needed). Default 0x00E00000, 64 KiB.</summary>
+    public EraseRegion SblRam { get; set; } = new(0x00E00000, 0x10000);
+    public bool SblRunning { get; private set; }
+    /// <summary>When false, the ISO check routine 0xFF01 answers NRC 0x31 (as on modules that don't have it).</summary>
+    public bool CheckRoutineSupported { get; set; } = true;
+    public int Commits { get; private set; }
+    private readonly Dictionary<uint, byte[]> _ram = new();
     private TimeSpan _idle;
 
     /// <summary>Simulated time passing with no request (tests route the engine's Delay hook here).</summary>
@@ -86,7 +96,7 @@ public class SimulatedFlashEcu : IDiagChannel
     /// <summary>Back to the default session: unlock and any download in progress are lost; a module without valid software stays in its bootloader.</summary>
     public void DropSession()
     {
-        Session = 0x01; Unlocked = false; _dl = null; InBootloader = !ApplicationValid; SessionDrops++;
+        Session = 0x01; Unlocked = false; _dl = null; InBootloader = !ApplicationValid; SessionDrops++; SblRunning = false; _ram.Clear();
     }
 
     protected readonly Queue<byte[]> Deferred = new();
@@ -94,7 +104,7 @@ public class SimulatedFlashEcu : IDiagChannel
     private readonly List<EraseRegion> _erased = new();
     protected int ErasePollsLeft;
     private Download? _dl;
-    private sealed class Download { public uint Address; public byte[] Data = Array.Empty<byte>(); public int Received; public byte Expected = 1; public byte? Last; }
+    private sealed class Download { public bool Ram; public uint Address; public byte[] Data = Array.Empty<byte>(); public int Received; public byte Expected = 1; public byte? Last; }
 
     public SimulatedFlashEcu(uint txId = 0x7E0) => TxId = txId;
 
@@ -169,12 +179,13 @@ public class SimulatedFlashEcu : IDiagChannel
             case 0x37:
                 if (_dl is null) return Neg(0x37, 0x24);
                 if (_dl.Received != _dl.Data.Length) return Neg(0x37, 0x24);
-                _memory[_dl.Address] = _dl.Data; _dl = null;
+                if (_dl.Ram) _ram[_dl.Address] = _dl.Data; else _memory[_dl.Address] = _dl.Data;
+                _dl = null;
                 return new byte[] { 0x77 };
             case 0x11 when r.Length >= 2:
                 Resets++;
                 if (!ApplicationValid) ApplicationValid = CheckImage(); // untouched software stays valid; erased/written software must match the image
-                InBootloader = !ApplicationValid; Session = 0x01; Unlocked = false; _erased.Clear();
+                InBootloader = !ApplicationValid; Session = 0x01; Unlocked = false; _erased.Clear(); SblRunning = false; _ram.Clear();
                 return new byte[] { 0x51, r[1] };
             case 0x22 when InBootloader: return Neg(0x22, 0x22); // bootloader: no application data
             case 0x22 when r.Length >= 3 && r[1] == 0xF1 && r[2] == 0x88:
@@ -189,6 +200,17 @@ public class SimulatedFlashEcu : IDiagChannel
         ushort rid = (ushort)(r[2] << 8 | r[3]);
         byte type = (byte)(r[1] & 0x7F);
         if (!InBootloader || !Unlocked) return Neg(0x31, InBootloader ? (byte)0x33 : (byte)0x22);
+        if (rid == 0x0301 && type == 0x01)
+        {
+            if (r.Length < 8) return Neg(0x31, 0x13);
+            uint call = U32(r, 4);
+            if (!_ram.Any(kv => call >= kv.Key && call < kv.Key + kv.Value.Length)) return Neg(0x31, 0x31); // nothing loaded there
+            SblRunning = true;
+            return new byte[] { 0x71, 0x01, 0x03, 0x01 };
+        }
+        if (rid == 0x0304 && type == 0x01) { Commits++; return new byte[] { 0x71, 0x01, 0x03, 0x04, 0x00 }; }
+        if (rid == 0xFF00 && type == 0x01 && RequiresSbl && !SblRunning) return Neg(0x31, 0x22);
+        if (rid == 0xFF01 && !CheckRoutineSupported) return Neg(0x31, 0x31);
         if (rid == 0xFF00 && type == 0x01)
         {
             if (r.Length >= 12) _erased.Add(new EraseRegion(U32(r, 4), U32(r, 8)));
@@ -219,8 +241,9 @@ public class SimulatedFlashEcu : IDiagChannel
         for (int i = 0; i < aBytes; i++) addr = addr << 8 | r[3 + i];
         for (int i = 0; i < lBytes; i++) len = len << 8 | r[3 + aBytes + i];
         if (ErasePollsLeft > 0) return Neg(0x34, 0x22); // erase still running
-        if (!_erased.Any(e => addr >= e.Address && (long)addr + len <= (long)e.Address + e.Length)) return Neg(0x34, 0x70);
-        _dl = new Download { Address = addr, Data = new byte[len] };
+        bool ram = addr >= SblRam.Address && (long)addr + len <= (long)SblRam.Address + SblRam.Length;
+        if (!ram && !_erased.Any(e => addr >= e.Address && (long)addr + len <= (long)e.Address + e.Length)) return Neg(0x34, 0x70);
+        _dl = new Download { Address = addr, Data = new byte[len], Ram = ram };
         return new byte[] { 0x74, 0x20, (byte)(MaxBlockLength >> 8), (byte)MaxBlockLength };
     }
 
