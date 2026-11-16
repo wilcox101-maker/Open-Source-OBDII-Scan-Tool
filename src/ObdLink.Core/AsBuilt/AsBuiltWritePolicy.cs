@@ -19,11 +19,30 @@ public static class AsBuiltWritePolicy
     public const ushort Pcm = 0x7E0, Tcm = 0x7E1;
     public const string PowertrainPhrase = "POWERTRAIN";
 
+    /// <summary>
+    /// KB-R6: Image Processing Module B (forward camera / lane keeping), 0x7B1 in the community sheet. The community FORScan guide for
+    /// the 2015+ F-150 (Livnitup, <see cref="IpmbSource"/>) says FORScan can't back up or restore the IPMB correctly, and this app's
+    /// backup/restore of it has never been tested either. [community, UNVERIFIED]
+    /// </summary>
+    public const ushort Ipmb = 0x7B1;
+    public const string IpmbPhrase = "IPMB";
+    public const string IpmbSource = "https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/";
+
+    /// <summary>KB-R6: a note added to any backup of a module whose backup is known to be unreliable; null for the rest.</summary>
+    public static string? BackupNote(ushort module) => module == Ipmb
+        ? $"IPMB (0x{Ipmb:X3}): the community FORScan guide says FORScan can't back up or restore this module correctly, and this app's IPMB backup is untested. Keep the file, but don't count on a restore giving back a working camera configuration. Source: {IpmbSource}"
+        : null;
+
     public static bool IsPowertrain(ushort module) => module is Pcm or Tcm;
 
     /// <summary>Extra confirmations for a write or restore of <paramref name="module"/>; empty for most modules.</summary>
     public static IEnumerable<ConfirmationStep> ExtraSteps(ushort module, string what)
     {
+        if (module == Ipmb)
+            yield return new ConfirmationStep("IPMB (camera module)",
+                $"{what} targets the IPMB (forward camera / lane keeping). The community FORScan guide for the 2015+ F-150 says FORScan can't back up or restore "
+                + "this module correctly, and this app's IPMB backup/restore has never been tested: a write or restore may leave the camera features misconfigured, "
+                + $"and restoring the backup may not undo it. Type {IpmbPhrase} to continue. Source: {IpmbSource}", IpmbPhrase);
         if (!IsPowertrain(module)) yield break;
         yield return new ConfirmationStep("Powertrain module",
             $"{what} targets the {(module == Pcm ? "PCM" : "TCM")}. Its configuration can hold checksum-protected vehicle ID data (VIN, tire size, axle ratio) "

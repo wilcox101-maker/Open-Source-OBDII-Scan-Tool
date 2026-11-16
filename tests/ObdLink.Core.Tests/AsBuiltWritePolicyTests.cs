@@ -53,6 +53,35 @@ public class AsBuiltWritePolicyTests
     }
 
     [Fact]
+    public async Task An_IPMB_write_asks_for_IPMB_and_stops_without_it()
+    {
+        // KB-R6: FORScan can't back up / restore the IPMB correctly (community guide); ours is untested too.
+        var (sim, svc, confirm) = await Setup(AsBuiltWritePolicy.Ipmb, st => st.TypedPhrase != AsBuiltWritePolicy.IpmbPhrase);
+        await Assert.ThrowsAsync<UserDeclinedException>(() => svc.WriteBlockAsync("1FTFW1E50HFA00001", Block(AsBuiltWritePolicy.Ipmb)));
+        var step = Assert.Single(confirm.Asked, st => st.TypedPhrase == "IPMB");
+        Assert.Contains("can't back up or restore", step.Message);
+        Assert.Contains("https://", step.Message);
+        Assert.DoesNotContain(confirm.Asked, st => st.TypedPhrase == "POWERTRAIN");
+        Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7 }, sim.Dids[AsBuiltWritePolicy.Ipmb][0xDE00]);   // nothing written
+
+        var (_, ok, okConfirm) = await Setup(AsBuiltWritePolicy.Ipmb, _ => true);
+        Assert.True((await ok.WriteBlockAsync("1FTFW1E50HFA00001", Block(AsBuiltWritePolicy.Ipmb))).Written);
+        Assert.Contains(okConfirm.Asked, st => st.TypedPhrase == "IPMB");
+    }
+
+    [Fact]
+    public void Only_an_IPMB_backup_carries_the_unreliable_backup_note_and_the_app_shows_it()
+    {
+        Assert.Contains("untested", AsBuiltWritePolicy.BackupNote(0x7B1));
+        Assert.Null(AsBuiltWritePolicy.BackupNote(0x726));
+        Assert.Empty(AsBuiltWritePolicy.ExtraSteps(0x726, "x"));
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ObdLink.sln"))) dir = dir.Parent;
+        var vm = File.ReadAllText(Path.Combine(dir!.FullName, "src", "ObdLink.App", "AsBuiltPageViewModel.cs"));
+        Assert.Equal(2, vm.Split("AsBuiltWritePolicy.BackupNote(").Length - 1);   // single-module and all-modules backup
+    }
+
+    [Fact]
     public void After_write_advice_mentions_the_ignition_cycle_and_U2100()
     {
         var a = AsBuiltWritePolicy.AfterWriteAdvice(0x726);
