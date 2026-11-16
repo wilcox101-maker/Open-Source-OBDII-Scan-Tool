@@ -29,6 +29,13 @@ jobs:
           name: OBDLinkDiag-win-x64-${{ github.sha }}
           path: publish/win-x64
           retention-days: 14
+      - name: Publish obdcli win-x64 (self-contained single file, separate from the app)
+        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obdcli-win-x64-${{ github.sha }}
+          path: publish/obdcli-win-x64
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.16.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.17.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.16.0)
+## Where we are (v0.17.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -85,7 +85,7 @@ TPMS sensor relearn, BMS (battery monitor) reset, steering angle sensor calibrat
 table reset, DPF regeneration (diesel only), camera/radar calibrations.
 
 ### Phase 5: Beyond FORScan
-- Fully open and scriptable: a documented command-line/automation layer over Core (the `tools/AbTool` pattern) for repeatable jobs.
+- Fully open and scriptable: **started in v0.17.0** — `obdcli` (`docs/CLI.md`): info, scan, DTCs, live data, bus monitor, As-Built read and offline option editing, read-only toward the vehicle, every command also against the simulator.
 - Community database with sources and confidence on every entry, reviewable in pull requests.
 - Diff-first editing: every change shown as a before/after against the factory `.ab` from Motorcraft.
 - Simulator-first development: every feature runs against `SimulatedAdapter` and replayed real captures, so contributors don't need a truck.
