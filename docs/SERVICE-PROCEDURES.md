@@ -17,7 +17,7 @@ Every run needs writes turned on, the battery check and the typed phrase. Pyrote
 
 | Procedure | Module | Confidence | Requests | Tool-free method |
 |---|---|---|---|---|
-| [Battery Monitoring System (BMS) reset](#bcm-bms-reset) | BCM 0x726 | Community | `10 03, 31 01 20 1A` | yes |
+| [Battery Monitoring System (BMS) reset](#bcm-bms-reset) | BCM 0x726 | Community | `10 03, 31 01 20 1A, wait 15 s, 10 01` | yes |
 | [TPMS sensor training](#bcm-tpms-training) | BCM 0x726 | NeedsCapture | — | yes |
 | [PCM Keep Alive Memory (KAM) reset](#pcm-kam-reset) | PCM 0x7E0 | NeedsCapture | — | — |
 | [TCM Keep Alive Memory reset / clear adaptive tables](#tcm-kam-reset) | TCM 0x7E1 | NeedsCapture | — | — |
@@ -46,7 +46,9 @@ Tells the BCM a new battery is installed: battery state of charge back to its de
 - Not after a simple charge: the reset clears the battery's learned aging data, which is only right for a new battery.
 - Battery type (flooded / AGM / EFB) is NOT set by this procedure. If you changed type, check the BCM As-Built battery type first [UNVERIFIED location].
 
-**Requests:** `10 03, 31 01 20 1A` (type UNVERIFIED)
+**Asked first (No stops the run):** Did you disconnect and re-connect battery recently?
+
+**Requests:** `10 03, 31 01 20 1A, wait 15 s, 10 01` (type UNVERIFIED)
 
 **Afterwards:**
 
@@ -240,7 +242,7 @@ Cycles the ABS valves and pump so trapped air leaves the hydraulic unit during a
 A NeedsCapture procedure becomes runnable only with identifiers from one of:
 
 1. **A cited public source** (Ford service information, a TSB, a forum post quoting a Ford tool). Confidence Community.
-2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded from the adapter link. Confidence Verified after a successful run (verification plan, Phase 3 D2).
+2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded with `obdcli proxy` and summarized with `obdcli capture-summary` (`docs/CLI.md`). Confidence Verified after this app runs it once with its conditions and no new DTCs (verification plan, Phase 3 D2).
 3. **Synthesis**: the same routine on a related model year or module generation. Confidence Synthesized; the app asks for UNVERIFIED and the release notes say so.
 
 Whatever the source, a routine only goes on the truck allow-list after it was run once with its listed conditions and left no new DTCs.

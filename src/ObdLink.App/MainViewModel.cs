@@ -491,14 +491,16 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             .Select(slot => new DashboardViewModel(DashboardPoller, slot, EventLog, () => _settings, Paths.DataDir, SaveSettings, actionHost)).ToList();
         Dashboard = Dashboards[0];
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
-        Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
+        Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked,
+            tx => { if (Modules.FirstOrDefault(r => r.Def.TxId == tx) is { } row) SelectedModule = row; });
         Flash = new FlashViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, () => _session,
             () => SelectedPort, () => _asBuilt, () => _vin, Path.Combine(Paths.DataDir, "flash"), new WindowsHostPower(), Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
         Dtc = new DtcViewModel(DtcDatabase.LoadEmbedded(), EventLog, (n, f, p) => C(n, f, p), () => Ch,
             async () => { if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol(); },
             () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
-            (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info);
+            (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info,
+            Path.Combine(Paths.DataDir, "dtc-snapshots"));
         LiveData.Blocked = AdapterBlocked;
         RawConsole = new ConsoleViewModel(EventLog, (n, f, p) => C(n, f, p), () => _console);
         AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),

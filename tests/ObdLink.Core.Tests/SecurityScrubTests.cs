@@ -187,7 +187,12 @@ public class SecurityScrubTests
         // DTC clear (moved to DtcViewModel): the only OnBus call there with fallback off, on the selected module's own bus.
         var dtc = Src("ObdLink.App/DtcViewModel.cs");
         Assert.Contains("await _onBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), false);", dtc);
-        Assert.Equal(1, Count(dtc, ", false);"));
+        Assert.Equal(2, Count(dtc, ", false);")); // the C1 snapshot read and the clear, both on the module's own bus
+        // C1: read-only gate, snapshot read, snapshot saved, confirmation, clear: in that order.
+        int gate = dtc.IndexOf("safety.Gate.Require(\"Clear DTCs\")", StringComparison.Ordinal), take = dtc.IndexOf("DtcSnapshot.TakeAsync(", StringComparison.Ordinal),
+            save = dtc.IndexOf("snap.Save(", StringComparison.Ordinal), confirm = dtc.IndexOf("await safety.RequireAsync(steps);", StringComparison.Ordinal),
+            clear = dtc.IndexOf("ClearDtcsAsync()", StringComparison.Ordinal);
+        Assert.True(gate > 0 && gate < take && take < save && save < confirm && confirm < clear, $"{gate} {take} {save} {confirm} {clear}");
         // Routine start / stop / results never fall back to another bus (third OnBus argument).
         var routines = Src("ObdLink.App/RoutinesViewModel.cs");
         Assert.Contains("try { await _onBus(m, async () => r = await f(), false); }", routines);

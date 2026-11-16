@@ -49,6 +49,16 @@ public static class Cli
                                                       offline: list or edit As-Built options of a FORScan .abt file
           vbf-info --file image.vbf                   offline: check a VBF flash file against this tool's reader (header,
                                                       blocks, checksums). Exit 3 if the app would refuse to flash it
+          proxy --port COM5 [--baud 115200] [--listen 35000] --log capture.txt
+                                                      capture: relay another program (set to a Wi-Fi adapter at
+                                                      127.0.0.1:35000) to the adapter and log every command and reply.
+                                                      Pyrotechnic routines are never forwarded. The log holds raw data
+                                                      (VIN): keep it private, share capture-summary instead
+          capture-summary --log capture.txt [--json]  offline: per module, the session changes and state-changing
+                                                      requests in a capture and what each module answered (seeds and
+                                                      keys left out, VINs masked)
+
+        The proxy is the one command that relays writes: it forwards what the other program sends, under that program's control.
         """;
 
     public static async Task<int> RunAsync(string[] args, TextWriter o, TextWriter e, Func<string, int, ITransport>? serial = null, CancellationToken ct = default)
@@ -64,6 +74,8 @@ public static class Cli
                 "options" => Options(a, o),
                 "vbf-info" => VbfInfo(a, o),
                 "j2534-list" => J2534List(a, o),
+                "capture-summary" => CaptureSummaryCmd(a, o),
+                "proxy" => await ProxyAsync(a, o, e, serial, ct),
                 "info" or "scan" or "dtcs" or "live" or "monitor" or "asbuilt-read" => await WithAdapterAsync(a, o, e, serial, ct),
                 _ => Bad(e, $"Unknown command '{a.Command}'."),
             };
@@ -74,6 +86,53 @@ public static class Cli
     }
 
     private static int Bad(TextWriter e, string msg) { e.WriteLine(msg); e.WriteLine(); e.WriteLine(Usage); return 2; }
+
+    // ---- Capture --------------------------------------------------------------------------------------------------
+
+    private static int CaptureSummaryCmd(Args a, TextWriter o)
+    {
+        var path = a.Get("log") ?? throw new ArgumentException("capture-summary needs --log FILE");
+        var text = File.ReadAllText(path);
+        if (a.Has("json")) Json(o, Core.Capture.CaptureSummary.Candidates(Core.Capture.CaptureParser.Parse(text)).Select(c => new
+        { c.Line, c.Time, target = c.TargetText, c.Request, reply = c.Reply.ToString(), nrc = c.Nrc, c.Status }));
+        else o.Write(Core.Capture.CaptureSummary.Text(text));
+        return 0;
+    }
+
+    /// <summary>
+    /// Relays one TCP client at a time (127.0.0.1 only) to the adapter until Ctrl+C. The adapter is opened at a fixed baud
+    /// (the other program initializes it itself), and every client's traffic is appended to the same log.
+    /// </summary>
+    private static async Task<int> ProxyAsync(Args a, TextWriter o, TextWriter e, Func<string, int, ITransport>? serial, CancellationToken ct)
+    {
+        var port = a.Get("port") ?? throw new ArgumentException("proxy needs --port COMx (the real adapter)");
+        var logPath = a.Get("log") ?? throw new ArgumentException("proxy needs --log FILE");
+        int baud = int.Parse(a.Get("baud") ?? "115200", CultureInfo.InvariantCulture);
+        int listen = int.Parse(a.Get("listen") ?? "35000", CultureInfo.InvariantCulture);
+        if (listen is < 1024 or > 65535) throw new ArgumentException("--listen must be a port from 1024 to 65535");
+        await using var adapter = (serial ?? ((p, b) => new SerialPortTransport(p, b)))(port, baud);
+        await adapter.OpenAsync(ct);
+        using var log = new StreamWriter(logPath, append: true) { AutoFlush = true };
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, listen);
+        listener.Start();
+        o.WriteLine($"Relaying 127.0.0.1:{listen} -> {port} at {baud} baud; logging to {logPath}. In the other program choose a Wi-Fi adapter at 127.0.0.1 port {listen}. Ctrl+C to stop.");
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                using var client = await listener.AcceptTcpClientAsync(ct);
+                var proxy = new Core.Capture.AdapterProxy(adapter, log);
+                o.WriteLine($"Client connected from {client.Client.RemoteEndPoint}.");
+                try { await proxy.RunAsync(client.GetStream(), ct); }
+                catch (IOException ex) { o.WriteLine($"Client link ended: {ex.Message}"); }
+                o.WriteLine($"Client disconnected: {proxy.Forwarded} commands forwarded, {proxy.Blocked} blocked.");
+            }
+        }
+        catch (OperationCanceledException) { /* Ctrl+C: stop listening */ }
+        finally { listener.Stop(); }
+        o.WriteLine("Stopped. Run: obdcli capture-summary --log " + logPath);
+        return 0;
+    }
 
     // ---- Connection -----------------------------------------------------------------------------------------------
 

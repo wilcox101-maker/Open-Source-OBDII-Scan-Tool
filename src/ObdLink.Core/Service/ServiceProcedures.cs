@@ -43,7 +43,7 @@ public sealed record ServiceProcedure(
     string Key, string Name, string Module, uint TxId, string Purpose,
     IReadOnlyList<string> UseWhen, IReadOnlyList<string> Conditions, IReadOnlyList<string> After, IReadOnlyList<string> Warnings,
     IReadOnlyList<ProcedureStep> Steps, ProcedureConfidence Confidence, IReadOnlyList<ProcedureSource> Sources,
-    string AppliesTo, IReadOnlyList<string>? ManualMethod = null)
+    string AppliesTo, IReadOnlyList<string>? ManualMethod = null, string? Gate = null, TimeSpan? ExitSettle = null)
 {
     /// <summary>True when the steps contain a routine to send and its identifiers are not missing.</summary>
     public bool Runnable => Confidence != ProcedureConfidence.NeedsCapture && Steps.Any(s => s.Kind == ProcedureStepKind.StartRoutine);
@@ -51,14 +51,17 @@ public sealed record ServiceProcedure(
     /// <summary>The phrase typed to send it: RUN for verified procedures, UNVERIFIED for everything else.</summary>
     public string Phrase => Confidence == ProcedureConfidence.Verified ? "RUN" : "UNVERIFIED";
 
-    /// <summary>The requests the procedure sends, in order (for the confirmation and the docs).</summary>
+    /// <summary>True when a step enters a non-default session: the runner then ends with 10 01 (X2).</summary>
+    public bool LeavesSession => Steps.Any(s => s.Kind == ProcedureStepKind.Session && s.Session != UdsSession.Default);
+
+    /// <summary>The requests the procedure sends, in order (for the confirmation and the docs), ending with the 10 01 the runner adds.</summary>
     public string RequestSummary => string.Join(", ", Steps.Select(s => s.Kind switch
     {
         ProcedureStepKind.Session => $"10 {(byte)s.Session!.Value:X2}",
         ProcedureStepKind.StartRoutine => $"31 01 {s.RoutineId!.Value >> 8:X2} {s.RoutineId.Value & 0xFF:X2}" + (s.Option is { Length: > 0 } o ? " " + Convert.ToHexString(o) : ""),
         ProcedureStepKind.RequestResults => $"31 03 {s.RoutineId!.Value >> 8:X2} {s.RoutineId.Value & 0xFF:X2}",
         _ => $"wait {s.Time!.Value.TotalSeconds:0} s",
-    }));
+    }).Concat(LeavesSession ? new[] { (ExitSettle is { } t && t > TimeSpan.Zero ? $"wait {t.TotalSeconds:0} s, " : "") + "10 01" } : Array.Empty<string>()));
 
     /// <summary>Confirmation steps: what and when, conditions, provenance, then the typed phrase.</summary>
     public IReadOnlyList<ConfirmationStep> ConfirmSteps(string moduleName)
@@ -75,12 +78,17 @@ public sealed record ServiceProcedure(
             ProcedureConfidence.Community => "The identifiers come from a public community source and have NOT been verified on your model year by this project. The module may refuse them (nothing happens) or, rarely, do something else.",
             _ => "The identifiers were INFERRED by this project, not taken from a source. Only for a bench module or if you accept the risk.",
         };
-        return new[]
+        var steps = new List<ConfirmationStep>();
+        // The gate is a plain yes/no question asked first: No (or closing the dialog) stops before anything else is shown or sent.
+        if (Gate is { Length: > 0 } g)
+            steps.Add(new ConfirmationStep($"{Name}: check", $"{g}\n\nYes continues. No stops here: {Name} is only for the case above."));
+        steps.AddRange(new[]
         {
             new ConfirmationStep($"{Name}: when", why.ToString().TrimEnd()),
             new ConfirmationStep($"{Name}: conditions", cond.ToString().TrimEnd()),
             new ConfirmationStep($"{Name}: send", $"{src}\nSources: {string.Join("; ", Sources.Select(s => s.Url))}\n\n{RequestSummary} to {moduleName}. Type {Phrase} to send it.", Phrase),
-        };
+        });
+        return steps;
     }
 
     public string NotRunnableReason => Confidence == ProcedureConfidence.NeedsCapture
@@ -141,6 +149,10 @@ public static class ServiceProcedures
                 new ProcedureSource("Tool-free method (high beams 5x, brake 3x)", BmsManualF150),
             },
             AppliesTo: "Ford with BMS (2011+). Routine reported for the 2011 F-150 BCM; not verified on the 2017 BCM.",
+            Gate: "Did you disconnect and re-connect battery recently?",
+            // [judgment] Leaving the extended session stops routines still running (ISO 14229-1), so wait the ~15 s in which the
+            // battery light confirms the reset before 10 01.
+            ExitSettle: TimeSpan.FromSeconds(15),
             ManualMethod: new[]
             {
                 "Ignition ON, engine OFF.",

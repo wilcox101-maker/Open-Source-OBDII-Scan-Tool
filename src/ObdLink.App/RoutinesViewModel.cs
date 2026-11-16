@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using ObdLink.Core.Logging;
+using System.Text;
 using ObdLink.Core.Safety;
+using ObdLink.Core.Service;
 using ObdLink.Core.Uds;
 using Serilog.Events;
 
@@ -13,6 +15,11 @@ namespace ObdLink.App;
 /// Results needs write mode (31 is state-changing as a service). Session control works in read-only mode.
 /// Pyrotechnic (E200-E2FF) and programming (FF00/FF01) identifiers are refused before anything is sent.
 /// Every command holds the shared bus lock, like every other adapter command.
+/// <para>
+/// v0.23.1: service procedures (<see cref="ServiceProcedures"/>, docs/SERVICE-PROCEDURES.md). Picking one shows its card (what,
+/// when, conditions, tool-free method, sources) and selects its module; Run procedure… needs write mode, the battery check and
+/// the procedure's phrase (UNVERIFIED unless verified). Procedures whose identifiers are not known can't be run.
+/// </para>
 /// </summary>
 public sealed class RoutinesViewModel : ObservableObject
 {
@@ -33,6 +40,23 @@ public sealed class RoutinesViewModel : ObservableObject
     private string _sessionText = "Not connected.";
     public string SessionText { get => _sessionText; private set => Set(ref _sessionText, value); }
 
+    public IReadOnlyList<ServiceProcedure> Procedures => ServiceProcedures.All;
+    private ServiceProcedure? _procedure;
+    public ServiceProcedure? SelectedProcedure
+    {
+        get => _procedure;
+        set
+        {
+            if (!Set(ref _procedure, value)) return;
+            if (value is not null) _selectModule?.Invoke(value.TxId);
+            OnPropertyChanged(nameof(ProcedureText));
+        }
+    }
+    /// <summary>The selected procedure's card, as shown under the picker.</summary>
+    public string ProcedureText => _procedure is null ? "Pick a procedure to see what it does, when to use it and where its identifiers come from." : Card(_procedure);
+    private readonly Action<uint>? _selectModule;
+
+    public AsyncCommand RunProcedureCommand { get; }
     public AsyncCommand ExtendedSessionCommand { get; }
     public AsyncCommand DefaultSessionCommand { get; }
     public AsyncCommand StartCommand { get; }
@@ -41,9 +65,9 @@ public sealed class RoutinesViewModel : ObservableObject
     public RelayCommand ClearCommand { get; }
 
     public RoutinesViewModel(IEventLog log, Func<UdsSessionHost?> host, Func<ModuleRow?> module, Func<ModuleRow, Func<Task>, bool, Task> onBus,
-        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null)
+        SemaphoreSlim bus, Func<SafetyGuard> safety, Action<string, Exception> err, Func<string?>? blocked = null, Action<uint>? selectModule = null)
     {
-        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err;
+        _log = log; _host = host; _module = module; _onBus = onBus; _bus = bus; _safety = safety; _err = err; _selectModule = selectModule;
         (string, object?)[] P() => new (string, object?)[] { ("module", _module()?.Label), ("addr", _module()?.Address), ("routine", RoutineId), ("option", Option) };
         AsyncCommand C(string name, Func<Task> f) => new(name, log, async () =>
         {
@@ -59,6 +83,40 @@ public sealed class RoutinesViewModel : ObservableObject
         StopCommand = C("Routines: stop (31 02)", StopAsync);
         ResultsCommand = C("Routines: results (31 03)", ResultsAsync);
         ClearCommand = new RelayCommand("Routines: clear results", log, _ => Results.Clear());
+        RunProcedureCommand = C("Routines: run service procedure", RunProcedureAsync);
+    }
+
+    private async Task RunProcedureAsync()
+    {
+        var p = _procedure ?? throw new InvalidOperationException("Pick a service procedure first.");
+        if (!p.Runnable) throw new InvalidOperationException($"{p.Name}: {p.NotRunnableReason}" + (p.ManualMethod is { Count: > 0 } ? " Its tool-free method is shown under the picker." : ""));
+        var (m, uds) = Target();
+        if (m.Def.TxId != p.TxId) throw new InvalidOperationException($"{p.Name} is for the {p.Module} (0x{p.TxId:X3}); select it in the Module list (it is not in this vehicle's list if it can't be selected).");
+        var safety = _safety();
+        await safety.EnsureVoltageAsync();
+        await safety.RequireAsync(p.ConfirmSteps($"{m.Label} (0x{m.Address})"));
+        var lines = new List<string>();
+        try
+        {
+            await _onBus(m, async () => await ServiceProcedureRunner.RunAsync(uds, p, new Progress<string>(lines.Add)), false);
+        }
+        finally
+        {
+            foreach (var l in lines) Add($"{DateTimeOffset.Now:HH:mm:ss} {m.Label} {l}");
+        }
+        _log.Message(LogEventLevel.Information, "Routines", $"Service procedure {p.Key} on 0x{p.TxId:X3}: {string.Join(" | ", lines)}");
+    }
+
+    private static string Card(ServiceProcedure p)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"{p.Name}: {p.Module} 0x{p.TxId:X3}, confidence {p.Confidence}. {p.Purpose}\n");
+        sb.Append(p.Runnable ? $"Sends {p.RequestSummary} (type {p.Phrase}).\n" : $"Can't be run here: {p.NotRunnableReason}\n");
+        Section("Use when", p.UseWhen); Section("Conditions", p.Conditions); Section("Warnings", p.Warnings); Section("Afterwards", p.After);
+        if (p.ManualMethod is { Count: > 0 } mm) Section("Tool-free method", mm);
+        sb.Append("Sources: ").Append(string.Join("  ", p.Sources.Select(s => s.Url)));
+        return sb.ToString();
+        void Section(string t, IReadOnlyList<string> items) { if (items.Count > 0) sb.Append(t).Append(": ").Append(string.Join(" ", items)).Append('\n'); }
     }
 
     /// <summary>Updates the session line. Call on the UI thread.</summary>

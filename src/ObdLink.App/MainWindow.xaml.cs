@@ -54,7 +54,7 @@ public partial class MainWindow : Window
     private bool _shutdownReady;
 
     /// <summary>
-    /// v0.22.4: closing is refused while a flash runs (the process would exit mid-block and leave the module in its bootloader),
+    /// v0.23.5: closing is refused while a flash runs (the process would exit mid-block and leave the module in its bootloader),
     /// and held dashboard outputs are returned to their modules, with a bounded wait, before the windows close and the adapter goes.
     /// </summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

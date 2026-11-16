@@ -48,6 +48,7 @@ public sealed class DtcViewModel : ObservableObject
     private readonly ModuleBatch _batch;
     private readonly Action<string> _batchText;
     private readonly Action<string, string> _info;
+    private readonly string _snapshotDir;
 
     public ObservableCollection<DtcRow> Dtcs { get; } = new();
     private DtcRow? _selectedDtc; public DtcRow? SelectedDtc { get => _selectedDtc; set => Set(ref _selectedDtc, value); }
@@ -65,10 +66,10 @@ public sealed class DtcViewModel : ObservableObject
     /// <param name="ensureModule">The selected module, after asking the user to scan/pick one; null = cancelled.</param>
     public DtcViewModel(DtcDatabase db, IEventLog log, CommandFactory cmd, Func<ElmDiagChannel> ch, Func<Task> toObdBus,
         Func<ModuleRow?> selected, Func<bool, Task<ModuleRow?>> ensureModule, Func<uint, ModuleRow?> findModule,
-        Func<ModuleRow, Func<Task>, bool, Task> onBus, Func<SafetyGuard> safety, ModuleBatch batch, Action<string> batchText, Action<string, string> info)
+        Func<ModuleRow, Func<Task>, bool, Task> onBus, Func<SafetyGuard> safety, ModuleBatch batch, Action<string> batchText, Action<string, string> info, string snapshotDir)
     {
         _db = db; _log = log; _ch = ch; _toObdBus = toObdBus; _selected = selected; _ensureModule = ensureModule; _findModule = findModule;
-        _onBus = onBus; _safety = safety; _batch = batch; _batchText = batchText; _info = info;
+        _onBus = onBus; _safety = safety; _batch = batch; _batchText = batchText; _info = info; _snapshotDir = snapshotDir;
         (string, object?)[] Mod() => new (string, object?)[] { ("module", _selected()?.Label), ("addr", _selected()?.Address) };
 
         ReadObdDtcsCommand = cmd("Read OBD-II DTCs", ReadStoredAsync);
@@ -150,10 +151,27 @@ public sealed class DtcViewModel : ObservableObject
         _info($"DTC {row.Code} details", text);
     }
 
+    /// <summary>
+    /// C1: read-only mode refuses first; then every DTC with its freeze frames (19 04) and extended data (19 06) is read and saved to
+    /// a file (flushed to disk) BEFORE the clear, and the confirmation says where. An incomplete snapshot needs a typed CLEAR.
+    /// </summary>
     private async Task ClearAsync()
     {
         if (_selected() is not { } m) return;
-        await _safety().RequireAsync(new[] { new ConfirmationStep("Clear DTCs", $"Clear all DTCs in {m.Label} on {ModuleReplies.BusName(m.Bus)}? Freeze-frame data will be lost. Other buses are not tried.") });
+        var safety = _safety();
+        safety.Gate.Require("Clear DTCs"); // read-only mode: refuse before reading anything
+        DtcSnapshot snap = null!;
+        await _onBus(m, async () => snap = await DtcSnapshot.TakeAsync(new UdsClient(Ch, (ushort)m.Def.TxId), m.Label, m.Def.TxId), false); // same bus as the clear
+        var path = snap.Save(_snapshotDir, _db.Describe);
+        _log.Message(LogEventLevel.Information, "DTC snapshot", $"{m.Label}: {snap.Summary}; saved to {path}");
+        var steps = new List<ConfirmationStep>
+        {
+            new("Clear DTCs", $"Saved before clearing ({snap.Summary}):\n{path}\n\nClear all DTCs in {m.Label} on {ModuleReplies.BusName(m.Bus)}? The module's freeze frames and history will be gone; the file above keeps a copy. Other buses are not tried."),
+        };
+        if (!snap.Complete)
+            steps.Add(new("Clear DTCs: snapshot incomplete", $"The saved copy is incomplete ({snap.Summary}). What could not be read will be lost for good. Type CLEAR to clear anyway.", "CLEAR"));
+        await safety.RequireAsync(steps);
         await _onBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), false); // state-changing: allowFallback = false, never hunt another bus
+        _log.Message(LogEventLevel.Information, "Clear DTCs", $"{m.Label}: cleared; snapshot {path}");
     }
 }

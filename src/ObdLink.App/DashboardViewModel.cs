@@ -764,7 +764,7 @@ public sealed class DashboardViewModel : ObservableObject
     public bool HoldingOutputs => Items.Any(i => i.Action is { Holding: true });
 
     /// <summary>
-    /// v0.22.4: returns every held output to its module and waits for the answers (each release never throws). Used when the app
+    /// v0.23.5: returns every held output to its module and waits for the answers (each release never throws). Used when the app
     /// closes, so control goes back to the module before the adapter is disconnected instead of relying on the module's S3 timeout.
     /// </summary>
     public Task ReleaseAllAsync(string why) =>

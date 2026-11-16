@@ -27,7 +27,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// v0.22.4: Windows log-off / shutdown while a module is being flashed is refused (Windows may still force it after its own
+    /// v0.23.5: Windows log-off / shutdown while a module is being flashed is refused (Windows may still force it after its own
     /// timeout; the flash journal then lets the job be resumed). Sleep is already blocked during a flash.
     /// </summary>
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)

@@ -1,6 +1,6 @@
-## v0.22.4
+## v0.23.5
 
-**Medium-risk items from the 2026-11-16 risk review.** Includes v0.22.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+**Medium-risk items from the 2026-11-16 risk review.** Includes v0.23.4 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
 
 - **The app can't be closed mid-flash.** Closing the main window while a module is being flashed is refused with an explanation (the process would cut the link mid-transfer and leave the module in its bootloader). Use *Stop after this segment* and close once it has stopped. A Windows log-off or shutdown is refused too while a flash runs (Windows may still force it after its own timeout; the flash journal then lets the job resume). Sleep was already blocked.
 - **Held outputs are handed back before the app exits.** If a dashboard write card is holding an output (2F) when you close the app, the app now sends the release to each module and waits for the answers (at most 3 s) before the windows close and the adapter disconnects. Before, the release was sent without waiting and the module's own ~5 s session timeout was the real backstop.
@@ -11,6 +11,87 @@ Internal: `DashboardViewModel.HoldingOutputs/ReleaseAllAsync`, `MainWindow.Relea
 ### Windows verify
 1. DEMO flash: while it downloads, close the main window: a *Flash in progress* message appears and the app stays open.
 2. DEMO dashboard: an OutputHold card (DID D100) → HOLD; close the whole app: the log shows *output returned to the module (app closing)* before exit.
+
+## v0.23.4
+
+**Back to the default session after writes.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **As-Built write, restore, undo and recovery:** after each block's write and read-back the module gets **10 01**, also when the write is refused, uncertain or fails. Before, the extended session (10 03) stayed open, kept alive by the app, with security unlocked. A failed 10 01 is only logged: the module leaves the session by itself at its S3 timeout (about 5 s).
+- **Service procedures:** the runner ends with 10 01. After an accepted start it first waits the procedure's settle time **in** the session, sending TesterPresent (3E 80) every 2 s (the procedure holds the adapter, so the app's normal keep-alive can't). Leaving the session stops a routine that is still running (ISO 14229-1). **BMS reset: 15 s** (the time the battery light takes to confirm; our judgment, not from a source). The confirmation's request list now reads `10 03, 31 01 20 1A, wait 15 s, 10 01`. A refused start goes straight back to default.
+- Not changed: the Routines tab's manual 10 03 / 10 01 buttons (you choose the session there); dashboard write cards (OUIE's area).
+
+Internal: `AsBuiltService.WriteVerifyAsync` → `try { … } finally { LeaveSessionAsync }`; `ServiceProcedure.ExitSettle`, `LeavesSession`; `ServiceProcedureRunner` settle loop with 3E 80. Tests: As-Built write ends with 10 01 for positive / pending-only / refused writes; runner sequence `10 03, 31 01 201A, 8× 3E 80, 10 01` over 15 s, no settle → straight 10 01, refusal → 10 01 without 3E, failed 10 01 reported not thrown. Mutation: removing the As-Built `finally` fails 3 tests.
+
+### Windows + truck verify
+1. **DEMO:** Writes on → As-Built → change one byte in a BCM block → Write: afterwards the Routines tab shows no open session for the BCM (before v0.23.4 it stayed in extended).
+2. **DEMO:** Routines → BMS reset → Run procedure… (Yes to the battery question, type UNVERIFIED): the DEMO BCM refuses the routine; the list shows `default session (10 01): OK` right after, with no 15 s wait.
+3. **Truck (Phase 2):** after the one-block As-Built write, the module answers normal reads at once and FORScan (if connected afterwards) sees no extended session.
+
+## v0.23.3
+
+**Clearing DTCs keeps a copy first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **DTCs tab → Clear module DTCs** now reads the module's DTCs (19 02), each DTC's freeze frames (19 03 / 19 04) and extended data (19 06), and saves them to `dtc-snapshots\dtc-snapshot-<module>-<address>-<time>.txt` in the data folder, flushed to disk, **before** the clear. The confirmation shows what was saved and the file path. Same text as the DTC details dialog, with the DTC description.
+- If the copy is incomplete (the module would not list its DTCs, or details failed for some), a second confirmation says so and needs **CLEAR** typed.
+- Read-only mode refuses Clear before anything is read. The snapshot reads and the clear use the module's own bus only (no fallback).
+- Not covered: raw `14` / `04` typed in the Console tab (no snapshot there).
+
+Internal: `Dtc/DtcSnapshot` (`TakeAsync`, `Format`, `Save` with write-through, never overwrites); `DtcViewModel` takes the snapshot folder. Tests `DtcSnapshotTests` (4, simulator + a module that refuses or drops the link); the source-order scrub test pins gate → snapshot read → save → confirmation → clear (checked to fail with the gate removed).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → scan → select BCM → DTCs tab → Clear module DTCs: the confirmation lists "1 DTC(s), 1 freeze frame(s)" and a path; open the file: B1123-45 with DID 0xDD00. Say **No**: nothing is cleared, the file stays.
+2. **DEMO:** again, Yes: the clear is sent (the event log shows "cleared; snapshot <path>"). The DEMO module keeps its synthetic DTC after a clear, so this proves the order, not the erase. The first file is still there and a second one was added.
+3. **DEMO:** writes off → Clear module DTCs: refused (read-only), no file written.
+4. **Truck (Phase 1-2, optional):** before clearing a real code, check the saved file has its freeze frame. Clearing is the user's choice; this only keeps a copy.
+
+## v0.23.2
+
+**BMS reset asks first.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **Routines tab → Run procedure…** for "Battery Monitoring System (BMS) reset" now opens with one Yes/No question: **"Did you disconnect and re-connect battery recently?"** No (or closing the dialog) stops the run before the other confirmations and before anything is sent. Yes continues to the usual steps (when, conditions, typed UNVERIFIED). Dale, 2026-11-16: reset only after a real battery change, as one gated question.
+- `docs/SERVICE-PROCEDURES.md` shows the question under the BMS reset ("Asked first").
+- Other procedures are unchanged (no question).
+
+Internal: `ServiceProcedure.Gate` (optional), asked as the first `ConfirmationStep`. Tests: question first and Yes/No (not typed), only BMS has one, a No stops after one dialog with `UserDeclinedException`; checked to fail with the BMS question removed.
+
+### Windows + truck verify
+1. **DEMO:** Writes on → Routines → Service procedure → BMS reset → Run procedure…: the first dialog is the battery question. **No**: nothing more is asked, the log says declined, nothing is sent.
+2. **DEMO:** same, **Yes**: the when / conditions / UNVERIFIED steps follow as in v0.23.1; the DEMO BCM refuses (NRC 0x31).
+3. **Truck:** none until a battery is actually replaced.
+
+## v0.23.1
+
+**Service procedures in the app.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **Routines tab → Service procedure:** pick one from the catalog (`docs/SERVICE-PROCEDURES.md`). The card under the picker shows its confidence, what it does, when to use it and when not, conditions, warnings, what to do afterwards, Ford's tool-free method where known, and the sources. Picking one selects its module.
+- **Run procedure…** needs writes enabled, the battery check, and the procedure's phrase: **UNVERIFIED** for everything not yet verified on this model (today: all). Procedures whose identifiers aren't known can't be run; the button says why and points to the tool-free method.
+- The result lines go to the routine results list and the event log. A refusal says nothing ran and why (e.g. the routine does not apply to this model year).
+
+Internal: `RoutinesViewModel.Procedures / SelectedProcedure / ProcedureText / RunProcedureCommand`; a source-order test pins runnable → module → battery → confirmation → send, with no bus fallback.
+
+### Windows + truck verify
+1. **DEMO:** Routines → Service procedure → "Battery Monitoring System (BMS) reset": the module list switches to the BCM, the card shows Community + the tool-free method. Writes on → Run procedure… → type UNVERIFIED: the DEMO BCM refuses (NRC 0x31) and the list says *nothing ran* (DEMO modules accept routine 1234 only).
+2. **DEMO:** pick "PCM Keep Alive Memory (KAM) reset" → Run procedure…: refused before any confirmation (*no public source gives this procedure's identifiers yet*).
+3. **Truck:** none until a battery is actually replaced (BMS) or a capture adds identifiers.
+
+## v0.23.0
+
+**Service procedures: a sourced catalog, and a way to capture what's missing.** Includes v0.22.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. No UI yet; nothing run on the truck. Unsigned. Ford products only.
+
+- **`docs/SERVICE-PROCEDURES.md`** (generated from Core): BMS reset, TPMS training, PCM KAM, TCM KAM / adaptive tables, steering angle calibration, PSCM pull-drift reset, ABS service bleed. Each lists when to use it and when not, conditions, what to do afterwards, Ford's tool-free method where one exists, and **where every identifier comes from**. Confidence per procedure: Verified / Community / Synthesized / NeedsCapture.
+  - **BMS reset** (BCM 0x726: `10 03`, `31 01 20 1A`): Community. A Ford Diagnostic Engineering Tool procedure quoted on F-150, Focus and Escape forums; not verified on a 2017 BCM. Only for a new battery (it clears learned battery data); charger disconnected first; it does not set the battery type.
+  - The other six have no public identifiers: listed as NeedsCapture, **not runnable**, never guessed.
+  - Running needs writes on, the battery check, and the phrase UNVERIFIED (RUN only once verified). Pyrotechnic and programming routines are refused by the catalog check as everywhere.
+- **`obdcli proxy`**: relays another diagnostic program (set to a Wi-Fi/TCP adapter at 127.0.0.1:35000) to your adapter and logs every command and reply, so the requests a working tool sends for a procedure on your truck can be recorded. Pyrotechnic routines are never forwarded. The log has raw data (VIN): keep it private.
+- **`obdcli capture-summary`**: the shareable part of a capture: per module, the session changes and state-changing requests with what each module answered, accepted routines listed as candidates. Seeds and keys left out, VINs masked. Understands `ATSH`, `ATCAF0` frames and STN `STPX`.
+- `docs/CLI.md`: "Capturing a service procedure" steps.
+
+Internal: `Service/ServiceProcedures`, `ServiceProcedureRunner`, `ServiceProceduresDoc`; `Capture/AdapterProxy`, `CaptureParser`, `CaptureSummary`. Tests `ServiceProcedureTests` (10), `CaptureTests` (12, including a live loopback proxy run).
+
+### Windows + truck verify
+1. **Windows, no truck:** `obdcli proxy --port COM5 --log t.txt` with the EX plugged in (ignition off is fine), then point a program that supports TCP/Wi-Fi ELM adapters at 127.0.0.1:35000 and let it connect. `t.txt` shows its AT commands. `obdcli capture-summary --log t.txt` runs.
+2. **Truck (optional, when you want a procedure added):** follow `docs/CLI.md` → "Capturing a service procedure" for one procedure; send the summary.
+3. **Truck: BMS reset only after an actual battery replacement**, not as a test.
 
 ## v0.22.3
 

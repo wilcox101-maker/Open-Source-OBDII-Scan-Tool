@@ -32,6 +32,7 @@ public static class ServiceProceduresDoc
             List("Use when", p.UseWhen);
             List("Conditions", p.Conditions);
             List("Warnings", p.Warnings);
+            if (p.Gate is { Length: > 0 } g) sb.AppendLine($"**Asked first (No stops the run):** {g}").AppendLine();
             if (p.Runnable) sb.AppendLine($"**Requests:** `{p.RequestSummary}` (type {p.Phrase})").AppendLine();
             else sb.AppendLine($"**Not runnable:** {p.NotRunnableReason}").AppendLine();
             List("Afterwards", p.After);
@@ -49,7 +50,7 @@ public static class ServiceProceduresDoc
         sb.AppendLine("## Filling the gaps").AppendLine();
         sb.AppendLine("A NeedsCapture procedure becomes runnable only with identifiers from one of:").AppendLine();
         sb.AppendLine("1. **A cited public source** (Ford service information, a TSB, a forum post quoting a Ford tool). Confidence Community.");
-        sb.AppendLine("2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded from the adapter link. Confidence Verified after a successful run (verification plan, Phase 3 D2).");
+        sb.AppendLine("2. **A capture on the truck**: the requests a working tool sends for that procedure on this model, recorded with `obdcli proxy` and summarized with `obdcli capture-summary` (`docs/CLI.md`). Confidence Verified after this app runs it once with its conditions and no new DTCs (verification plan, Phase 3 D2).");
         sb.AppendLine("3. **Synthesis**: the same routine on a related model year or module generation. Confidence Synthesized; the app asks for UNVERIFIED and the release notes say so.").AppendLine();
         sb.AppendLine("Whatever the source, a routine only goes on the truck allow-list after it was run once with its listed conditions and left no new DTCs.");
         return sb.ToString().Replace("\r\n", "\n");
