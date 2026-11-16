@@ -1,3 +1,18 @@
+## v0.21.2
+
+**Flashing: the programming session survives pauses, and a lost session is recovered.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only. Unsigned. Ford products only. Real-module flashing is still not recommended: the secondary bootloader (SBL) stage is not built yet.
+
+- **Keep-alive during every wait.** Once the module is in the programming session, each pause (battery below the window, the 0x37 security delay, retry back-offs, response-pending settles, routine polls) sends TesterPresent `3E 80` at least every 2 s. Before, a pause longer than the module's 5 s session timeout ended the session and the job failed.
+- **Session lost → re-enter from the erase.** NRC 0x7E / 0x7F, or 0x33 (and 0x24 on TransferData) after unlocking, now mean "the session or security was lost" instead of a fatal refusal. The engine re-enters the programming session, unlocks, erases and downloads again (once); if it happens again the job stays open so Resume can finish it.
+- Simulator: S3 session timeout on a virtual clock, programming services refused outside the programming session (0x7F), `DropSession()`.
+
+Internal: `FlashEngine.WaitAsync` / `KeepAliveInterval` / `MaxSessionRecoveries` / `ProgramAsync`, `FlashFaultAction.SessionLost`, `FlashSessionLostException`. Tests `FlashSessionTests` (30 s battery dip, security delay, one lost session → finishes, repeated → job open); 4 of 5 fail on the previous engine.
+
+### Windows + truck verify
+1. **DEMO (Phase 0):** run a DEMO flash (Flash tab, DEMO-EX). It completes as before.
+2. **DEMO:** during the download, watch the log for "paused: battery … (session kept alive)" if you lower the DEMO voltage; the flash continues after it recovers.
+3. **Truck:** none (real-module flashing waits for the SBL stage and a bench test).
+
 ## v0.21.1
 
 **Configuration write safety brought to FORScan's level.** Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.

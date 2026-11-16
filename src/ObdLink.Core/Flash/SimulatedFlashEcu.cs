@@ -52,6 +52,18 @@ public class SimulatedFlashEcu : IDiagChannel
     public bool EraseResultsSupported { get; set; } = true;
     /// <summary>Largest TransferData message (SID + counter + data) reported in the 74 reply.</summary>
     public int MaxBlockLength { get; set; } = 0x102;
+    /// <summary>
+    /// Session timeout (ISO 14229-2 S3server). When set, a non-default session ends if no request arrives within it: back to the
+    /// default session, security locked, any open download dropped (the module stays in its bootloader). Time comes from <see cref="Now"/>.
+    /// </summary>
+    public TimeSpan? S3 { get; set; }
+    /// <summary>Clock for <see cref="S3"/> (tests pass a virtual clock that the engine's delay hook advances).</summary>
+    public Func<DateTime> Now { get; set; } = () => DateTime.UtcNow;
+    /// <summary>Session drops caused by <see cref="S3"/>.</summary>
+    public int SessionTimeouts { get; private set; }
+    /// <summary>Drops the session right now, as an S3 timeout would (for fault injection).</summary>
+    public void DropSession() { Session = 0x01; Unlocked = false; _dl = null; SessionTimeouts++; }
+    private DateTime? _lastRequest;
 
     public List<byte[]> Calls { get; } = new();
     public int TransferBlocksWritten { get; private set; }
@@ -81,6 +93,9 @@ public class SimulatedFlashEcu : IDiagChannel
         int index = Calls.Count;
         Calls.Add(request.ToArray());
         if (LinkDown) throw new IOException("The port is closed (simulated adapter unplugged)");
+        var now = Now();
+        if (S3 is TimeSpan s3 && Session != 0x01 && _lastRequest is DateTime last && now - last > s3) DropSession();
+        _lastRequest = now;
         var fault = Faults?.Invoke(request, index);
         switch (fault?.Kind)
         {
@@ -123,6 +138,8 @@ public class SimulatedFlashEcu : IDiagChannel
                 else if (InBootloader && s == 0x03) return Neg(0x10, 0x7E); // this bootloader has no extended session
                 Session = s;
                 return new byte[] { 0x50, s, 0x00, 0x32, 0x01, 0xF4 };
+            case 0x27 or 0x31 or 0x34 or 0x36 or 0x37 when InBootloader && Session != 0x02:
+                return Neg(sid, 0x7F); // serviceNotSupportedInActiveSession (bootloader dropped to its default session)
             case 0x27 when r.Length >= 2:
                 if (r[1] % 2 == 1) return Unlocked ? new byte[] { 0x67, r[1], 0, 0, 0 } : new byte[] { 0x67, r[1], 0x11, 0x22, 0x33 };
                 if (r.Length == 5 && r[2] == 0x33 && r[3] == 0x22 && r[4] == 0x11) { Unlocked = true; return new byte[] { 0x67, r[1] }; }

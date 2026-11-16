@@ -34,6 +34,12 @@ The MX+ gets one extra warning (wireless link; wired EX recommended). Nothing is
 - **ELM/STN channels** can't keep listening after 0x78. The engine settles instead: resend (TransferData, exit), or poll 31 03
   (erase, check). If a module can't report routine results it waits a bounded time with keep-alives, and RequestDownload is
   retried while the module answers 0x21/0x22/0x70.
+- **Session kept alive during every wait** (v0.21.2): once the module is in the programming session, every pause (low battery,
+  the 0x37 security delay, retry back-offs, response-pending settles, routine polls) sends TesterPresent `3E 80` at least every
+  2 s, so S3 (5 s) never ends the session while the engine waits.
+- **Session lost** (v0.21.2): 0x7E / 0x7F at any time, or 0x33 (and 0x24 on TransferData) after unlocking, mean the module left
+  the programming session or lost security. The engine re-enters programming **from the erase** once (never writes into
+  un-erased flash); if it happens again the job stays open for resume.
 - **Stop** only at safe points: before the programming session (module unchanged, job abandoned) or between segments (job open).
 - **No ECU reset or session exit after a failure.** A module left in its bootloader can usually be flashed again.
 
