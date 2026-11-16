@@ -165,13 +165,23 @@ public class SecurityScrubTests
     public void State_changing_commands_do_not_hunt_another_bus()
     {
         var src = Src("ObdLink.App/MainViewModel.cs");
-        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);", src);
-        Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);", src);
         // Session keep-alive (3E 80) must reach the module on its own bus, never wander to another one.
         Assert.Contains("(t, work, ct) => router.RunAsync(t, work, allowFallback: false, ct: ct)", src);
+        Assert.Equal(1, Count(src, "allowFallback: false"));
+        // As-Built write / restore / undo (moved to AsBuiltPageViewModel): each on the module's own bus, and nothing else there disables fallback.
+        var ab = Src("ObdLink.App/AsBuiltPageViewModel.cs");
+        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);", ab);
+        Assert.Contains("await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);", ab);
         // v0.16.0: undo of the last As-Built write is a restore, so it never hunts another bus either.
-        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", src);
-        Assert.Equal(4, Count(src, "allowFallback: false"));
+        Assert.Contains("await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);", ab);
+        Assert.Equal(3, Count(ab, "allowFallback: false"));
+        // Compare to factory reads through OnBus (the module's bus), not straight from the service, and restarts its list per attempt.
+        Assert.Contains("await OnBus(m, async () =>\n        {\n            current.Clear();", ab.Replace("\r\n", "\n"));
+        // Every module command's can-execute is refreshed, Undo included.
+        foreach (var c in new[] { "ReadAllBlocks", "ReadAsBuilt", "BackupAsBuilt", "WriteAsBuilt", "CompareToFactory", "RestoreAsBuilt", "UndoAsBuilt" })
+            Assert.Contains($"{c}Command.RaiseCanExecuteChanged();", ab);
+        // The host passes the flag through unchanged.
+        Assert.Contains("Task IAsBuiltHost.OnBus(ModuleRow m, Func<Task> work, bool allowFallback) => OnBus(m, work, allowFallback);", src);
         // DTC clear (moved to DtcViewModel): the only OnBus call there with fallback off, on the selected module's own bus.
         var dtc = Src("ObdLink.App/DtcViewModel.cs");
         Assert.Contains("await _onBus(m, () => new UdsClient(Ch, (ushort)m.Def.TxId).ClearDtcsAsync(), false);", dtc);

@@ -81,7 +81,7 @@ public sealed class AsBuiltRow : ObservableObject
     public AsBuiltEditLine ToEdit() => new(Addr, Data, EnteredChecksum);
 }
 
-public sealed class MainViewModel : ObservableObject
+public sealed class MainViewModel : ObservableObject, IAsBuiltHost
 {
     private static readonly PortInfo DemoMx = new("DEMO-MX+", "Simulated OBDLink MX+", PortKind.Virtual);
     private static readonly PortInfo DemoEx = new("DEMO-EX", "Simulated OBDLink EX", PortKind.Virtual);
@@ -104,7 +104,6 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<PortInfo> Ports { get; } = new();
     public ObservableCollection<string> Vehicles { get; } = new(VehicleProfiles.All);
     public ObservableCollection<ModuleRow> Modules { get; } = new();
-    public AsyncCommand CompareToFactoryCommand { get; }
 
     private PortInfo? _port; private bool _refreshingPorts, _simExplicit;
     public PortInfo? SelectedPort
@@ -134,7 +133,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (!Set(ref _mod, value)) return;
             OnPropertyChanged(nameof(AsBuiltActionsEnabled));
-            RaiseAsBuiltCommands();
+            AsBuiltPage?.RaiseModuleCommands();
             Flash?.Refresh();
             if (value is null) return;
             EventLog.UserAction("Module selected", ("module", value.Label), ("addr", value.Address));
@@ -304,15 +303,8 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand DisconnectCommand { get; }
     public AsyncCommand ScanCommand { get; }
     public AsyncCommand ReadVinCommand { get; }
-    public AsyncCommand ReadAsBuiltCommand { get; }
-    public AsyncCommand ReadAllBlocksCommand { get; }
-    public AsyncCommand ReadAllModulesAsBuiltCommand { get; }
     public RelayCommand CancelBatchCommand { get; }
-    public AsyncCommand BackupAsBuiltCommand { get; }
-    public AsyncCommand WriteAsBuiltCommand { get; }
-    public AsyncCommand RestoreAsBuiltCommand { get; }
     /// <summary>v0.16.0: restores the backup taken before the last verified write of the selected module.</summary>
-    public AsyncCommand UndoAsBuiltCommand { get; }
     /// <summary>v0.16.0: verified As-Built changes (newest first), from asbuilt-history.jsonl in the backups folder.</summary>
     public AsyncCommand ConsoleSendCommand { get; }
     public AsyncCommand IdentifyVehicleCommand { get; }
@@ -463,8 +455,6 @@ public sealed class MainViewModel : ObservableObject
             if (none != null) NoticeNoAsBuilt(none);
         }, Err, p, can);
         bool AsBuiltCan() => AsBuiltActionsEnabled;
-        (string, object?)[] Mod() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address) };
-        (string, object?)[] ModBlk() => new (string, object?)[] { ("module", SelectedModule?.Label), ("addr", SelectedModule?.Address), ("block", AsBuiltPage.AsBuiltBlockNo) };
 
         try { _settings = AppSettings.Load(SettingsPath); }
         catch (Exception ex) { _settings = new(); EventLog.Message(LogEventLevel.Warning, "Settings", "settings.json unreadable; using defaults", ex); }
@@ -482,10 +472,10 @@ public sealed class MainViewModel : ObservableObject
         Dtc = new DtcViewModel(DtcDatabase.LoadEmbedded(), EventLog, (n, f, p) => C(n, f, p), () => Ch,
             async () => { if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol(); },
             () => SelectedModule, EnsureModuleAsync, tx => Modules.FirstOrDefault(r => r.Def.TxId == tx),
-            (m, f, fallback) => OnBus(m, f, fallback), Safety, ModuleBatchAsync, t => BatchText = t, Info);
+            (m, f, fallback) => OnBus(m, f, fallback), Safety, (what, work) => ModuleBatchAsync(what, false, work), t => BatchText = t, Info);
         LiveData.Blocked = AdapterBlocked;
-        AsBuiltPage = new AsBuiltPageViewModel(EventLog, (n, f) => C(n, f), OpenFile, SaveFile, (t, m) => Ask(t, m),
-            () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups);
+        AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),
+            () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups, AsBuiltCan);
         AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList());
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
@@ -529,73 +519,8 @@ public sealed class MainViewModel : ObservableObject
             EventLog.Message(LogEventLevel.Information, "Discovery", $"Done: {hits.Select(h => h.RequestId).Distinct().Count()} responding IDs\n{DiscoverySweep.Summarize(hits)}");
         }, () => new (string, object?)[] { ("from", DiscoveryStart), ("to", DiscoveryEnd) });
         InitPhase1(Err, (n, f) => C(n, f));
-        ReadAllBlocksCommand = C("Read all As-Built blocks", ReadAllBlocksAsync, Mod, AsBuiltCan);
-        ReadAllModulesAsBuiltCommand = C("Back up As-Built of all modules", ReadAllModulesAsBuiltAsync);
         CancelBatchCommand = new RelayCommand("Cancel batch", EventLog, _ => { _batchCts?.Cancel(); BatchText = "Canceling after the current module…"; });
         ReadVinCommand = C("Read VIN", async () => { _vin = await new ObdService(Ch).ReadVinAsync() ?? _vin; EventLog.Message(LogEventLevel.Information, "Read VIN", $"VIN {_vin}"); });
-        ReadAsBuiltCommand = C("Read As-Built block", ReadAsBuiltAsync, ModBlk, AsBuiltCan);
-        BackupAsBuiltCommand = C("Backup As-Built block", async () =>
-        {
-            if (await EnsureModuleAsync(true) is not { } m) return;
-            RequireAsBuilt(m);
-            string p = ""; await OnBus(m, async () => p = await AsBuilt.BackupAsync(_vin, (ushort)m.Def.TxId, new[] { Block }));
-            MarkAsBuilt(m, AsBuiltSupport.Supported);
-            RefreshBackups(); Info("Backup", $"Saved {p}");
-        }, ModBlk, AsBuiltCan);
-        WriteAsBuiltCommand = C("Write + verify As-Built block", async () =>
-        {
-            if (SelectedModule is not { } m) return;
-            RequireAsBuilt(m);
-            // v0.6.1 audit: only this module's lines for this block are written (the grid may hold other blocks or modules),
-            // lines must be complete and every typed checksum must match. Length is checked against the module in AsBuiltService.
-            var newBlock = AsBuiltWritePlan.BuildBlock((ushort)m.Def.TxId, Block, AsBuiltPage.AsBuiltRows.Select(r => r.ToEdit()));
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"{m.Label} (0x{m.Def.TxId:X3}) block {Block:X2} on {ModuleReplies.BusName(m.Bus)}, {newBlock.Data.Length} bytes. A write does not try another bus.") });
-            AsBuiltWriteResult res = null!;
-            await OnBus(m, async () => res = await AsBuilt.WriteBlockAsync(_vin, newBlock), allowFallback: false);
-            MarkAsBuilt(m, AsBuiltSupport.Supported);
-            RefreshBackups();
-            if (!res.Written) { Info("Write", res.Note); return; }
-            Info("Write", $"{res.BytesChanged} byte(s) written and verified by read-back on {ModuleReplies.BusName(m.Bus)}.{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup of the previous contents: {res.BackupPath}");
-        }, ModBlk, AsBuiltCan);
-        RestoreAsBuiltCommand = C("Restore As-Built from backup", async () =>
-        {
-            var f = OpenFile("As-Built backup", "As-Built backup|*.asbuilt.json", Paths.BackupsDir);
-            var bk = AsBuiltBackup.Deserialize(File.ReadAllText(f));
-            var row = Modules.FirstOrDefault(r => r.Def.TxId == bk.Module)
-                ?? throw new InvalidOperationException($"Backup is for module 0x{bk.Module:X3}, which is not in this vehicle's module list. Nothing was written.");
-            RequireAsBuilt(row);
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Target", $"Restore 0x{row.Def.TxId:X3} ({row.Label}) on {ModuleReplies.BusName(row.Bus)} from the backup of VIN …{(bk.Vin.Length >= 6 ? bk.Vin[^6..] : bk.Vin)}. A restore does not try another bus.") });
-            AsBuiltWriteResult res = null!;
-            await OnBus(row, async () => res = await AsBuilt.RestoreAsync(f, _vin), allowFallback: false);
-            RefreshBackups();
-            if (!res.Written) { Info("Restore", res.Note); return; }
-            Info("Restore", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the restore: {res.BackupPath}");
-        }, can: AsBuiltCan);
-        UndoAsBuiltCommand = C("Undo last As-Built write", async () =>
-        {
-            if (SelectedModule is not { } m) throw new InvalidOperationException("Select a module first");
-            RequireAsBuilt(m);
-            var hist = new AsBuiltHistory(Paths.BackupsDir);
-            var last = hist.LastUndoable((ushort)m.Def.TxId)
-                ?? throw new InvalidOperationException($"No recorded change of {m.Label} with its backup still on disk. Nothing was written.");
-            await Safety().RequireAsync(new[] { new ConfirmationStep("Undo", $"Undo the {last.Kind} of {last.Where} on {last.At.LocalDateTime:yyyy-MM-dd HH:mm} ({last.BytesChanged} byte(s)) by restoring {last.BackupFile}? The normal restore checks follow (VIN match, fresh backup, typed WRITE, read-back).") });
-            AsBuiltWriteResult res = null!;
-            await OnBus(m, async () => res = await AsBuilt.RestoreAsync(hist.BackupPathOf(last), _vin), allowFallback: false);
-            RefreshBackups();
-            if (!res.Written) { Info("Undo", res.Note); return; }
-            Info("Undo", $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).{(res.Note.Length > 0 ? " " + res.Note : "")}\nBackup taken before the undo: {res.BackupPath}");
-        }, Mod, AsBuiltCan);
-        CompareToFactoryCommand = C("Compare to factory", async () =>
-        {
-            if (AsBuiltPage.Factory is not { } factory) throw new InvalidOperationException("Import a factory .ab first");
-            if (SelectedModule is { } m) RequireAsBuilt(m);
-            var current = new List<AsBuiltLine>();
-            foreach (var b in factory.Blocks(Module))
-                current.AddRange(factory.SplitLike(Module, b, (await AsBuilt.ReadBlockAsync(Module, b)).Data));
-            if (SelectedModule is { } ok) MarkAsBuilt(ok, AsBuiltSupport.Supported);
-            AsBuiltPage.ShowDiff(AsBuiltDiff.Compare(factory.Lines, current, Module));
-            EventLog.Message(LogEventLevel.Information, "Compare to factory", AsBuiltPageViewModel.DiffSummary(AsBuiltPage.FactoryDiff));
-        }, Mod, AsBuiltCan);
         IdentifyVehicleCommand = C("Identify vehicle", async () =>
         {
             if (_session is null) throw new InvalidOperationException("Connect first (use a DEMO port to try it without a vehicle)");
@@ -680,7 +605,6 @@ public sealed class MainViewModel : ObservableObject
 
     private ElmDiagChannel Ch => _ch ?? throw new InvalidOperationException("Not connected - click Connect first (use a DEMO port to try without a vehicle)");
     private ushort Module => (ushort)(SelectedModule?.Def.TxId ?? throw new InvalidOperationException("Select a module in the module list first"));
-    private byte Block => AsBuiltPage.Block;
     private UdsClient Uds() => new(Ch, Module);
     private SafetyGuard Safety() => new(_session ?? throw new InvalidOperationException("Not connected"), _confirm, gate: Gate);
 
@@ -1186,15 +1110,6 @@ public sealed class MainViewModel : ObservableObject
         foreach (var r in Modules.Where(r => AsBuiltSupportPolicy.ShowInList(r.AsBuiltSupport, GuessedAsBuilt(r, fac), AsBuiltShowAll, r.Found))) AsBuiltModules.Add(r);
         if (keep != null) { _mod = null; SelectedModule = keep; }
     }
-    private void RaiseAsBuiltCommands()
-    {
-        ReadAllBlocksCommand?.RaiseCanExecuteChanged();
-        ReadAsBuiltCommand?.RaiseCanExecuteChanged();
-        BackupAsBuiltCommand?.RaiseCanExecuteChanged();
-        WriteAsBuiltCommand?.RaiseCanExecuteChanged();
-        CompareToFactoryCommand?.RaiseCanExecuteChanged();
-        RestoreAsBuiltCommand?.RaiseCanExecuteChanged();
-    }
     private void MarkAsBuilt(ModuleRow row, AsBuiltSupport support)
     {
         row.SetAsBuiltSupport(support);
@@ -1202,7 +1117,7 @@ public sealed class MainViewModel : ObservableObject
         if (support == AsBuiltSupport.Unsupported)
             ModuleHint = AsBuiltNotSupportedException.Describe(row.Acronym, row.Def.TxId, 0xDE00);
         OnPropertyChanged(nameof(AsBuiltActionsEnabled));
-        RaiseAsBuiltCommands();
+        AsBuiltPage?.RaiseModuleCommands();
     }
     private void NoticeNoAsBuilt(AsBuiltNotSupportedException ex)
     {
@@ -1212,11 +1127,6 @@ public sealed class MainViewModel : ObservableObject
         RefreshBackups();
         EventLog.Message(LogEventLevel.Information, "As-Built", ex.Message);
         DialogService.Info(ex.Message, "No As-Built");
-    }
-    private static void RequireAsBuilt(ModuleRow m)
-    {
-        if (m.AsBuiltSupport == AsBuiltSupport.Unsupported)
-            throw new AsBuiltNotSupportedException(m.Def.TxId, 0xDE00, m.Acronym);
     }
     /// <summary>One DE00 read per module that answered. NRC 0x31 hides the module; a timeout leaves it unknown so a glitch does not hide it.</summary>
     private async Task ProbeAsBuiltAsync()
@@ -1304,25 +1214,6 @@ public sealed class MainViewModel : ObservableObject
             NoteAnsweredBus(m, answered);
         });
     }
-    private void ShowBlocks(IEnumerable<AsBuiltBlock> blocks)
-    {
-        AsBuiltPage.ShowLines(blocks.SelectMany(b => b.Lines()));
-    }
-
-    private async Task ReadAllBlocksAsync()
-    {
-        if (await EnsureModuleAsync(true) is not { } m) return;
-        RequireAsBuilt(m);
-        List<AsBuiltBlock> blocks = new();
-        await OnBus(m, async () => blocks = await AsBuiltBatch.ReadAllBlocksAsync((b, ct) => AsBuilt.ReadBlockAsync((ushort)m.Def.TxId, b, ct)));
-        MarkAsBuilt(m, AsBuiltSupport.Supported);
-        ShowBlocks(blocks);
-        var path = await AsBuiltBatch.SaveAsync(AsBuiltBatch.DateFolder(Paths.AsBuiltDir, DateTime.Now), MaskedVin, (ushort)m.Def.TxId, blocks, DateTime.Now);
-        RefreshBackups();
-        ModuleHint = $"{m.Acronym}: {blocks.Count} block(s), {AsBuiltPage.AsBuiltRows.Count} lines - saved {path}";
-        EventLog.Message(LogEventLevel.Information, "Read all As-Built blocks", ModuleHint);
-    }
-
     private List<ModuleRow> BatchModules(bool asBuilt) =>
         (asBuilt ? AsBuiltModules.AsEnumerable() : Modules).Where(r => r.Found == "YES" && (r.Bus == Bus.HsCan || MsCanAvailable)).ToList();
 
@@ -1339,58 +1230,28 @@ public sealed class MainViewModel : ObservableObject
         finally { BatchRunning = false; _batchCts.Dispose(); _batchCts = null; }
     }
 
-    private async Task ReadAllModulesAsBuiltAsync()
-    {
-        if (!await EnsureConnectedAsync()) return;
-        if (Modules.All(r => r.Found == "not scanned")) { BatchText = "Scanning modules first…"; await ScanAsync(); RefreshBackups(); }
-        var mods = BatchModules(true);
-        if (mods.Count == 0) { ModuleHint = "No As-Built module answered the scan (ignition ON?)."; return; }
-        var now = DateTime.Now; var dir = AsBuiltBatch.DateFolder(Paths.AsBuiltDir, now);
-        var res = await RunBatch("As-Built backup", mods, async (m, ct) =>
-        {
-            if (m.AsBuiltSupport == AsBuiltSupport.Unsupported)
-                return new BatchItemResult(m.Def, false, AsBuiltNotSupportedException.Describe(m.Acronym, m.Def.TxId, 0xDE00), NoAsBuilt: true);
-            try
-            {
-                List<AsBuiltBlock> blocks = new();
-                await OnBus(m, async () => blocks = await AsBuiltBatch.ReadAllBlocksAsync((b, c) => AsBuilt.ReadBlockAsync((ushort)m.Def.TxId, b, c), ct: ct));
-                var p = await AsBuiltBatch.SaveAsync(dir, MaskedVin, (ushort)m.Def.TxId, blocks, now, ct);
-                m.SetAsBuiltSupport(AsBuiltSupport.Supported);
-                return new BatchItemResult(m.Def, true, $"{blocks.Count} block(s)", p);
-            }
-            catch (AsBuiltNotSupportedException ex)
-            {
-                m.SetAsBuiltSupport(AsBuiltSupport.Unsupported);
-                return new BatchItemResult(m.Def, false, ex.Message, NoAsBuilt: true);
-            }
-        });
-        RefreshBackups();
-        if (res.Count == 0) return;
-        BatchText = AsBuiltBatch.BackupSummary(res, dir);
-        EventLog.Message(AsBuiltBatch.HasHardFailure(res) ? LogEventLevel.Warning : LogEventLevel.Information, "Back up As-Built of all modules",
-            BatchText + "; " + string.Join("; ", res.Select(AsBuiltBatch.Line)));
-        Info("As-Built backup", BatchText + "\n\n" + string.Join("\n", res.Select(AsBuiltBatch.Line)));
-    }
-
-    /// <summary>Scanned-module batch for child pages (DTCs): connect, scan if needed, then run <paramref name="work"/> per module. Null = nothing ran.</summary>
-    private async Task<List<BatchItemResult>?> ModuleBatchAsync(string what, Func<ModuleRow, CancellationToken, Task<BatchItemResult>> work)
+    /// <summary>Scanned-module batch for child pages (DTCs, As-Built): connect, scan if needed, then run <paramref name="work"/> per module. Null = nothing ran.</summary>
+    private async Task<List<BatchItemResult>?> ModuleBatchAsync(string what, bool asBuilt, Func<ModuleRow, CancellationToken, Task<BatchItemResult>> work)
     {
         if (!await EnsureConnectedAsync()) return null;
         if (Modules.All(r => r.Found == "not scanned")) { BatchText = "Scanning modules first…"; await ScanAsync(); RefreshBackups(); }
-        var mods = BatchModules(false);
-        if (mods.Count == 0) { ModuleHint = "No module answered the scan (ignition ON?)."; return null; }
+        var mods = BatchModules(asBuilt);
+        if (mods.Count == 0) { ModuleHint = asBuilt ? "No As-Built module answered the scan (ignition ON?)." : "No module answered the scan (ignition ON?)."; return null; }
         return await RunBatch(what, mods, work);
     }
 
-    private async Task ReadAsBuiltAsync()
-    {
-        if (await EnsureModuleAsync(true) is not { } m) return;
-        RequireAsBuilt(m);
-        var did = AsBuiltBlock.DidForBlock(Block);
-        AsBuiltBlock b = null!;
-        await OnBus(m, async () => b = await AsBuilt.ReadBlockAsync((ushort)m.Def.TxId, Block));
-        MarkAsBuilt(m, AsBuiltSupport.Supported);
-        AsBuiltPage.ShowLines(b.Lines());
-        EventLog.Message(LogEventLevel.Information, "Read As-Built block", $"{SelectedModule?.Label} block {AsBuiltPage.AsBuiltBlockNo} (DID 0x{did:X4}): {b.Data.Length} bytes, {AsBuiltPage.AsBuiltRows.Count} lines");
-    }
+    // IAsBuiltHost: the As-Built page reaches the vehicle, the module list and the dialogs only through these.
+    AsBuiltService IAsBuiltHost.AsBuilt => AsBuilt;
+    string IAsBuiltHost.Vin => _vin;
+    string IAsBuiltHost.MaskedVin => MaskedVin;
+    ModuleRow? IAsBuiltHost.FindModule(uint tx) => Modules.FirstOrDefault(r => r.Def.TxId == tx);
+    Task<ModuleRow?> IAsBuiltHost.EnsureModuleAsync(bool asBuilt) => EnsureModuleAsync(asBuilt);
+    Task IAsBuiltHost.OnBus(ModuleRow m, Func<Task> work, bool allowFallback) => OnBus(m, work, allowFallback);
+    SafetyGuard IAsBuiltHost.Safety() => Safety();
+    void IAsBuiltHost.MarkAsBuilt(ModuleRow row, AsBuiltSupport support) => MarkAsBuilt(row, support);
+    void IAsBuiltHost.RefreshBackups() => RefreshBackups();
+    void IAsBuiltHost.Info(string title, string message) => Info(title, message);
+    string IAsBuiltHost.BatchText { set => BatchText = value; }
+    Task<List<BatchItemResult>?> IAsBuiltHost.ModuleBatchAsync(string what, bool asBuilt, Func<ModuleRow, CancellationToken, Task<BatchItemResult>> work) => ModuleBatchAsync(what, asBuilt, work);
+
 }

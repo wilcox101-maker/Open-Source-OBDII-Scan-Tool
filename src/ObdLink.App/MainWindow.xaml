@@ -101,10 +101,10 @@
         <MenuItem Header="Read DTCs from _all modules" InputGestureText="Ctrl+Shift+D" Command="{Binding Dtc.ReadAllModuleDtcsCommand}"/>
         <MenuItem Header="C_lear DTCs (selected module)…" InputGestureText="Ctrl+Shift+Delete" Command="{Binding Dtc.ClearModuleDtcsCommand}"/>
         <Separator/>
-        <MenuItem Header="Read _As-Built (selected module)" InputGestureText="Ctrl+R" Command="{Binding ReadAsBuiltCommand}"/>
-        <MenuItem Header="Read all _modules (backup)" InputGestureText="Ctrl+Shift+R" Command="{Binding ReadAllModulesAsBuiltCommand}"/>
-        <MenuItem Header="_Backup As-Built" InputGestureText="Ctrl+B" Command="{Binding BackupAsBuiltCommand}"/>
-        <MenuItem Header="_Write + verify As-Built…" InputGestureText="Ctrl+W" Command="{Binding WriteAsBuiltCommand}"/>
+        <MenuItem Header="Read _As-Built (selected module)" InputGestureText="Ctrl+R" Command="{Binding AsBuiltPage.ReadAsBuiltCommand}"/>
+        <MenuItem Header="Read all _modules (backup)" InputGestureText="Ctrl+Shift+R" Command="{Binding AsBuiltPage.ReadAllModulesAsBuiltCommand}"/>
+        <MenuItem Header="_Backup As-Built" InputGestureText="Ctrl+B" Command="{Binding AsBuiltPage.BackupAsBuiltCommand}"/>
+        <MenuItem Header="_Write + verify As-Built…" InputGestureText="Ctrl+W" Command="{Binding AsBuiltPage.WriteAsBuiltCommand}"/>
         <MenuItem Header="Read _VIN" Command="{Binding ReadVinCommand}"/>
       </MenuItem>
       <MenuItem Header="_Tools">
@@ -504,17 +504,17 @@
             </DockPanel>
             <TextBlock DockPanel.Dock="Top" Margin="4,0,4,2" Foreground="{DynamicResource FgDim}" TextWrapping="Wrap" Text="{Binding BatchText}"/>
             <WrapPanel DockPanel.Dock="Top">
-              <Button Command="{Binding ReadAllBlocksCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Reads every As-Built block of this module and saves Data\asbuilt\&lt;date&gt;\*.asbuilt.json (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read all blocks"/></StackPanel></Button>
-              <Button Command="{Binding ReadAllModulesAsBuiltCommand}" ToolTip="Backs up all blocks of every As-Built module that answered the scan (read-only). MS-CAN modules need an MX+ / EX"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Read all modules (backup)"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ReadAllBlocksCommand}" Style="{StaticResource PrimaryStyle}" ToolTip="Reads every As-Built block of this module and saves Data\asbuilt\&lt;date&gt;\*.asbuilt.json (read-only)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read all blocks"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ReadAllModulesAsBuiltCommand}" ToolTip="Backs up all blocks of every As-Built module that answered the scan (read-only). MS-CAN modules need an MX+ / EX"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Read all modules (backup)"/></StackPanel></Button>
               <TextBlock Text="Block:" VerticalAlignment="Center" Margin="12,3,3,3"/>
               <TextBox Width="40" VerticalContentAlignment="Center" Text="{Binding AsBuiltPage.AsBuiltBlockNo}"/>
-              <Button Command="{Binding ReadAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read"/></StackPanel></Button>
-              <Button Command="{Binding BackupAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Backup"/></StackPanel></Button>
-              <Button Command="{Binding WriteAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes to the module. Backup + confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE70F;"/><TextBlock Text="Write + verify…"/></StackPanel></Button>
-              <Button Command="{Binding RestoreAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes the backup to the module. Confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Restore from backup…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.ReadAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Read"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.BackupAsBuiltCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE78C;"/><TextBlock Text="Backup"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.WriteAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes to the module. Backup + confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE70F;"/><TextBlock Text="Write + verify…"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.RestoreAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Writes the backup to the module. Confirmation required"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE777;"/><TextBlock Text="Restore from backup…"/></StackPanel></Button>
               <Button Command="{Binding AsBuiltPage.ImportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import factory .ab…"/></StackPanel></Button>
               <Button Command="{Binding AsBuiltPage.ExportFactoryAbCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .ab…"/></StackPanel></Button>
-              <Button Command="{Binding CompareToFactoryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8FD;"/><TextBlock Text="Compare to factory"/></StackPanel></Button>
+              <Button Command="{Binding AsBuiltPage.CompareToFactoryCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8FD;"/><TextBlock Text="Compare to factory"/></StackPanel></Button>
               <Button Command="{Binding AsBuiltPage.ImportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8B5;"/><TextBlock Text="Import .abt…"/></StackPanel></Button>
               <Button Command="{Binding AsBuiltPage.ExportAbtCommand}"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xEDE1;"/><TextBlock Text="Export .abt…"/></StackPanel></Button>
             </WrapPanel>
@@ -555,7 +555,7 @@
               <TabItem Header="Change history">
                 <DockPanel>
                   <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
-                    <Button Command="{Binding UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last verified write of the selected module (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
+                    <Button Command="{Binding AsBuiltPage.UndoAsBuiltCommand}" Style="{StaticResource DangerButtonStyle}" ToolTip="Restores the backup taken before the last verified write of the selected module (normal restore checks apply)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE7A7;"/><TextBlock Text="Undo last write of this module…"/></StackPanel></Button>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource FgDim}" Text="Verified writes and restores only (newest first). Stored as asbuilt-history.jsonl in the backups folder."/>
                   </WrapPanel>
                   <DataGrid ItemsSource="{Binding AsBuiltPage.AsBuiltHistory}" AutoGenerateColumns="False" IsReadOnly="True" FontFamily="{StaticResource Mono}">
