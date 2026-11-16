@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.23.0) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.23.1) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.23.0)
+## Where we are (v0.23.1)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -12,7 +12,7 @@ This file compares what the app does today (v0.23.0) with FORScan's feature grou
 | DTCs | All modules, status, freeze frame, extended data, clear | All modules (19 02) with status meaning, details (19 03/04/06, raw), OBD-II 03/07/0A and freeze frame (02), clear (pinned to bus) | Decoded snapshot DIDs, Ford DTC text |
 | Live data | Hundreds of PIDs per module, charts, logging | Live-data browser: any supported OBD-II PID + Ford enhanced DIDs, min/max/avg, CSV (v0.10.0); charts, CSV replay, threshold triggers (v0.12.0); three dashboard pop-out windows with per-window layouts and layout files (v0.20.0) | Wider Ford DID catalog; faster Mode 22 polling |
 | Tests | Self-tests, Mode 6, output control | Mode 6 read live (v0.9.0); self-test only from imported FORScan logs; Routines tab (v0.11.0): 31 start/stop/results by typed ID behind write mode, extended session with keep-alive (pyrotechnic E200-E2FF and programming FF00/FF01 routines are always refused); dashboard write cards (v0.20.0): routine start, output hold (2F with automatic release) and DID write, behind the write gate and a typed phrase | On-demand self-test UI and per-module routine IDs (catalog data); 2F output IDs per module (catalog data, bench-first); 85 / 28 UI (in Core with restore leases) |
-| Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | Core catalog + runner (`docs/SERVICE-PROCEDURES.md`): BMS reset runnable from a community source (UNVERIFIED); TPMS, PCM/TCM KAM, steering angle, pull-drift, ABS bleed listed with conditions and tool-free methods, identifiers still to capture; no UI yet | Identifiers for the rest (capture on the truck), UI, security-access procedures |
+| Service procedures | PATS, ABS bleed, DPF regen, BMS reset, steering angle, TPMS, TCM adaptive reset, camera/radar calibration | Core catalog + runner (`docs/SERVICE-PROCEDURES.md`): BMS reset runnable from a community source (UNVERIFIED); TPMS, PCM/TCM KAM, steering angle, pull-drift, ABS bleed listed with conditions and tool-free methods, identifiers still to capture; v0.23.1 picker on the Routines tab | Identifiers for the rest (capture on the truck), UI, security-access procedures |
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data; edit by option name from the 2015-2020 F-150 community sheet into the grid, then the normal safe write (v0.15.0) | Choose the sheet tab from the module part number; literal-digit "recipe" rows; central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | Flash tab (v0.19.0) on the Core flash engine (DEMO-tested only, see `docs/FLASHING.md`): VBF reader, preflight, journaled 10 02 / 27 / FF00 / 34 / 36 / 37 / FF01 / 11 with retry and resume, EX and MX+ | Ford security levels and erase/check record layouts per module (catalog data); first real flash on a low-risk module (Phase 5) |
@@ -84,7 +84,7 @@ Implement one at a time, each from published Ford service information the user o
 TPMS sensor relearn, BMS (battery monitor) reset, steering angle sensor calibration, ABS service bleed, transmission adaptive
 table reset, DPF regeneration (diesel only), camera/radar calibrations.
 **Started:** Core `Service/` catalog and runner with a confidence per procedure (Verified / Community / Synthesized / NeedsCapture)
-and its sources, generated into `docs/SERVICE-PROCEDURES.md`. v0.23.0: `obdcli proxy` + `capture-summary` to capture the missing identifiers on the truck. Next: the captures (Dale), then a UI.
+and its sources, generated into `docs/SERVICE-PROCEDURES.md`. v0.23.0: `obdcli proxy` + `capture-summary` to capture the missing identifiers on the truck. v0.23.1: picker on the Routines tab. Next: the captures (Dale).
 
 ### Phase 5: Beyond FORScan
 - Fully open and scriptable: **started in v0.17.0** — `obdcli` (`docs/CLI.md`): info, scan, DTCs, live data, bus monitor, As-Built read and offline option editing, read-only toward the vehicle, every command also against the simulator. J2534 devices (v0.18.0); `vbf-info` checks a flash file offline (v0.19.0).

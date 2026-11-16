@@ -1,3 +1,18 @@
+## v0.23.1
+
+**Service procedures in the app.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- **Routines tab → Service procedure:** pick one from the catalog (`docs/SERVICE-PROCEDURES.md`). The card under the picker shows its confidence, what it does, when to use it and when not, conditions, warnings, what to do afterwards, Ford's tool-free method where known, and the sources. Picking one selects its module.
+- **Run procedure…** needs writes enabled, the battery check, and the procedure's phrase: **UNVERIFIED** for everything not yet verified on this model (today: all). Procedures whose identifiers aren't known can't be run; the button says why and points to the tool-free method.
+- The result lines go to the routine results list and the event log. A refusal says nothing ran and why (e.g. the routine does not apply to this model year).
+
+Internal: `RoutinesViewModel.Procedures / SelectedProcedure / ProcedureText / RunProcedureCommand`; a source-order test pins runnable → module → battery → confirmation → send, with no bus fallback.
+
+### Windows + truck verify
+1. **DEMO:** Routines → Service procedure → "Battery Monitoring System (BMS) reset": the module list switches to the BCM, the card shows Community + the tool-free method. Writes on → Run procedure… → type UNVERIFIED: the DEMO BCM refuses (NRC 0x31) and the list says *nothing ran* (DEMO modules accept routine 1234 only).
+2. **DEMO:** pick "PCM Keep Alive Memory (KAM) reset" → Run procedure…: refused before any confirmation (*no public source gives this procedure's identifiers yet*).
+3. **Truck:** none until a battery is actually replaced (BMS) or a capture adds identifiers.
+
 ## v0.23.0
 
 **Service procedures: a sourced catalog, and a way to capture what's missing.** Includes v0.22.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. No UI yet; nothing run on the truck. Unsigned. Ford products only.

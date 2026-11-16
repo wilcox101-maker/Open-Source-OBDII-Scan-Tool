@@ -134,4 +134,23 @@ public class ServiceProcedureTests
         var ok = await ServiceProcedureRunner.RunAsync(new UdsClient(new Module { ResultsNrc = null }, 0x726), withResults, delay: _ => Task.CompletedTask);
         Assert.Equal(new byte[] { 0x00 }, ok.LastStatus);
     }
+
+    [Fact]
+    public void The_app_checks_the_battery_and_confirms_before_sending_and_never_falls_back_to_another_bus()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ObdLink.sln"))) dir = dir.Parent;
+        var src = File.ReadAllText(Path.Combine(dir!.FullName, "src", "ObdLink.App", "RoutinesViewModel.cs"));
+        int start = src.IndexOf("private async Task RunProcedureAsync()", StringComparison.Ordinal);
+        Assert.True(start > 0);
+        var body = src[start..src.IndexOf("private static string Card(", start, StringComparison.Ordinal)];
+        int runnable = body.IndexOf("if (!p.Runnable)", StringComparison.Ordinal), module = body.IndexOf("m.Def.TxId != p.TxId", StringComparison.Ordinal);
+        int volts = body.IndexOf("EnsureVoltageAsync()", StringComparison.Ordinal), confirm = body.IndexOf("RequireAsync(p.ConfirmSteps(", StringComparison.Ordinal);
+        int send = body.IndexOf("ServiceProcedureRunner.RunAsync(", StringComparison.Ordinal);
+        Assert.True(runnable >= 0 && runnable < module && module < volts && volts < confirm && confirm < send, $"{runnable} {module} {volts} {confirm} {send}");
+        Assert.Contains("new Progress<string>(lines.Add)), false);", body);   // no bus fallback for a write
+        var xaml = File.ReadAllText(Path.Combine(dir.FullName, "src", "ObdLink.App", "MainWindow.xaml"));
+        Assert.Contains("{Binding Routines.RunProcedureCommand}", xaml);
+        Assert.Contains("{Binding Routines.ProcedureText}", xaml);
+    }
 }
