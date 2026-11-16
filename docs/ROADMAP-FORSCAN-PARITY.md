@@ -1,9 +1,9 @@
 # Roadmap: FORScan-level features (and beyond)
 
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
-This file compares what the app does today (v0.20.1) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.21.0) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.20.1)
+## Where we are (v0.21.0)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
@@ -16,7 +16,7 @@ This file compares what the app does today (v0.20.1) with FORScan's feature grou
 | Security access | Built in | User-supplied plug-ins (v0.7.0), none shipped | Providers are the user's to supply |
 | Configuration (As-Built) | Raw As-Built editing + decoded named options + central configuration | Raw read / write / verify / backup / restore, .ab and .abt import/export, factory compare, community feature data; edit by option name from the 2015-2020 F-150 community sheet into the grid, then the normal safe write (v0.15.0) | Choose the sheet tab from the module part number; literal-digit "recipe" rows; central configuration (CCC), module reset/configuration after changes |
 | Programming | Module firmware, PMI (module replacement) | Flash tab (v0.19.0) on the Core flash engine (DEMO-tested only, see `docs/FLASHING.md`): VBF reader, preflight, journaled 10 02 / 27 / FF00 / 34 / 36 / 37 / FF01 / 11 with retry and resume, EX and MX+ | Ford security levels and erase/check record layouts per module (catalog data); first real flash on a low-risk module (Phase 5) |
-| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, UDS session keep-alive (v0.11.0), As-Built change history + undo (v0.16.0) | Battery-maintainer detection |
+| Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify, As-Built write journal with recovery of unfinished writes (v0.21.0), UDS session keep-alive (v0.11.0), As-Built change history + undo (v0.16.0) | Battery-maintainer detection |
 
 ## Second reference: UCDS V3
 

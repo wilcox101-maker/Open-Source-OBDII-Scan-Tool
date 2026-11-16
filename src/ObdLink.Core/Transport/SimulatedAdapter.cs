@@ -30,6 +30,13 @@ public sealed class SimulatedAdapter
     public bool CorruptWrites { get; set; }
     /// <summary>How the simulated module answers 0x2E. The data is stored in every mode except <see cref="SimWriteReply.RejectNotStored"/>.</summary>
     public SimWriteReply WriteReply { get; set; } = SimWriteReply.Positive;
+    /// <summary>Test knob: after the next 0x2E is stored, every module goes silent ("NO DATA") until this is set false again (an adapter pulled mid-write).</summary>
+    public bool SilentAfterWrite { get; set; }
+    /// <summary>Test knob: accept this many more 0x2E writes, then refuse the rest with NRC 0x22 (nothing stored). -1 = never refuse.</summary>
+    public int WritesBeforeReject { get; set; } = -1;
+    private bool _silent;
+    /// <summary>Ends the silence started by <see cref="SilentAfterWrite"/> (the adapter is plugged back in).</summary>
+    public void Reconnect() { _silent = false; SilentAfterWrite = false; }
     /// <summary>Raw reply to an ISO-TP first frame (CAF0), e.g. "72E310000" for WAIT. Null = clear-to-send "&lt;rx&gt;300000".</summary>
     public string? FlowControlReply { get; set; }
     /// <summary>Every vehicle request (hex) with the header it went out on, for tests.</summary>
@@ -243,6 +250,7 @@ public sealed class SimulatedAdapter
     private string Uds(uint tx, byte[] r, bool padded = false)
     {
         if (!PresentModules.Contains(tx) && !(Protocol == "53" && MsCanModules.Contains(tx))) return "NO DATA";
+        if (_silent) return "NO DATA";
         uint rx = tx + 8;
         // Suppressed positive response (ISO 14229-1): a module that accepts 3E 80 (or any sub-function request with bit 7) stays silent.
         if (r[0] == 0x3E && r.Length >= 2 && (r[1] & 0x80) != 0) return "NO DATA";
@@ -263,6 +271,7 @@ public sealed class SimulatedAdapter
             0x2E => Write(tx, (ushort)(r[1] << 8 | r[2]), r[3..]),
             _ => new byte[] { 0x7F, r[0], 0x11 },
         };
+        if (resp.Length == 0) return "NO DATA"; // stored, then silent (SilentAfterWrite)
         if (r[0] == 0x2E && resp[0] == 0x6E)
             return WriteReply switch
             {
@@ -434,10 +443,12 @@ public sealed class SimulatedAdapter
     private byte[] Write(uint tx, ushort did, byte[] data)
     {
         if (SecuredModules.Contains(tx) && !_unlocked.Contains(tx)) return new byte[] { 0x7F, 0x2E, 0x33 };
-        if (WriteReply == SimWriteReply.RejectNotStored) return new byte[] { 0x7F, 0x2E, 0x22 };
+        if (WriteReply == SimWriteReply.RejectNotStored || WritesBeforeReject == 0) return new byte[] { 0x7F, 0x2E, 0x22 };
+        if (WritesBeforeReject > 0) WritesBeforeReject--;
         if (!Dids.TryGetValue(tx, out var d)) Dids[tx] = d = new();
         if (CorruptWrites) { data = (byte[])data.Clone(); data[0] ^= 0xFF; }
         d[did] = data;
+        if (SilentAfterWrite) { _silent = true; return Array.Empty<byte>(); }
         return new byte[] { 0x6E, (byte)(did >> 8), (byte)did };
     }
 

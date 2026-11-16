@@ -17,14 +17,11 @@ public sealed class AsBuiltService
     public AsBuiltService(Func<uint, UdsClient> clientFactory, SafetyGuard safety, string backupDir)
     { _clientFactory = clientFactory; _safety = safety; _backupDir = backupDir; Directory.CreateDirectory(backupDir); History = new AsBuiltHistory(backupDir); }
 
-    private void Record(string kind, AsBuiltBlock before, AsBuiltBlock after, string backup, string vin, string note)
+    /// <summary>Journals a line; a failure to journal is logged, never thrown (it must not hide the write's own result).</summary>
+    private void Journal(Action append)
     {
-        try
-        {
-            History.Append(new AsBuiltChange(DateTimeOffset.Now, kind, after.Module, after.Block, Convert.ToHexString(before.Data), Convert.ToHexString(after.Data),
-                AsBuiltWritePlan.CountChanges(before.Data, after.Data), Path.GetFileName(backup), AsBuiltHistory.VinTail(vin), note));
-        }
-        catch (Exception ex) { Log.Warning(ex, "Could not append to the As-Built change history (the write itself succeeded)"); }
+        try { append(); }
+        catch (Exception ex) { Log.Warning(ex, "Could not append to the As-Built change history"); }
     }
 
     public async Task<AsBuiltBlock> ReadBlockAsync(ushort module, byte block, CancellationToken ct = default)
@@ -92,8 +89,7 @@ public sealed class AsBuiltService
         if (changed == 0) return new AsBuiltWriteResult(null, 0, false, "No bytes differ from the module; nothing was written.");
         await _safety.RequireAsync(SafetyGuard.WriteSteps($"As-Built {where} ({changed} of {newBlock.Data.Length} bytes change)"), ct);
         var backup = await SaveBackupAsync(vin, newBlock.Module, new[] { current }, "", ct);
-        var note = await WriteVerifyAsync(newBlock, backup, ct);
-        Record("write", current, newBlock, backup, vin, note);
+        var note = await WriteVerifyAsync(newBlock, current, backup, "write", vin, "", ct);
         return new AsBuiltWriteResult(backup, changed, true, note);
     }
 
@@ -107,7 +103,7 @@ public sealed class AsBuiltService
     public TimeSpan PendingSettle { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <returns>A note for the log (empty for a plain positive response).</returns>
-    private async Task<string> WriteVerifyAsync(AsBuiltBlock b, string backupPath, CancellationToken ct)
+    private async Task<string> WriteVerifyAsync(AsBuiltBlock b, AsBuiltBlock before, string backupPath, string kind, string vin, string context, CancellationToken ct)
     {
         var uds = _clientFactory(b.Module);
         var where = $"{b.Module:X3}-{b.Block:X2}";
@@ -115,14 +111,27 @@ public sealed class AsBuiltService
         if (SecurityLevel is byte lvl && !await uds.SecurityAccessAsync(lvl, ct))
             throw new SafetyException($"{where}: security access level 0x{lvl:X2} is set, but no approved seed/key plug-in produced a key for module 0x{b.Module:X3}. Nothing was written.");
         string note = "";
+        // Journal before the request: if the PC crashes or the adapter is pulled from here on, the pending line says which block,
+        // what was there before, what was being written and which backup holds the old data.
+        var attempt = new AsBuiltChange(DateTimeOffset.Now, kind, b.Module, b.Block, Convert.ToHexString(before.Data), Convert.ToHexString(b.Data),
+            AsBuiltWritePlan.CountChanges(before.Data, b.Data), Path.GetFileName(backupPath), AsBuiltHistory.VinTail(vin), context,
+            AsBuiltOutcome.Pending, Guid.NewGuid().ToString("N"));
+        Journal(() => History.Append(attempt));
         try { await uds.WriteDataByIdentifierAsync(b.Did, b.Data, ct); }
         catch (UdsNegativeResponseException ex) when (ex.Nrc == 0x33)
         {
+            Journal(() => History.Resolve(attempt, AsBuiltOutcome.Rejected, "NRC 0x33 security access denied"));
             throw new SafetyException($"{where}: the module requires security access (NRC 0x33) for this write. "
                 + (SecurityLevel is null
                     ? "Settings → Security access: enable an approved seed/key plug-in and set the As-Built security level, then try again."
                     : $"Unlock at level 0x{SecurityLevel:X2} succeeded but was not enough; this module may need another level.")
                 + " Nothing was written.");
+        }
+        catch (UdsNegativeResponseException ex) when (!IsUncertainWriteOutcome(ex))
+        {
+            // A definite refusal (e.g. 0x22 conditions not correct, 0x31 out of range): the module stored nothing.
+            Journal(() => History.Resolve(attempt, AsBuiltOutcome.Rejected, $"NRC 0x{ex.Nrc:X2} {UdsNrc.Describe(ex.Nrc)}"));
+            throw;
         }
         catch (Exception ex) when (IsUncertainWriteOutcome(ex))
         {
@@ -132,16 +141,58 @@ public sealed class AsBuiltService
             await Task.Delay(PendingSettle, ct);
             note = $"The module did not give a final answer to the write ({ex.Message}); the read-back below decided the result.";
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Anything else (adapter gone, port closed): the request may have reached the module.
+            Journal(() => History.Resolve(attempt, AsBuiltOutcome.Unknown, "no answer to the write: " + ex.Message));
+            throw new InvalidDataException($"{where}: the write was sent but the link failed ({ex.Message}), so the result is UNKNOWN. Reconnect, then use Check unfinished write or restore the backup: {backupPath}", ex);
+        }
         byte[] back;
         try { back = await uds.ReadDataByIdentifierAsync(b.Did, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            Journal(() => History.Resolve(attempt, AsBuiltOutcome.Unknown, "read-back failed: " + ex.Message));
             throw new InvalidDataException($"{where}: could not read the block back after writing, so the result is UNKNOWN. {ex.Message} Read the block again before doing anything else. Backup: {backupPath}", ex);
         }
         if (!back.AsSpan().SequenceEqual(b.Data))
-            throw new InvalidDataException($"Read-back mismatch on {where}: wrote {Convert.ToHexString(b.Data)}, read {Convert.ToHexString(back)}. Backup: {backupPath}");
+        {
+            var what = back.AsSpan().SequenceEqual(before.Data) ? AsBuiltOutcome.NotWritten : AsBuiltOutcome.Mismatch;
+            Journal(() => History.Resolve(attempt, what, $"read back {Convert.ToHexString(back)}"));
+            throw new InvalidDataException($"Read-back mismatch on {where}: wrote {Convert.ToHexString(b.Data)}, read {Convert.ToHexString(back)}"
+                + (what == AsBuiltOutcome.NotWritten ? " (the old data: the write did not take effect)." : ". Restore the backup or check the block.") + $" Backup: {backupPath}");
+        }
+        Journal(() => History.Resolve(attempt, AsBuiltOutcome.Verified, note));
         Log.Information("As-Built {Mod:X3}-{Blk:X2} written and verified{Note}", b.Module, b.Block, note.Length > 0 ? " (by read-back after an uncertain reply)" : "");
         return note;
+    }
+
+    /// <summary>
+    /// Settles an unfinished write by reading the block (read-only): new data → <see cref="AsBuiltOutcome.Verified"/>, old data →
+    /// <see cref="AsBuiltOutcome.NotWritten"/>, anything else → <see cref="AsBuiltOutcome.Mismatch"/> (restore the backup).
+    /// The outcome is journaled and returned with what the block holds now.
+    /// </summary>
+    public async Task<(string Outcome, byte[] Now)> CheckAttemptAsync(AsBuiltChange attempt, CancellationToken ct = default)
+    {
+        var now = (await ReadBlockAsync(attempt.Module, attempt.Block, ct)).Data;
+        var hex = Convert.ToHexString(now);
+        var outcome = hex == attempt.After ? AsBuiltOutcome.Verified : hex == attempt.Before ? AsBuiltOutcome.NotWritten : AsBuiltOutcome.Mismatch;
+        Journal(() => History.Resolve(attempt, outcome, $"checked later: block holds {hex}"));
+        return (outcome, now);
+    }
+
+    /// <summary>
+    /// Recovers an attempt by restoring the backup taken before it (the normal restore: VIN match, fresh backup, confirmations,
+    /// read-back). The attempt is then marked <see cref="AsBuiltOutcome.Recovered"/>, or <see cref="AsBuiltOutcome.NotWritten"/> when
+    /// the module already held the backup's data.
+    /// </summary>
+    public async Task<AsBuiltWriteResult> RecoverAttemptAsync(AsBuiltChange attempt, string connectedVin, CancellationToken ct = default)
+    {
+        var path = History.BackupPathOf(attempt);
+        if (!File.Exists(path)) throw new SafetyException($"The backup taken before this write ({attempt.BackupFile}) is not in the backups folder. Nothing was written.");
+        var r = await RestoreAsync(path, connectedVin, ct);
+        Journal(() => History.Resolve(attempt, r.Written ? AsBuiltOutcome.Recovered : AsBuiltOutcome.NotWritten,
+            r.Written ? $"restored {attempt.BackupFile}" : "the module already held the backup's data"));
+        return r;
     }
 
     /// <summary>Errors after which the write may or may not have been stored: response pending, busy, no reply, or a link drop mid-request.</summary>
@@ -180,16 +231,32 @@ public sealed class AsBuiltService
         await _safety.RequireAsync(SafetyGuard.WriteSteps($"RESTORE of {bk.Module:X3} from {Path.GetFileName(backupPath)} ({todo.Count} block(s), {changed} byte(s) change)"), ct);
         var pre = await SaveBackupAsync(connectedVin, bk.Module, current, "_pre-restore", ct);
         var notes = new List<string>();
+        int done = 0;
         foreach (var b in todo)
         {
-            var n = await WriteVerifyAsync(b, pre, ct);
+            string n;
+            try { n = await WriteVerifyAsync(b, current[wanted.IndexOf(b)], pre, "restore", connectedVin, $"from {Path.GetFileName(backupPath)}", ct); }
+            catch (Exception ex) when (done > 0 && ex is not OperationCanceledException)
+            {
+                throw new PartialRestoreException(done, todo.Count, b, pre, ex);
+            }
+            done++;
             if (n.Length > 0) notes.Add(n);
-            Record("restore", current[wanted.IndexOf(b)], b, pre, connectedVin, $"from {Path.GetFileName(backupPath)}" + (n.Length > 0 ? "; " + n : ""));
         }
         return new AsBuiltWriteResult(pre, changed, true, string.Join(" ", notes));
     }
 
     private static string Tail(string? v) => v is { Length: >= 6 } ? v[^6..] : "?";
+}
+
+/// <summary>A multi-block restore stopped after some blocks were written and verified. The module now holds a mix.</summary>
+public sealed class PartialRestoreException(int done, int total, AsBuiltBlock failed, string preRestoreBackup, Exception inner)
+    : Exception($"Restore stopped after {done} of {total} block(s): block {failed.Block:X2} failed ({inner.Message}). Blocks before it hold the backup's data; "
+        + $"block {failed.Block:X2} and later still need restoring. Run the restore again, or restore {Path.GetFileName(preRestoreBackup)} to go back to how the module was before.", inner)
+{
+    public int Done { get; } = done;
+    public int Total { get; } = total;
+    public string PreRestoreBackup { get; } = preRestoreBackup;
 }
 
 /// <summary>Outcome of a write or restore. <see cref="BackupPath"/> is the backup of what was in the module before (null if nothing was written).</summary>
