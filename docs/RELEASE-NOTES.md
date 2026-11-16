@@ -1,3 +1,18 @@
+## v0.22.2
+
+**Low-risk items from the 2026-11-16 risk review.** Includes v0.22.1 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+
+- **Flash speed and time left.** While a flash downloads, the progress line shows the measured speed and an estimate of the time left (measured from the first acknowledged byte, restarted after a session re-entry or resume), and the log records the speed once a minute. The first real flash will show how fast the adapter link actually is; the debug log also times each host-segmented message (`ISO-TP host send: … ms/frame`).
+- **Checking a download.** Every CI build now carries `SHA256SUMS.txt` (app, `obdcli` x64 and x86), and the build log prints the hash of each `.exe`. README → *Checking a download* explains how to compare them. Code signing via the free SignPath Foundation programme needs an application by the repository owner.
+- **Smaller main view model.** The adapter firmware check, firmware package download and official updater moved from `MainViewModel` (1,275 → 1,101 lines) into `FirmwareViewModel`. No behaviour change; the two settings stay on the Settings page.
+
+Internal: `FlashRate`, `FirmwareViewModel` (bindings `Firmware.*`), CI checksum step.
+
+### Windows verify
+1. DEMO: flash the DEMO image: the progress line shows `… KB/s, about … left` during the download.
+2. Connect DEMO, then a real adapter: the firmware banner and Settings → firmware buttons (Check, Get/Run official updater, Open folder/page) work as before.
+3. Download the CI artifact, run `Get-FileHash .\OBDLinkDiag.exe -Algorithm SHA256`: it matches `SHA256SUMS.txt` and the CI log.
+
 ## v0.22.1
 
 **Flashing: other modules are told to stop talking during a flash, and are put back afterwards** (FORScan's "stop activity on buses"). Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO / simulator only; nothing has flashed a real module. Unsigned. Ford products only.

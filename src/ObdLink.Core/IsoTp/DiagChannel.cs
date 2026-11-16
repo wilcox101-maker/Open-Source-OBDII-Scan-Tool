@@ -61,6 +61,7 @@ public sealed class ElmDiagChannel : IDiagChannel
     {
         var link = _session.Link;
         var frames = IsoTpCodec.Segment(request);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         await link.SendAsync("ATCAF0", ct: ct);
         try
         {
@@ -82,6 +83,9 @@ public sealed class ElmDiagChannel : IDiagChannel
                     sinceFc = 0;
                 }
             }
+            // v0.22.2: how long a host-segmented message takes on this link (one adapter command per CAN frame).
+            Serilog.Log.Debug("ISO-TP host send: {Bytes} bytes in {Frames} frames, {Ms} ms ({PerFrame:0.0} ms/frame)",
+                request.Length, frames.Count, sw.ElapsedMilliseconds, sw.Elapsed.TotalMilliseconds / frames.Count);
             if (last.Error == ElmError.NoData) return Array.Empty<DiagResponse>();
             if (!last.Ok) throw new DiagLinkException(last.Error, string.Join(" | ", last.Lines));
             return ParseFrames(last.Lines, Use29Bit);

@@ -138,7 +138,7 @@ public partial class MainWindow : Window
             case "nextPage" or "prevPage": StepPage(id == "nextPage" ? 1 : -1); break;
             case "pause": Run(d.PauseCommand); break;
             case "record": Run(d.RecordCommand); break;
-            case "firmware": Run(_vm.CheckFirmwareCommand); break;
+            case "firmware": Run(_vm.Firmware.CheckFirmwareCommand); break;
             case "guide": Go("Guide"); break;
             case "shortcuts": ShowShortcuts(); break;
             case "fullscreen": ToggleFullScreen(); break;

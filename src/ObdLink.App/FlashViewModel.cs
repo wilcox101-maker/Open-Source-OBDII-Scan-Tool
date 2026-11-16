@@ -263,7 +263,7 @@ public sealed class FlashViewModel : ObservableObject
             QuietBus = true,   // FORScan-style "stop activity on buses"; restored afterwards (see FlashEngine.QuietBus)
         };
         _stop = new CancellationTokenSource();
-        Running = true; Retries = 0; Percent = 0;
+        Running = true; Retries = 0; Percent = 0; _rate = new FlashRate(); _rateLogged = DateTimeOffset.UtcNow;
         Add(resume ? $"Resuming flash of {m.Label} (0x{m.Address})" : $"Flashing {m.Label} (0x{m.Address}) with {plan.Image.Name}");
         try
         {
@@ -320,11 +320,22 @@ public sealed class FlashViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
+    private FlashRate _rate = new();
+    private DateTimeOffset _rateLogged;
+
     private void OnProgress(FlashProgress p)
     {
+        if (p.Phase is FlashPhase.Download or FlashPhase.TransferExit) _rate.Update(DateTimeOffset.UtcNow, p.BytesDone, p.BytesTotal);
         Status = $"{p.Phase}: {p.Message}";
         Percent = Math.Round(p.Fraction * 100, 1);
-        BytesText = $"{p.BytesDone:N0} / {p.BytesTotal:N0} bytes" + (p.SegmentCount > 0 && p.Segment > 0 ? $" · segment {p.Segment}/{p.SegmentCount}" : "");
+        BytesText = $"{p.BytesDone:N0} / {p.BytesTotal:N0} bytes" + (p.SegmentCount > 0 && p.Segment > 0 ? $" · segment {p.Segment}/{p.SegmentCount}" : "")
+            + (p.Phase is FlashPhase.Download or FlashPhase.TransferExit ? " · " + _rate.Describe() : "");
+        // v0.22.2: the measured speed goes in the log once a minute, so the first real run shows how fast the adapter link is.
+        if (_rate.BytesPerSecond is double bps && DateTimeOffset.UtcNow - _rateLogged > TimeSpan.FromMinutes(1))
+        {
+            _rateLogged = DateTimeOffset.UtcNow;
+            Add($"Speed {FlashRate.Format(bps)}" + (_rate.Remaining is TimeSpan left ? $", about {FlashRate.Duration(left)} left" : ""));
+        }
         Retries = p.Retries;
         if (p.Phase != FlashPhase.Download || p.Message.Contains("retry", StringComparison.OrdinalIgnoreCase) || p.Message.Contains("waiting", StringComparison.OrdinalIgnoreCase))
             Add($"{p.Phase}: {p.Message}");

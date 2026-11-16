@@ -107,7 +107,7 @@ public class V035Tests
     [Fact]
     public void Trusted_site_refusals_and_explorer_failures_are_logged()
     {
-        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
+        var vm = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs")) + File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "FirmwareViewModel.cs")); // firmware code moved to FirmwareViewModel in v0.22.2
         Assert.DoesNotContain("OpenExternal(FirmwarePage); } catch { }", vm);
         Assert.Contains("Could not open the firmware page", vm);
         // Every guarded Explorer open logs its failure (v0.7.0 added the seed/key plug-in folder; count no longer pinned).

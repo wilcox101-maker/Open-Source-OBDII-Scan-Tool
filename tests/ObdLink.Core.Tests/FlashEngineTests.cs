@@ -847,4 +847,21 @@ public class FlashEngineTests
         Assert.True(r.PartNumberConfirmed);
         Assert.DoesNotContain(ecu.Calls.Skip(before), c => c[0] is 0x10 or 0x27 or 0x31 or 0x34 or 0x36);
     }
+
+    [Fact]
+    public void FlashRate_MeasuresFromTheFirstByte_AndRestartsAfterARestart()
+    {
+        var r = new FlashRate();
+        var t = DateTimeOffset.Parse("2026-11-16T12:00:00Z");
+        r.Update(t, 0, 100_000);                     // erase: nothing yet
+        Assert.Null(r.BytesPerSecond);
+        r.Update(t.AddSeconds(30), 4_000, 100_000);   // first block: measuring starts here
+        r.Update(t.AddSeconds(40), 24_000, 100_000);  // 20 000 bytes in 10 s
+        Assert.Equal(2000, r.BytesPerSecond!.Value, 3);
+        Assert.Equal(TimeSpan.FromSeconds(38), r.Remaining);
+        Assert.Contains("2.0 KB/s", r.Describe());
+        r.Update(t.AddSeconds(50), 4_000, 100_000);   // restarted from the erase
+        Assert.Null(r.BytesPerSecond);
+        Assert.Equal("1 h 05 min", FlashRate.Duration(TimeSpan.FromMinutes(65)));
+    }
 }

@@ -76,7 +76,7 @@ public class V040Tests
         Assert.True(FirmwareCheckPolicy.ShouldQuery(false, true, false));
         Assert.True(FirmwareCheckPolicy.ShouldQuery(false, false, true));
         Assert.False(FirmwareCheckPolicy.ShouldQuery(false, false, false));
-        var src = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "MainViewModel.cs"));
+        var src = File.ReadAllText(Path.Combine(Root(), "src", "ObdLink.App", "FirmwareViewModel.cs")); // moved from MainViewModel in v0.22.2
         var start = src.IndexOf("private async Task RunFirmwareCheckAsync", StringComparison.Ordinal);
         var end = src.IndexOf("private async Task DownloadFirmwareAsync", StringComparison.Ordinal);
         var body = src[start..end];
