@@ -147,10 +147,22 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.22.0 | CI (windows-latest) build + unit tests | Flash SBL stage, security lockout hold, reset back after an early failure, image checks; write-card undo (see v0.22.0 release notes) |
 | Windows | v0.22.1 | CI (windows-latest) build + unit tests | Flash bus quieting and restore (see v0.22.1 release notes) |
 | Windows | v0.22.2 | CI (windows-latest) build + unit tests | DID write cards settle lost replies by reading back; next steps on refusals and mismatches (see v0.22.2 release notes) |
+| Windows | v0.22.3 | CI (windows-latest) build + unit tests | Flash speed/time-left display, firmware code moved to FirmwareViewModel, build checksums (see v0.22.2 release notes) |
 | Windows | v0.23.0 | CI (windows-latest) build + unit tests | Service procedure catalog (`docs/SERVICE-PROCEDURES.md`); `obdcli proxy` / `capture-summary` (see v0.23.0 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
-Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.
+Release builds are **unsigned** (SmartScreen "More info -> Run anyway"). See **Checking a download** below. v0.2.0-v0.2.2 were tested on Windows 11 Pro 24H2 (demo mode) by Dale. v0.3.0-v0.3.5 are Windows-tested (Dale confirmed). v0.4.0, v0.5.0, v0.5.1, v0.5.2, and v0.6.0 are compiled on Linux and still need the Windows checks in the release notes. The v0.6.0 checks are in `docs/RELEASE-NOTES.md` under **v0.6.0**.
+
+### Checking a download
+Builds are not code-signed yet, so Windows can't vouch for them. Since v0.22.3 every CI build (app, `obdcli` x64 and x86) carries a `SHA256SUMS.txt`, and the build log prints the hash of each `.exe` next to the commit it was built from. To check a download, in PowerShell inside the unzipped folder:
+
+```powershell
+Get-FileHash .\OBDLinkDiag.exe -Algorithm SHA256
+```
+
+The hash must match the line for that file in `SHA256SUMS.txt` **and** the one printed in the "SHA-256 checksums" step of the GitHub Actions run for that commit (the run log can't be changed after the fact; a file in a zip can). If either differs, don't run it.
+
+Signing: the planned route is the free SignPath Foundation programme for open-source projects (certificate issued to SignPath Foundation, signing only from this repository's CI). It needs an application by the repository owner; until then builds stay unsigned.
 
 ## Verified facts and sources
 | Item | Value | Source |

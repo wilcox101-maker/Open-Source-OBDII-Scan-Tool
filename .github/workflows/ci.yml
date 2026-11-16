@@ -24,20 +24,32 @@ jobs:
         run: dotnet test tests/ObdLink.Core.Tests -c Release --no-build --logger "trx;LogFileName=results.trx"
       - name: Publish win-x64 (unsigned test build)
         run: dotnet publish src/ObdLink.App/ObdLink.App.csproj -c Release -r win-x64 -o publish/win-x64
+      - name: Publish obdcli win-x64 (self-contained single file, separate from the app)
+        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x64
+      - name: Publish obdcli win-x86 (for 32-bit J2534 drivers)
+        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x86
+      - name: SHA-256 checksums (builds are unsigned; see README "Checking a download")
+        shell: pwsh
+        run: |
+          foreach ($d in 'publish/win-x64','publish/obdcli-win-x64','publish/obdcli-win-x86') {
+            $lines = Get-ChildItem $d -File -Recurse | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object FullName | ForEach-Object {
+              $rel = [IO.Path]::GetRelativePath((Resolve-Path $d), $_.FullName).Replace('\','/')
+              "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $rel
+            }
+            Set-Content -Path (Join-Path $d 'SHA256SUMS.txt') -Value $lines -Encoding ascii
+            Write-Host "== $d"; Get-Content (Join-Path $d 'SHA256SUMS.txt') | Select-String -Pattern '\.exe$'
+          }
+          Write-Host "commit ${{ github.sha }}"
       - uses: actions/upload-artifact@v4
         with:
           name: OBDLinkDiag-win-x64-${{ github.sha }}
           path: publish/win-x64
           retention-days: 14
-      - name: Publish obdcli win-x64 (self-contained single file, separate from the app)
-        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x64
       - uses: actions/upload-artifact@v4
         with:
           name: obdcli-win-x64-${{ github.sha }}
           path: publish/obdcli-win-x64
           retention-days: 14
-      - name: Publish obdcli win-x86 (for 32-bit J2534 drivers)
-        run: dotnet publish tools/ObdCli/ObdCli.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/obdcli-win-x86
       - uses: actions/upload-artifact@v4
         with:
           name: obdcli-win-x86-${{ github.sha }}

@@ -1,6 +1,6 @@
 ## v0.23.0
 
-**Service procedures: a sourced catalog, and a way to capture what's missing.** Built and unit-tested on Linux and by GitHub Actions on Windows. No UI yet; nothing run on the truck. Unsigned. Ford products only.
+**Service procedures: a sourced catalog, and a way to capture what's missing.** Includes v0.22.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. No UI yet; nothing run on the truck. Unsigned. Ford products only.
 
 - **`docs/SERVICE-PROCEDURES.md`** (generated from Core): BMS reset, TPMS training, PCM KAM, TCM KAM / adaptive tables, steering angle calibration, PSCM pull-drift reset, ABS service bleed. Each lists when to use it and when not, conditions, what to do afterwards, Ford's tool-free method where one exists, and **where every identifier comes from**. Confidence per procedure: Verified / Community / Synthesized / NeedsCapture.
   - **BMS reset** (BCM 0x726: `10 03`, `31 01 20 1A`): Community. A Ford Diagnostic Engineering Tool procedure quoted on F-150, Focus and Escape forums; not verified on a 2017 BCM. Only for a new battery (it clears learned battery data); charger disconnected first; it does not set the battery type.
@@ -16,6 +16,21 @@ Internal: `Service/ServiceProcedures`, `ServiceProcedureRunner`, `ServiceProcedu
 1. **Windows, no truck:** `obdcli proxy --port COM5 --log t.txt` with the EX plugged in (ignition off is fine), then point a program that supports TCP/Wi-Fi ELM adapters at 127.0.0.1:35000 and let it connect. `t.txt` shows its AT commands. `obdcli capture-summary --log t.txt` runs.
 2. **Truck (optional, when you want a procedure added):** follow `docs/CLI.md` → "Capturing a service procedure" for one procedure; send the summary.
 3. **Truck: BMS reset only after an actual battery replacement**, not as a test.
+
+## v0.22.3
+
+**Low-risk items from the 2026-11-16 risk review.** Includes v0.22.2 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+
+- **Flash speed and time left.** While a flash downloads, the progress line shows the measured speed and an estimate of the time left (measured from the first acknowledged byte, restarted after a session re-entry or resume), and the log records the speed once a minute. The first real flash will show how fast the adapter link actually is; the debug log also times each host-segmented message (`ISO-TP host send: … ms/frame`).
+- **Checking a download.** Every CI build now carries `SHA256SUMS.txt` (app, `obdcli` x64 and x86), and the build log prints the hash of each `.exe`. README → *Checking a download* explains how to compare them. Code signing via the free SignPath Foundation programme needs an application by the repository owner.
+- **Smaller main view model.** The adapter firmware check, firmware package download and official updater moved from `MainViewModel` (1,275 → 1,101 lines) into `FirmwareViewModel`. No behaviour change; the two settings stay on the Settings page.
+
+Internal: `FlashRate`, `FirmwareViewModel` (bindings `Firmware.*`), CI checksum step.
+
+### Windows verify
+1. DEMO: flash the DEMO image: the progress line shows `… KB/s, about … left` during the download.
+2. Connect DEMO, then a real adapter: the firmware banner and Settings → firmware buttons (Check, Get/Run official updater, Open folder/page) work as before.
+3. Download the CI artifact, run `Get-FileHash .\OBDLinkDiag.exe -Algorithm SHA256`: it matches `SHA256SUMS.txt` and the CI log.
 
 ## v0.22.2
 
