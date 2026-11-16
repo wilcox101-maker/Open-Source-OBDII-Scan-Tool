@@ -1,23 +1,68 @@
 # Ford Enhanced UDS reference
 
-What this tool sends to Ford modules over UDS (ISO 14229-1 on ISO 15765 CAN), and what it never sends. The tables below are
-**generated from the code** (`src/ObdLink.Core/Docs/EnhancedUdsTables.cs`), so they always match what the app does. A test
-(`EnhancedUdsDocTests`) fails if they drift; run the tests with `UPDATE_DOCS=1` to regenerate them.
+Everything this project knows about talking UDS (ISO 14229-1, on ISO 15765 CAN) to Ford modules: buses and addressing, every
+service the tool sends (and which it never sends), sessions, timing, security access, DIDs, DTCs, controls, routines,
+programming and negative responses. The tables below are **generated from the code** (`src/ObdLink.Core/Docs/EnhancedUdsTables.cs`),
+so they always match what the app does; a test (`EnhancedUdsDocTests`) fails if they drift. Regenerate with
+`UPDATE_DOCS=1 dotnet test tests/ObdLink.Core.Tests --filter EnhancedUdsDocTests`.
+
+Related: live-data parameter names `docs/ford-data-parameters/`, flashing `docs/FLASHING.md`, seed/key plug-ins
+`tools/SeedKeyPluginSample/README.md`, command line `docs/CLI.md`.
 
 ## How to read this
 
 - **Verified** means checked on Dale's 2017 F-150 (or in Ford's own As-Built file for that VIN). Everything else is a
   standard value (ISO / SAE) or community-reported and marked so. Treat community values as a starting point, not a fact.
 - **Gated** services change module state. They are refused while read-only mode is on (the default at every start) and
-  each app path adds its own checks (typed confirmation, battery check, backup, read-back).
+  each app path adds its own checks (typed confirmation, battery check, backup, read-back, journal).
 - Proprietary databases and service manuals are not copied here. Ford DID, routine and output catalogs need a
   redistributable source before they ship (see `docs/ROADMAP-FORSCAN-PARITY.md`).
-- Request/response framing: a positive response is `SID + 0x40`, a negative one is `7F SID NRC`. Ford physical
-  addressing uses 11-bit IDs with response = request + 8.
+
+## UDS in one page
+
+- **Request / response.** A request is a service ID (SID) plus parameters, e.g. `22 F1 90` (read DID F190). A positive reply
+  is `SID + 0x40` plus data (`62 F1 90 <VIN>`). A negative reply is `7F <SID> <NRC>` (`7F 22 31` = DID not supported).
+- **Addressing.** Physical: one module, request ID `0x7xx`, reply on request + 8 (Ford convention). Functional: `0x7DF`,
+  every OBD-II ECU answers (SAE J1979 services 01-0A only).
+- **Sub-functions.** Services such as 10, 11, 19, 27, 28, 31, 3E, 85 take a sub-function byte; bit 7 set means "don't send a
+  positive response" (`3E 80`).
+- **Sessions.** Default (`10 01`) allows reads. Extended (`10 03`) is needed for most writes, routines and controls;
+  programming (`10 02`) for flashing. A non-default session ends after S3 (5 s) without traffic; TesterPresent `3E 80` keeps it.
+- **Security.** Some writes need SecurityAccess: request a seed with an odd level, answer with a key on the next even level.
+  The key algorithm is module-specific and not published by Ford; this project ships none.
+- **Response pending.** `7F xx 78` means "busy, the answer follows"; the final answer comes within P2* (5 s default).
+
+## What is known and what is not
+
+| Topic | Status |
+| --- | --- |
+| Module addresses (2017 F-150) | Most confirmed by Ford's As-Built file for Dale's VIN; bus per module partly UNVERIFIED (the scanner tries both) |
+| Identification DIDs F1xx | ISO standard; read on the truck by FORScan logs |
+| As-Built DID = DE00 + block - 1 | Community convention, UNVERIFIED by a Ford source |
+| Enhanced Mode 22 DIDs | 4 verified (TPMS 2813-2816 on BCM 726); the rest community values |
+| Security access levels per module | **Unknown** (not public). As-Built level is a user setting; flash default 0x01 is the ISO convention |
+| Seed/key algorithms | **Not shipped**; user plug-ins only |
+| Ford routine IDs (self-tests, service procedures) | **Unknown**; routines on the truck need an allow-listed, sourced ID |
+| Ford output-control (2F) DIDs | **Unknown**; bench-first (Phase 4) |
+| Programming: SBL, erase record layout, FF01 status | **Unknown / not modelled**; simulator only |
+| 2021+ (HS-CAN3, gateway) | Not supported |
 
 ## Tables
 
 <!-- BEGIN GENERATED: EnhancedUdsTables (do not edit by hand; run the tests with UPDATE_DOCS=1) -->
+
+### Buses and transport
+
+UDS runs on ISO 15765-2 (ISO-TP) over CAN with 11-bit IDs. Physical requests go to one module (`0x7xx`, reply on request + 8). OBD-II requests use the functional ID `0x7DF` (every emissions ECU answers). ISO-TP: single frame up to 7 data bytes; longer messages are a first frame plus consecutive frames, paced by the receiver's flow control (block size, STmin). Source: `Elm/StnProtocol.cs`, `Elm/BusProfile.cs`, `IsoTp/`.
+
+| Bus | OBD connector pins | Bit rate | STN protocol (STP) | Used for |
+| --- | --- | --- | --- | --- |
+| HS-CAN | 6 / 14 | 500 kbps | 33 (ISO 15765, 11-bit) | OBD-II, PCM, ABS, BCM, most 2017 F-150 modules |
+| MS-CAN | 3 / 11 | 125 kbps | 53 (ISO 15765, 11-bit) | Body / comfort modules on older Fords (APIM, ACM, door modules on some years) [bus per module UNVERIFIED for 2017] |
+| HS-CAN2 | 3 / 11 | 500 kbps | 53 at 500k (STPBR) | 2015+ F-150: the 3/11 pair carries a 500k bus (MS-CAN at 125k answers CAN ERROR there) |
+| HS-CAN3 | — | 500 kbps | — | 2021+ F-150; not supported yet |
+
+J2534 pass-thru (obdcli, v0.18.0): HS uses ISO15765 at 500k; MS / HS2 use ISO15765_PS with J1962 pin selection 0x030B (pins 3 / 11).
 
 ### Ford modules (2017 F-150 table)
 
@@ -88,6 +133,69 @@ Source: `UdsServices`. "Gated" = state-changing: refused in read-only mode and, 
 
 Restore requests let through a closed gate (`UdsServices.IsRestoreRequest`): `85 01` (DTC setting on), `28 00 xx` (enable Rx/Tx), `2F did 00` (return control to ECU).
 
+### When each write service may run on the truck
+
+The app enforces the write gate; *which phase* a service is allowed on the real truck is the project's verification plan (Phase 0 DEMO, 1 truck read-only, 2 one As-Built block, 3 As-Built any module + sessions + allow-listed routines, 4 bench-then-truck 2F/85/28, 5 programming / keys). A phase failure stops new work in that area.
+
+| Service | Earliest phase on the truck | Notes |
+| --- | --- | --- |
+| 0x22 / 0x19 / 0x3E / 0x09 / 0x01 | 1 | read-only |
+| 0x2E on As-Built DE00-DEFF | 2 (one block), 3 (any module) | backup, journal, read-back, undo |
+| 0x10 03 sessions, 0x27 for As-Built | 3 | seed/key from a user plug-in |
+| 0x31 routines | 3 | allow-listed routine IDs only (list starts empty) |
+| 0x14 clear DTCs | 3 | freeze frames are lost |
+| 0x2F / 0x85 / 0x28 | 4 | bench module first, then truck; restore leases |
+| 0x10 02, 0x34 / 0x36 / 0x37, 0x31 FF00 / FF01, 0x11 | 5 | flashing: bench flash and recovery of a spare module first |
+| PATS key programming | 5 | Ford's add-a-key procedure only; no bypass |
+
+### Diagnostic sessions (0x10) and reset (0x11)
+
+Source: `UdsSession`, `ResetType`. A module starts in the default session; writes, routines and controls usually need the extended session; flashing needs the programming session. Leaving a non-default session (timeout or `10 01`) drops security access and ends 0x28 / 0x85 / 0x2F effects. A positive `50` reply carries the module's P2 and P2* (the client uses them).
+
+| Request | Session / reset |
+| --- | --- |
+| `10 01` | Default |
+| `10 02` | Programming |
+| `10 03` | Extended |
+| `11 01` | Hard reset |
+| `11 02` | KeyOffOn reset |
+| `11 03` | Soft reset |
+
+Suppress-positive-response: setting bit 7 of the sub-function (e.g. `3E 80`, `10 83`) asks the module to stay silent on success; silence is then the expected answer.
+
+### Timing, keep-alive and response pending
+
+Source: `UdsServerTiming`, `TesterPresentKeeper`, `UdsClient`.
+
+| Parameter | Value | Meaning |
+| --- | --- | --- |
+| P2server_max | 50 ms | first response (ISO 14229-2 default; the module may report its own) |
+| P2*server_max | 5000 ms | final response after NRC 0x78 response pending |
+| S3server | 5000 ms | a non-default session ends after this long without a request |
+| Keep-alive | `3E 80` after 2 s idle | sent by the session host under the shared adapter lock, on the module's own bus |
+| 0x78 / 0x21 on an ELM-style link | up to 5 resends, 200 ms apart | only for requests that are safe to repeat (below); others report the NRC so the caller can settle the outcome by reading back |
+| 0x78 on a listening link (J2534) | wait up to P2* per reply, at most 20 pending replies | no resend |
+
+Requests the client may resend after 0x78 / 0x21: `10`, `19`, `22`, `23`, `3E`, `31 03` (reads, session control, tester present, routine results). Writes and routine starts are never resent blindly.
+
+### Security access (0x27)
+
+Source: `UdsClient.SecurityAccessAsync`, `ISeedKeyProvider`, `SeedKeyOptions`, `FlashPlan.SecurityLevel`.
+
+1. Request a seed: `27 LL` with an **odd** level LL (0x01-0x7F). Reply `67 LL <seed>`.
+2. A seed of all zero bytes means the level is already unlocked (ISO 14229 convention): nothing more is sent.
+3. Otherwise the key comes from a seed/key **plug-in** (`ISeedKeyProvider.ComputeKeyAsync(moduleTxId, level, seed)`); the app ships none. No key → the operation stops before anything is written.
+4. Send the key: `27 LL+1 <key>` (the even level). Reply `67 LL+1` = unlocked until the session ends.
+5. A wrong key (NRC 0x35) is sent once and stops the operation; repeated wrong keys give 0x36 (exceeded attempts) and then 0x37 (wait, typically after power-up or a lockout).
+
+| Where | Level | Notes |
+| --- | --- | --- |
+| As-Built writes | Settings → Security access → As-Built level (odd hex; empty = never unlock) | invalid (even or > 0x7F) values are ignored |
+| Flash engine | default 0x01 per plan | [UNVERIFIED for Ford] some modules use another odd level; one wait on 0x37 then stop |
+| Routines / dashboard cards | none requested by the app | a module answering 0x33 needs a session + level the operator supplies |
+
+**Per-module Ford levels and algorithms are not known to this project** (not public; no verified source). Plug-ins are .NET 8 DLLs approved by SHA-256 (`Data\plugins\seedkey\`, typed TRUST); see `tools/SeedKeyPluginSample/README.md`.
+
 ### Identification DIDs read by Identify vehicle
 
 Source: `IdentifyOptions.DefaultDids` (ISO 14229-1 Annex C identification range). Read-only: Identify sends only services 0x09, 0x3E and 0x22.
@@ -130,6 +238,51 @@ Source: `Data/ford-enhanced-pids.json` (the built-in default; users can edit the
 | tpms_rr | Tire pressure RR | 0x726 | 0x2815 | 2 |  | 0.333333 | 7.333333 | kPa | **yes** | Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2815 (RR). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa. |
 | tpms_lr | Tire pressure LR | 0x726 | 0x2816 | 2 |  | 0.333333 | 7.333333 | kPa | **yes** | Verified by Dale on a 2017 F-150. BCM 726 Mode 22 DID 2816 (LR). Formula remains the Torque Pro community equation (((256*A)+B)/3+22/3) kPa. |
 
+### DTC services (0x19, 0x14) and status bits
+
+Source: `UdsClient.ReadDtcsByStatusAsync`, `Dtc/DtcDetails.cs`. A UDS DTC is 3 bytes (shown as P/C/B/U + 4 hex digits + a 2-hex failure type) plus one status byte.
+
+| Request | ISO name | Used for |
+| --- | --- | --- |
+| `19 01 mask` | reportNumberOfDTCByStatusMask | count |
+| `19 02 mask` | reportDTCByStatusMask | DTC list (DTCs tab, mask 0xFF) |
+| `19 03` | reportDTCSnapshotIdentification | which snapshots exist |
+| `19 04 DTC rec` | reportDTCSnapshotRecordByDTCNumber | freeze-frame style snapshot |
+| `19 06 DTC FF` | reportDTCExtDataRecordByDTCNumber | extended data (counters, raw) |
+| `19 0A` | reportSupportedDTC | every DTC the module supports |
+| `19 15` | reportDTCWithPermanentStatus | permanent DTCs |
+| `14 FF FF FF` | ClearDiagnosticInformation (all groups) | Clear module DTCs (gated, own bus only) |
+
+| Status bit | ISO name | Shown as |
+| --- | --- | --- |
+| 0x01 | testFailed | failing now |
+| 0x02 | testFailedThisOperationCycle | failed this drive cycle |
+| 0x04 | pendingDTC | pending |
+| 0x08 | confirmedDTC | confirmed (stored) |
+| 0x10 | testNotCompletedSinceLastClear | not tested since clear |
+| 0x20 | testFailedSinceLastClear | failed since clear |
+| 0x40 | testNotCompletedThisOperationCycle | not tested this cycle |
+| 0x80 | warningIndicatorRequested | warning lamp requested |
+
+### Control services (0x85, 0x28, 0x2F)
+
+Source: `Uds/UdsControl.cs`. Each disabling request returns a `ControlLease` whose restore (retried, ignores cancel) runs when the job ends; restore requests pass a closed write gate. All three end when the session ends.
+
+| Request | Meaning |
+| --- | --- |
+| `85 01` | DTC setting ON (restore) |
+| `85 02` | DTC setting OFF |
+| `28 00 01` | EnableRxAndTx, Normal messages (restore) |
+| `28 00 02` | EnableRxAndTx, NetworkManagement messages (restore) |
+| `28 00 03` | EnableRxAndTx, Both messages (restore) |
+| `28 01 01` | EnableRxDisableTx, Normal messages |
+| `28 02 01` | DisableRxEnableTx, Normal messages |
+| `28 03 01` | DisableRxAndTx, Normal messages |
+| `2F DID DID 00` | ReturnControlToEcu (restore) |
+| `2F DID DID 01` | ResetToDefault |
+| `2F DID DID 02` | FreezeCurrentState |
+| `2F DID DID 03 state` | ShortTermAdjustment (dashboard hold card: released after 10 s, on the next press or when the window closes) |
+
 ### Routine identifier ranges (0x31)
 
 Source: `UdsRoutines.Classify` / `RefusalReason` (ISO 14229-1 Annex F). Ford routine identifiers themselves are catalog data and are not shipped.
@@ -147,6 +300,38 @@ Source: `UdsRoutines.Classify` / `RefusalReason` (ISO 14229-1 Annex F). Ford rou
 | 0xFF01 | Programming | **refused**: programming routines (FF00/FF01) are only sent by the flash engine (Flash/FlashEngine), never from the Routines tab or the console |
 | 0xFF02 | EraseMirrorMemoryDtcs | allowed, behind the write gate (typed RUN in the app) |
 | 0xFF03-0xFFFF | IsoReserved | allowed, behind the write gate (typed RUN in the app) |
+
+### Other read services (Core, not in the app UI)
+
+Source: `UdsMemory`, `UdsDynamicData`, `UdsPeriodic`.
+
+| Request | Meaning |
+| --- | --- |
+| `23 24 addr(4) size(2)` | ReadMemoryByAddress; the format byte = (size bytes << 4) \| address bytes |
+| `2C 01 DDDI src...` | define a dynamic DID from other DIDs (DDDI in 0xF200-0xF3FF) |
+| `2C 02 DDDI ALFID addr size...` | define a dynamic DID from memory |
+| `2C 03 [DDDI]` | clear one or all dynamic DIDs |
+| `2A 01 PDID...` | periodic DIDs at the slow rate (module-defined) |
+| `2A 02 PDID...` | periodic DIDs at the medium rate (module-defined) |
+| `2A 03 PDID...` | periodic DIDs at the fast rate (module-defined) |
+| `2A 04 [PDID...]` | stop periodic DIDs |
+| `22 DID DID DID DID ...` | several DIDs in one request (lengths must be known to split the reply) |
+
+### Programming sequence (flash engine)
+
+Source: `Flash/FlashEngine.cs`, `FlashPlan`, `FlashRetryPolicy` (OUIE). **Run only against the simulated module so far.** Ford jobs normally load a secondary bootloader (SBL) first; the engine does not model that yet (see `docs/FLASHING.md`).
+
+`10 03` (optional) → `10 02` → `27 LL / LL+1` → `31 01 FF00 <region>` per erase region → per segment: `34 00 44 addr size` → `36 counter data` × N (counter 01..FF, wraps to 00) → `37` → `31 01 FF01` → `11 01` → read part number (`22 F188`).
+
+| Setting | Default |
+| --- | --- |
+| Battery window | 12.5-15.0 V |
+| Max block length (capped by the 74 reply) | 4095 bytes |
+| TransferData resends (same counter) | 4 |
+| Other step resends | 3 |
+| Erase / check routine timeout | 90 s |
+| Security delay wait (0x37) | 10 s |
+| Wait after reset | 3 s |
 
 ### Never sent / write refusals
 
@@ -205,14 +390,5 @@ Source: `UdsNrc.Describe` / `Explain` (ISO 14229-1 Annex A) and `FlashFaults.Fro
 | 0x91 | torqueConverterClutchLocked | the torque converter clutch is locked | Fatal |
 | 0x92 | voltageTooHigh | supply voltage is too high | WaitVoltage |
 | 0x93 | voltageTooLow | supply voltage is too low | WaitVoltage |
-
-### Timing defaults
-
-Source: `UdsServerTiming.Default` (ISO 14229-2); a module reports its own P2/P2* in the `50 ss` reply.
-
-| Parameter | Default |
-| --- | --- |
-| P2server_max (first response) | 50 ms |
-| P2*server_max (after NRC 0x78) | 5000 ms |
 
 <!-- END GENERATED -->

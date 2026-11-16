@@ -6,6 +6,9 @@ using ObdLink.Core.Modules;
 using ObdLink.Core.Obd;
 using ObdLink.Core.Uds;
 using ObdLink.Core.Vehicles;
+using ObdLink.Core.Dtc;
+using ObdLink.Core.Elm;
+using ObdLink.Core.Security;
 
 namespace ObdLink.Core.Docs;
 
@@ -62,15 +65,23 @@ public static class EnhancedUdsTables
     {
         var sb = new StringBuilder();
         sb.AppendLine(Begin).AppendLine();
+        Buses(sb);
         Modules(sb);
         ServicesTable(sb);
+        PhaseGates(sb);
+        Sessions(sb);
+        Timing(sb);
+        Security(sb);
         IdentificationDids(sb);
         AsBuiltDids(sb);
         EnhancedPids(sb);
+        DtcServices(sb);
+        Controls(sb);
         Routines(sb);
+        ReadExtras(sb);
+        Programming(sb);
         Refusals(sb);
         Nrcs(sb);
-        Timing(sb);
         sb.AppendLine(End);
         return sb.ToString().Replace("\r\n", "\n");
     }
@@ -180,14 +191,160 @@ public static class EnhancedUdsTables
         sb.AppendLine();
     }
 
+    private static void Buses(StringBuilder sb)
+    {
+        sb.AppendLine("### Buses and transport").AppendLine();
+        sb.AppendLine("UDS runs on ISO 15765-2 (ISO-TP) over CAN with 11-bit IDs. Physical requests go to one module (`0x7xx`, reply on request + 8). OBD-II requests use the functional ID " +
+            $"`0x{ObdService.Functional11:X3}` (every emissions ECU answers). ISO-TP: single frame up to 7 data bytes; longer messages are a first frame plus consecutive frames, paced by the receiver's flow control (block size, STmin). " +
+            "Source: `Elm/StnProtocol.cs`, `Elm/BusProfile.cs`, `IsoTp/`.").AppendLine();
+        var bp = new BusProfile();
+        Row(sb, "Bus", "OBD connector pins", "Bit rate", "STN protocol (STP)", "Used for");
+        Rule(sb, 5);
+        Row(sb, "HS-CAN", "6 / 14", "500 kbps", $"{bp.HsCanPreset} (ISO 15765, 11-bit)", "OBD-II, PCM, ABS, BCM, most 2017 F-150 modules");
+        Row(sb, "MS-CAN", "3 / 11", "125 kbps", $"{bp.MsCanPreset} (ISO 15765, 11-bit)", "Body / comfort modules on older Fords (APIM, ACM, door modules on some years) [bus per module UNVERIFIED for 2017]");
+        Row(sb, "HS-CAN2", "3 / 11", "500 kbps", $"{bp.MsCanPreset} at 500k (STPBR)", "2015+ F-150: the 3/11 pair carries a 500k bus (MS-CAN at 125k answers CAN ERROR there)");
+        Row(sb, "HS-CAN3", "—", "500 kbps", "—", "2021+ F-150; not supported yet");
+        sb.AppendLine();
+        sb.AppendLine("J2534 pass-thru (obdcli, v0.18.0): HS uses ISO15765 at 500k; MS / HS2 use ISO15765_PS with J1962 pin selection 0x030B (pins 3 / 11).").AppendLine();
+    }
+
+    private static void PhaseGates(StringBuilder sb)
+    {
+        sb.AppendLine("### When each write service may run on the truck").AppendLine();
+        sb.AppendLine("The app enforces the write gate; *which phase* a service is allowed on the real truck is the project's verification plan (Phase 0 DEMO, 1 truck read-only, 2 one As-Built block, 3 As-Built any module + sessions + allow-listed routines, 4 bench-then-truck 2F/85/28, 5 programming / keys). A phase failure stops new work in that area.").AppendLine();
+        Row(sb, "Service", "Earliest phase on the truck", "Notes");
+        Rule(sb, 3);
+        Row(sb, "0x22 / 0x19 / 0x3E / 0x09 / 0x01", "1", "read-only");
+        Row(sb, "0x2E on As-Built DE00-DEFF", "2 (one block), 3 (any module)", "backup, journal, read-back, undo");
+        Row(sb, "0x10 03 sessions, 0x27 for As-Built", "3", "seed/key from a user plug-in");
+        Row(sb, "0x31 routines", "3", "allow-listed routine IDs only (list starts empty)");
+        Row(sb, "0x14 clear DTCs", "3", "freeze frames are lost");
+        Row(sb, "0x2F / 0x85 / 0x28", "4", "bench module first, then truck; restore leases");
+        Row(sb, "0x10 02, 0x34 / 0x36 / 0x37, 0x31 FF00 / FF01, 0x11", "5", "flashing: bench flash and recovery of a spare module first");
+        Row(sb, "PATS key programming", "5", "Ford's add-a-key procedure only; no bypass");
+        sb.AppendLine();
+    }
+
+    private static void Sessions(StringBuilder sb)
+    {
+        sb.AppendLine("### Diagnostic sessions (0x10) and reset (0x11)").AppendLine();
+        sb.AppendLine("Source: `UdsSession`, `ResetType`. A module starts in the default session; writes, routines and controls usually need the extended session; flashing needs the programming session. " +
+            "Leaving a non-default session (timeout or `10 01`) drops security access and ends 0x28 / 0x85 / 0x2F effects. A positive `50` reply carries the module's P2 and P2* (the client uses them).").AppendLine();
+        Row(sb, "Request", "Session / reset");
+        Rule(sb, 2);
+        foreach (var v in Enum.GetValues<UdsSession>()) Row(sb, $"`10 {(byte)v:X2}`", v.ToString());
+        foreach (var v in Enum.GetValues<ResetType>()) Row(sb, $"`11 {(byte)v:X2}`", v + " reset");
+        sb.AppendLine();
+        sb.AppendLine("Suppress-positive-response: setting bit 7 of the sub-function (e.g. `3E 80`, `10 83`) asks the module to stay silent on success; silence is then the expected answer.").AppendLine();
+    }
+
     private static void Timing(StringBuilder sb)
     {
-        sb.AppendLine("### Timing defaults").AppendLine();
-        sb.AppendLine("Source: `UdsServerTiming.Default` (ISO 14229-2); a module reports its own P2/P2* in the `50 ss` reply.").AppendLine();
-        Row(sb, "Parameter", "Default");
+        sb.AppendLine("### Timing, keep-alive and response pending").AppendLine();
+        sb.AppendLine("Source: `UdsServerTiming`, `TesterPresentKeeper`, `UdsClient`.").AppendLine();
+        Row(sb, "Parameter", "Value", "Meaning");
+        Rule(sb, 3);
+        Row(sb, "P2server_max", $"{UdsServerTiming.Default.P2.TotalMilliseconds:0} ms", "first response (ISO 14229-2 default; the module may report its own)");
+        Row(sb, "P2*server_max", $"{UdsServerTiming.Default.P2Star.TotalMilliseconds:0} ms", "final response after NRC 0x78 response pending");
+        Row(sb, "S3server", $"{TesterPresentKeeper.S3Server.TotalMilliseconds:0} ms", "a non-default session ends after this long without a request");
+        Row(sb, "Keep-alive", $"`3E 80` after {TesterPresentKeeper.DefaultInterval.TotalSeconds:0} s idle", "sent by the session host under the shared adapter lock, on the module's own bus");
+        Row(sb, "0x78 / 0x21 on an ELM-style link", $"up to {UdsClient.DefaultPendingRetries} resends, {UdsClient.DefaultPendingRetryDelay.TotalMilliseconds:0} ms apart", "only for requests that are safe to repeat (below); others report the NRC so the caller can settle the outcome by reading back");
+        Row(sb, "0x78 on a listening link (J2534)", $"wait up to P2* per reply, at most {UdsClient.DefaultMaxPendingReplies} pending replies", "no resend");
+        sb.AppendLine();
+        sb.Append("Requests the client may resend after 0x78 / 0x21: ");
+        sb.AppendLine(string.Join(", ", new[] { new byte[] { 0x10, 0x03 }, new byte[] { 0x19, 0x02 }, new byte[] { 0x22, 0xF1, 0x90 }, new byte[] { 0x23 }, new byte[] { 0x3E, 0x00 }, new byte[] { 0x31, 0x03, 0x12, 0x34 }, new byte[] { 0x2E, 0xDE, 0x00 }, new byte[] { 0x31, 0x01, 0x12, 0x34 } }
+            .Where(UdsClient.IsIdempotent).Select(r => $"`{r[0]:X2}" + (r[0] == 0x31 ? " 03`" : "`")).Distinct()) + " (reads, session control, tester present, routine results). Writes and routine starts are never resent blindly.");
+        sb.AppendLine();
+    }
+
+    private static void Security(StringBuilder sb)
+    {
+        sb.AppendLine("### Security access (0x27)").AppendLine();
+        sb.AppendLine("Source: `UdsClient.SecurityAccessAsync`, `ISeedKeyProvider`, `SeedKeyOptions`, `FlashPlan.SecurityLevel`.").AppendLine();
+        sb.AppendLine("1. Request a seed: `27 LL` with an **odd** level LL (0x01-0x7F). Reply `67 LL <seed>`.");
+        sb.AppendLine("2. A seed of all zero bytes means the level is already unlocked (ISO 14229 convention): nothing more is sent.");
+        sb.AppendLine("3. Otherwise the key comes from a seed/key **plug-in** (`ISeedKeyProvider.ComputeKeyAsync(moduleTxId, level, seed)`); the app ships none. No key → the operation stops before anything is written.");
+        sb.AppendLine("4. Send the key: `27 LL+1 <key>` (the even level). Reply `67 LL+1` = unlocked until the session ends.");
+        sb.AppendLine("5. A wrong key (NRC 0x35) is sent once and stops the operation; repeated wrong keys give 0x36 (exceeded attempts) and then 0x37 (wait, typically after power-up or a lockout).").AppendLine();
+        Row(sb, "Where", "Level", "Notes");
+        Rule(sb, 3);
+        Row(sb, "As-Built writes", "Settings → Security access → As-Built level (odd hex; empty = never unlock)", "invalid (even or > 0x7F) values are ignored");
+        Row(sb, "Flash engine", $"default 0x{new FlashPlan { TxId = 0x7E0, Image = FlashImage.FromSegments("x", new[] { new FlashSegment(0, new byte[] { 0 }) }) }.SecurityLevel:X2} per plan", "[UNVERIFIED for Ford] some modules use another odd level; one wait on 0x37 then stop");
+        Row(sb, "Routines / dashboard cards", "none requested by the app", "a module answering 0x33 needs a session + level the operator supplies");
+        sb.AppendLine();
+        sb.AppendLine("**Per-module Ford levels and algorithms are not known to this project** (not public; no verified source). Plug-ins are .NET 8 DLLs approved by SHA-256 (`Data\\plugins\\seedkey\\`, typed TRUST); see `tools/SeedKeyPluginSample/README.md`.").AppendLine();
+    }
+
+    private static void DtcServices(StringBuilder sb)
+    {
+        sb.AppendLine("### DTC services (0x19, 0x14) and status bits").AppendLine();
+        sb.AppendLine("Source: `UdsClient.ReadDtcsByStatusAsync`, `Dtc/DtcDetails.cs`. A UDS DTC is 3 bytes (shown as P/C/B/U + 4 hex digits + a 2-hex failure type) plus one status byte.").AppendLine();
+        Row(sb, "Request", "ISO name", "Used for");
+        Rule(sb, 3);
+        Row(sb, "`19 01 mask`", "reportNumberOfDTCByStatusMask", "count");
+        Row(sb, "`19 02 mask`", "reportDTCByStatusMask", "DTC list (DTCs tab, mask 0xFF)");
+        Row(sb, "`19 03`", "reportDTCSnapshotIdentification", "which snapshots exist");
+        Row(sb, "`19 04 DTC rec`", "reportDTCSnapshotRecordByDTCNumber", "freeze-frame style snapshot");
+        Row(sb, "`19 06 DTC FF`", "reportDTCExtDataRecordByDTCNumber", "extended data (counters, raw)");
+        Row(sb, "`19 0A`", "reportSupportedDTC", "every DTC the module supports");
+        Row(sb, "`19 15`", "reportDTCWithPermanentStatus", "permanent DTCs");
+        Row(sb, "`14 FF FF FF`", "ClearDiagnosticInformation (all groups)", "Clear module DTCs (gated, own bus only)");
+        sb.AppendLine();
+        Row(sb, "Status bit", "ISO name", "Shown as");
+        Rule(sb, 3);
+        for (int i = 0; i < 8; i++) Row(sb, $"0x{1 << i:X2}", DtcStatusBits.Names[i], DtcStatusBits.Plain[i]);
+        sb.AppendLine();
+    }
+
+    private static void Controls(StringBuilder sb)
+    {
+        sb.AppendLine("### Control services (0x85, 0x28, 0x2F)").AppendLine();
+        sb.AppendLine("Source: `Uds/UdsControl.cs`. Each disabling request returns a `ControlLease` whose restore (retried, ignores cancel) runs when the job ends; restore requests pass a closed write gate. All three end when the session ends.").AppendLine();
+        Row(sb, "Request", "Meaning");
         Rule(sb, 2);
-        Row(sb, "P2server_max (first response)", $"{UdsServerTiming.Default.P2.TotalMilliseconds:0} ms");
-        Row(sb, "P2*server_max (after NRC 0x78)", $"{UdsServerTiming.Default.P2Star.TotalMilliseconds:0} ms");
+        Row(sb, "`85 01`", "DTC setting ON (restore)");
+        Row(sb, "`85 02`", "DTC setting OFF");
+        foreach (var t in Enum.GetValues<CommunicationControlType>())
+            foreach (var g in new[] { CommunicationGroups.Normal, CommunicationGroups.NetworkManagement, CommunicationGroups.Both })
+                if (t == CommunicationControlType.EnableRxAndTx || g == CommunicationGroups.Normal)
+                    Row(sb, $"`28 {(byte)t:X2} {(byte)g:X2}`", $"{t}, {g} messages" + (t == CommunicationControlType.EnableRxAndTx ? " (restore)" : ""));
+        foreach (var p in Enum.GetValues<IoControlParameter>())
+            Row(sb, $"`2F DID DID {(byte)p:X2}" + (p == IoControlParameter.ShortTermAdjustment ? " state`" : "`"), p + (p == IoControlParameter.ReturnControlToEcu ? " (restore)" : p == IoControlParameter.ShortTermAdjustment ? " (dashboard hold card: released after 10 s, on the next press or when the window closes)" : ""));
+        sb.AppendLine();
+    }
+
+    private static void ReadExtras(StringBuilder sb)
+    {
+        sb.AppendLine("### Other read services (Core, not in the app UI)").AppendLine();
+        sb.AppendLine("Source: `UdsMemory`, `UdsDynamicData`, `UdsPeriodic`.").AppendLine();
+        Row(sb, "Request", "Meaning");
+        Rule(sb, 2);
+        Row(sb, $"`23 {UdsMemory.AddressAndLengthFormat(4, 2):X2} addr(4) size(2)`", "ReadMemoryByAddress; the format byte = (size bytes << 4) | address bytes");
+        Row(sb, "`2C 01 DDDI src...`", "define a dynamic DID from other DIDs (DDDI in 0xF200-0xF3FF)");
+        Row(sb, "`2C 02 DDDI ALFID addr size...`", "define a dynamic DID from memory");
+        Row(sb, "`2C 03 [DDDI]`", "clear one or all dynamic DIDs");
+        foreach (var r in Enum.GetValues<PeriodicRate>()) Row(sb, $"`2A {(byte)r:X2} PDID...`", $"periodic DIDs at the {r.ToString().ToLowerInvariant()} rate (module-defined)");
+        Row(sb, "`2A 04 [PDID...]`", "stop periodic DIDs");
+        Row(sb, "`22 DID DID DID DID ...`", "several DIDs in one request (lengths must be known to split the reply)");
+        sb.AppendLine();
+    }
+
+    private static void Programming(StringBuilder sb)
+    {
+        var plan = new FlashPlan { TxId = 0x7E0, Image = FlashImage.FromSegments("x", new[] { new FlashSegment(0, new byte[] { 0 }) }) };
+        var rp = new FlashRetryPolicy();
+        sb.AppendLine("### Programming sequence (flash engine)").AppendLine();
+        sb.AppendLine("Source: `Flash/FlashEngine.cs`, `FlashPlan`, `FlashRetryPolicy` (OUIE). **Run only against the simulated module so far.** Ford jobs normally load a secondary bootloader (SBL) first; the engine does not model that yet (see `docs/FLASHING.md`).").AppendLine();
+        sb.AppendLine("`10 03` (optional) → `10 02` → `27 LL / LL+1` → `31 01 " + $"{plan.EraseRoutineId:X4}" + " <region>` per erase region → per segment: `34 00 " + $"{plan.AddressAndLengthFormat:X2}" + " addr size` → `36 counter data` × N (counter 01..FF, wraps to 00) → `37` → `31 01 " + $"{plan.CheckRoutineId:X4}" + "` → `11 " + $"{(byte)plan.Reset:X2}" + "` → read part number (`22 F188`).").AppendLine();
+        Row(sb, "Setting", "Default");
+        Rule(sb, 2);
+        Row(sb, "Battery window", $"{plan.MinVoltage:0.0}-{plan.MaxVoltage:0.0} V");
+        Row(sb, "Max block length (capped by the 74 reply)", $"{plan.MaxBlockLength} bytes");
+        Row(sb, "TransferData resends (same counter)", rp.BlockRetries.ToString(CultureInfo.InvariantCulture));
+        Row(sb, "Other step resends", rp.StepRetries.ToString(CultureInfo.InvariantCulture));
+        Row(sb, "Erase / check routine timeout", $"{rp.EraseTimeout.TotalSeconds:0} s");
+        Row(sb, "Security delay wait (0x37)", $"{rp.SecurityDelay.TotalSeconds:0} s");
+        Row(sb, "Wait after reset", $"{rp.PostResetDelay.TotalSeconds:0} s");
         sb.AppendLine();
     }
 

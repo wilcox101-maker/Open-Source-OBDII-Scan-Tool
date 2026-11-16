@@ -41,6 +41,11 @@ public class EnhancedUdsDocTests
         Assert.Contains("| 0x22 | ReadDataByIdentifier |  |", md);
         Assert.Contains("| 0x78 | requestCorrectlyReceived-ResponsePending |", md);
         Assert.Contains("| BCM | Body Control Module | HS-CAN | 0x726 | 0x72E |", md);
+        Assert.Contains("`27 LL+1 <key>`", md);                       // security access steps
+        Assert.Contains("| 0x08 | confirmedDTC | confirmed (stored) |", md);
+        Assert.Contains("| `85 01` | DTC setting ON (restore) |", md);
+        Assert.Contains("| `10 02` | Programming |", md);
+        Assert.Contains("| S3server | 5000 ms |", md);
         Assert.DoesNotContain("1FT", md); // no VIN fragments in a public doc
     }
 }
