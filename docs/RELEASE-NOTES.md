@@ -1,3 +1,17 @@
+## v0.22.4
+
+**Medium-risk items from the 2026-11-16 risk review.** Includes v0.22.3 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+
+- **The app can't be closed mid-flash.** Closing the main window while a module is being flashed is refused with an explanation (the process would cut the link mid-transfer and leave the module in its bootloader). Use *Stop after this segment* and close once it has stopped. A Windows log-off or shutdown is refused too while a flash runs (Windows may still force it after its own timeout; the flash journal then lets the job resume). Sleep was already blocked.
+- **Held outputs are handed back before the app exits.** If a dashboard write card is holding an output (2F) when you close the app, the app now sends the release to each module and waits for the answers (at most 3 s) before the windows close and the adapter disconnects. Before, the release was sent without waiting and the module's own ~5 s session timeout was the real backstop.
+- Bus quieting during a flash (risk 4) shipped in v0.22.1.
+
+Internal: `DashboardViewModel.HoldingOutputs/ReleaseAllAsync`, `MainWindow.ReleaseHoldsThenCloseAsync`, `App.OnSessionEnding`; tests `ShutdownSafetyTests`.
+
+### Windows verify
+1. DEMO flash: while it downloads, close the main window: a *Flash in progress* message appears and the app stays open.
+2. DEMO dashboard: an OutputHold card (DID D100) → HOLD; close the whole app: the log shows *output returned to the module (app closing)* before exit.
+
 ## v0.22.3
 
 **Low-risk items from the 2026-11-16 risk review.** Includes v0.22.2 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
