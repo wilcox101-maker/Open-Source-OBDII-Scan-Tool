@@ -552,7 +552,7 @@
                   <WrapPanel DockPanel.Dock="Top" Margin="0,2,0,4">
                     <Button Command="{Binding RefreshCommand}" Margin="0,0,6,0" ToolTip="List the community options for the lines now in the grid"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Refresh"/></StackPanel></Button>
                     <TextBlock Text="Sheet tab" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" MinWidth="180" Margin="0,0,8,0" ToolTip="Tabs describe the same address differently (e.g. SYNC 1 vs SYNC 3). Pick the tab that matches this module's part number."/>
+                    <ComboBox ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" MinWidth="180" Margin="0,0,8,0" ToolTip="Tabs describe the same address differently (e.g. SYNC 1 vs SYNC 3). Picked from the module's F188/F111 part number when known; the reason is shown below. A tab you pick stays picked for that module."/>
                     <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <TextBox Width="160" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
                     <CheckBox Content="Changed only" IsChecked="{Binding ChangedOnly}" VerticalAlignment="Center" Margin="0,0,12,0"/>
@@ -569,7 +569,7 @@
                       <DataGridTemplateColumn Header="New" Width="90">
                         <DataGridTemplateColumn.CellTemplate>
                           <DataTemplate>
-                            <ComboBox IsEditable="True" ItemsSource="{Binding Choices}" Text="{Binding NewValue, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" ToolTip="{Binding ChoicesText}"/>
+                            <ComboBox IsEditable="True" IsEnabled="{Binding HasLine}" ItemsSource="{Binding Choices}" Text="{Binding NewValue, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource Mono}" ToolTip="{Binding ChoicesText}"/>
                           </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                       </DataGridTemplateColumn>

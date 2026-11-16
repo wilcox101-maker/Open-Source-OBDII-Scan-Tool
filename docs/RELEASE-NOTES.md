@@ -1,3 +1,20 @@
+## v0.23.16
+
+**As-Built Options: sheet tab picked from the module's part number; "not read" / "read" / "changed" per option (W4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Read-only and offline: nothing is sent to a module, and the write, verify and backup path is unchanged. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- **Tab from the part number.** On **As-Built → Options (community sheet)**, Refresh now picks the sheet tab from the module's **software part number (F188)**, then its **core assembly (F111)**, as read by **Identify vehicle**, instead of a fixed map for one truck. Info starts with the reason, for example *Tab chosen from APIM F188=E1BT-14D205-AJ (…)*.
+- **Never a silent guess.** When no part number matches (or the vehicle wasn't identified), the tab falls back to the 2017 F-150 map, then to the first tab, and Info says so with a ⚠: *No part-number match — defaulted to 'APIM Sync 1' (…), confirm it's right.*
+- **Your pick sticks.** A tab you choose in the dropdown is kept for that module on every Refresh while the sheet still offers it.
+- **Option states.** Every option of the tab is listed. **State** reads *not read* (no grid line for that address: read or import that block first; editing disabled), *read*, *changed* (a new value is pending) or *n/a (line too short)*. Info counts them.
+- **Rules are thin for now.** The built-in part-number rules are only the three already noted for the 2017 F-150 (APIM E1BT-14D205 / FL3T-14D212 → *APIM Sync 1*; BCM HU5T → *BCM (BdyCM)-old*; ABS HL34-2C219 / HL34-2D053 → *ABS (2015-2017)*), marked **Synthesized, low confidence** and still saying "confirm it's right". A cited table for more modules and model years comes later as a data-only change.
+
+Internal: `AsBuilt/DecodeTabResolver` (`TabRule` with module, DID, prefix, tab, confidence, source; `Pick` = manual → part number → `DecodeProfile.DaleF150_2017` → first tab; `TabChoice.NeedsConfirm`; `OptionStates`). `AsBuiltOptionsViewModel` takes a DID lookup (`MainViewModel` passes the identified module's DIDs), keeps manual picks per module, logs the reason. `MainWindow.xaml`: the New cell is disabled on not-read rows. Tests `DecodeTabResolverTests` (30): each known part picks its tab, F188 before F111, case/space/dash-insensitive match, no cross-module match, unknown → defaulted with "confirm it's right", not identified, DEMO parts, manual sticky, every rule names a real sheet tab for its module, the state markers. Mutations checked: no sticky pick, F111 before F188, defaulted text without "confirm it's right", rules ignoring the module, no "not read" state, no part-number normalising: each fails the tests.
+
+### Windows + truck verify
+1. **Windows (DEMO):** As-Built → read a DEMO block → Options → Refresh: Info starts with the ⚠ "defaulted … confirm it's right" line (DEMO part numbers never match). Pick another tab, Refresh: it stays. Options for other blocks show **not read** and can't be edited.
+2. **Truck (read-only):** Identify vehicle, read APIM 7D0, BCM 726 and ABS 760 one at a time, Refresh Options each time: Info should say "Tab chosen from <module> F188/F111=…" with the tab above. Then open the same module in FORScan's As-Built easy mode and compare a few option names and values with the Options grid; note any that differ.
+3. No write is needed for this release.
+
 ## v0.23.15
 
 **`obdcli vbf-info` checks a whole Ford software set; new `obdcli selftest`.** Built and unit-tested on Linux and by GitHub Actions on Windows (where CI also runs `obdcli selftest` on the published exe); simulators only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

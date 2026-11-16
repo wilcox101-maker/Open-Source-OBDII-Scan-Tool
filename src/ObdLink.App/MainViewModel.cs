@@ -512,7 +512,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         RawConsole = new ConsoleViewModel(EventLog, (n, f, p) => C(n, f, p), () => _console);
         AsBuiltPage = new AsBuiltPageViewModel(EventLog, this, (n, f, p, can) => C(n, f, p, can), OpenFile, SaveFile, (t, m) => Ask(t, m),
             () => Paths.AsBuiltDir, () => Paths.BackupsDir, RefreshBackups, AsBuiltCan);
-        AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList());
+        AsBuiltOptions = new AsBuiltOptionsViewModel(EventLog, () => AsBuiltPage.AsBuiltRows.ToList(),
+            tx => _current?.Modules.FirstOrDefault(m => m.TxId == tx)?.Dids); // W4: sheet tab from F188/F111
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke(1));
         OpenDashboard2Command = new("Open dashboard 2", EventLog, _ => DashboardOpenRequested?.Invoke(2));
         OpenDashboard3Command = new("Open dashboard 3", EventLog, _ => DashboardOpenRequested?.Invoke(3));

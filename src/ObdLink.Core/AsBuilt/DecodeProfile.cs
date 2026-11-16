@@ -6,6 +6,7 @@ namespace ObdLink.Core.AsBuilt;
 public sealed record DecodeProfile(string Name, IReadOnlyDictionary<ushort, string> TabByModule)
 {
     /// <summary>
+    /// v0.23.16 (W4): the Options tab now comes from <see cref="DecodeTabResolver"/> (part numbers first); this map is only its fallback.
     /// Dale's 2017 F-150. APIM = SYNC 1 (confirmed by owner 2026-10-23). BCM HU5T → "BCM (BdyCM)-old". ABS tab = 2015-2017.
     /// </summary>
     public static readonly DecodeProfile DaleF150_2017 = new("Dale 2017 F-150 (SYNC 1)", new Dictionary<ushort, string>
