@@ -439,6 +439,56 @@
             </DockPanel>
           </Border>
         </TabItem>
+        <TabItem Header="Flash" Tag="&#xE896;" DataContext="{Binding Flash}">
+          <Border Style="{StaticResource CardStyle}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,0,4,6" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}"
+                         Text="Module flashing (Phase 5, tested only in DEMO so far). Open a VBF file, run the checks, confirm the warnings (type FLASH). The app saves a backup, keeps a journal of every acknowledged block, retries lost blocks, and never resets the module after a failure: an interrupted job is resumed with the same file on either adapter. Needs writes enabled (Settings) and a seed/key plug-in for the module. On a DEMO port the target is a simulated bootloader module."/>
+              <Border DockPanel.Dock="Top" Margin="0,0,0,6" Padding="8,6" CornerRadius="4" Background="{DynamicResource DangerBg}" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
+                      Visibility="{Binding BannerVisible, Converter={StaticResource BoolVis}}">
+                <TextBlock Text="{Binding Banner}" Foreground="{DynamicResource DangerFg}" FontWeight="Bold" TextWrapping="Wrap"/>
+              </Border>
+              <DockPanel DockPanel.Dock="Top" Margin="2">
+                <TextBlock Text="Module:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="3,0,6,0"/>
+                <ComboBox DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" DisplayMemberPath="PickerText" MinWidth="420" IsEnabled="{Binding Flash.Idle}"/>
+              </DockPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Text="{Binding AdapterNote}"/>
+              <WrapPanel DockPanel.Dock="Top" Margin="0,4,0,4">
+                <Button Command="{Binding OpenFileCommand}" Margin="0,0,4,0" ToolTip="Open a VBF flash file. Block checksums are checked; a damaged file is refused."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE8E5;"/><TextBlock Text="Open file…"/></StackPanel></Button>
+                <Button Command="{Binding DemoImageCommand}" Margin="0,0,12,0" ToolTip="DEMO ports only: a synthetic image for the simulated module"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9F5;"/><TextBlock Text="DEMO image"/></StackPanel></Button>
+                <TextBlock Text="Security level 0x" VerticalAlignment="Center"/>
+                <TextBox Width="36" Text="{Binding SecurityLevel, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource Mono}" Margin="0,0,12,0" ToolTip="SecurityAccess seed level for programming (odd). 01 is the ISO convention; Ford modules may differ [UNVERIFIED]"/>
+                <Button Command="{Binding PreflightCommand}" Margin="0,0,4,0" ToolTip="Battery window, link health (8 tester-present probes), file vs module, adapter, PC power. Read-only."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE9D5;"/><TextBlock Text="Run checks"/></StackPanel></Button>
+                <Button Command="{Binding FlashCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,0" ToolTip="Checks again, shows the warnings, asks you to type FLASH, saves a backup, then flashes"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE896;"/><TextBlock Text="Flash…"/></StackPanel></Button>
+                <Button Command="{Binding ResumeCommand}" Margin="0,0,4,0" ToolTip="Resume an open job with the same file: programming session, security, erase, then all segments again"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE72C;"/><TextBlock Text="Resume…"/></StackPanel></Button>
+                <Button Command="{Binding StopCommand}" IsEnabled="{Binding Running}" Margin="0,0,4,0" ToolTip="Stops after the current segment. The job stays open; the module stays in its bootloader until you resume."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE71A;"/><TextBlock Text="Stop after this segment"/></StackPanel></Button>
+                <Button Command="{Binding AbandonCommand}" Margin="0,0,4,0" ToolTip="Close an open job without finishing it. The journal and backup are kept."><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource GlyphStyle}" Text="&#xE711;"/><TextBlock Text="Abandon job…"/></StackPanel></Button>
+                <Button Command="{Binding ClearCommand}" Content="Clear log"/>
+              </WrapPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Text="{Binding ImageText}"/>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Foreground="{DynamicResource FgDim}" Text="{Binding JobText}"/>
+              <TextBlock DockPanel.Dock="Top" Margin="4,6,4,2" FontWeight="SemiBold" Text="{Binding PreflightText}"/>
+              <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Preflight}" Margin="4,0,4,6">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,1">
+                      <TextBlock Width="48" FontWeight="Bold" Text="{Binding Status}"/>
+                      <TextBlock Width="150" Text="{Binding Name}"/>
+                      <TextBlock TextWrapping="Wrap" Text="{Binding Detail}"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <DockPanel DockPanel.Dock="Top" Margin="4,2">
+                <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding Retries, StringFormat=Retries: {0}}"/>
+                <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding BytesText}"/>
+                <ProgressBar Height="18" Minimum="0" Maximum="100" Value="{Binding Percent, Mode=OneWay}"/>
+              </DockPanel>
+              <TextBlock DockPanel.Dock="Top" Margin="4,2" TextWrapping="Wrap" Text="{Binding Status}"/>
+              <ListBox ItemsSource="{Binding Lines}" FontFamily="{StaticResource Mono}" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+            </DockPanel>
+          </Border>
+        </TabItem>
         <TabItem Header="As-Built" Tag="&#xE9F9;">
           <Border Style="{StaticResource CardStyle}">
           <DockPanel>

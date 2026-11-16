@@ -134,6 +134,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             if (!Set(ref _mod, value)) return;
             OnPropertyChanged(nameof(AsBuiltActionsEnabled));
             AsBuiltPage?.RaiseModuleCommands();
+            Flash?.Refresh();
             if (value is null) return;
             EventLog.UserAction("Module selected", ("module", value.Label), ("addr", value.Address));
             ModuleHint = value.AsBuiltSupport == AsBuiltSupport.Unsupported
@@ -157,6 +158,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     public DashboardViewModel Dashboard { get; }
     public LiveDataViewModel LiveData { get; }
     public RoutinesViewModel Routines { get; }
+    /// <summary>Flash tab (Phase 5): module flashing through <see cref="ObdLink.Core.Flash.FlashEngine"/>.</summary>
+    public FlashViewModel Flash { get; }
     /// <summary>DTCs page (split out of this class).</summary>
     public DtcViewModel Dtc { get; }
     public BusMonitorViewModel Monitor { get; }
@@ -461,6 +464,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
         Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err, AdapterBlocked);
+        Flash = new FlashViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, () => _session,
+            () => SelectedPort, () => _asBuilt, () => _vin, Path.Combine(Paths.DataDir, "flash"), new WindowsHostPower(), Err, AdapterBlocked);
         Monitor = new BusMonitorViewModel(EventLog, () => _session, _bus, () => MsCanAvailable && _session is { IsStn: true }, LogDir, MonitorStarting, Err);
         Dtc = new DtcViewModel(DtcDatabase.LoadEmbedded(), EventLog, (n, f, p) => C(n, f, p), () => Ch,
             async () => { if (_session is not null && _session.CurrentBus != Bus.HsCan) await SelectDiagProtocol(); },
@@ -749,7 +754,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         _keepAlive = new CancellationTokenSource();
         _ = host.RunAsync(TimeProvider.System, _keepAlive.Token,
             onError: ex => EventLog.Message(LogEventLevel.Warning, "Session", "Keep-alive loop error", ex));
-        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Monitor.AdapterChanged(); });
+        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Flash.Refresh(); Monitor.AdapterChanged(); });
     }
 
     /// <summary>
@@ -763,6 +768,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             EventLog.Message(LogEventLevel.Warning, "Bus monitor", "Released kept-alive sessions (" + string.Join(", ", h.OpenSessions.Select(o => $"0x{o.TxId:X3} {o.Session}")) + "): modules return to their default session while the monitor runs");
         _sessions?.Clear();
         Routines.Refresh();
+        Flash.Refresh();
     }
 
     /// <summary>
@@ -773,7 +779,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
     {
         _keepAlive?.Cancel(); _keepAlive?.Dispose(); _keepAlive = null;
         _sessions?.Clear(); _sessions = null;
-        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Monitor.AdapterChanged(); });
+        Application.Current?.Dispatcher.BeginInvoke(() => { Routines.Refresh(); Flash.Refresh(); Monitor.AdapterChanged(); });
     }
 
     private async Task ScanAsync()
