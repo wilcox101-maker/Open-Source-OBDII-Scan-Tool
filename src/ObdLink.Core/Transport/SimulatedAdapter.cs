@@ -160,11 +160,14 @@ public sealed class SimulatedAdapter
     {
         if (!PresentModules.Contains(tx) && !(Protocol == "53" && MsCanModules.Contains(tx))) return "NO DATA";
         uint rx = tx + 8;
+        // Suppressed positive response (ISO 14229-1): a module that accepts 3E 80 (or any sub-function request with bit 7) stays silent.
+        if (r[0] == 0x3E && r.Length >= 2 && (r[1] & 0x80) != 0) return "NO DATA";
         byte[] resp = r[0] switch
         {
             0x3E => new byte[] { 0x7E, 0x00 },
+            0x31 => Routine(tx, r),
             0x10 => SessionControl(tx, r),
-            0x11 => new byte[] { 0x51, r[1] },
+            0x11 => EcuReset(tx, r),
             0x14 => new byte[] { 0x54 },
             0x19 => ReadDtcInfo(tx, r),
             0x27 => SecurityAccess(tx, r),
@@ -244,7 +247,39 @@ public sealed class SimulatedAdapter
     }
     private readonly HashSet<uint> _unlocked = new();
     /// <summary>A session change re-locks the module, as on real ECUs.</summary>
-    private byte[] SessionControl(uint tx, byte[] r) { _unlocked.Remove(tx); return new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 }; }
+    private byte[] SessionControl(uint tx, byte[] r) { _unlocked.Remove(tx); _session[tx] = (byte)(r[1] & 0x7F); return new byte[] { 0x50, r[1], 0x00, 0x32, 0x01, 0xF4 }; }
+    private readonly Dictionary<uint, byte> _session = new();
+    /// <summary>A reset returns the module to the default session and locks it.</summary>
+    private byte[] EcuReset(uint tx, byte[] r) { _session.Remove(tx); _unlocked.Remove(tx); _routinePolls.Remove(tx); return new byte[] { 0x51, r.Length > 1 ? r[1] : (byte)0 }; }
+    private readonly Dictionary<uint, int> _routinePolls = new();
+
+    /// <summary>SYNTHETIC routine identifier the DEMO modules accept. Not a Ford routine.</summary>
+    public const ushort DemoRoutineId = 0x1234;
+
+    /// <summary>
+    /// SYNTHETIC RoutineControl: only <see cref="DemoRoutineId"/>, only in the extended session (otherwise NRC 0x7F).
+    /// Start answers 71 01 12 34 01 (running); the first RequestResults after a start answers status 01 (running), later
+    /// ones 00 + result 0x55 (done); stop answers 71 02 12 34. Results before any start give NRC 0x24 (sequence error).
+    /// Other routines give NRC 0x31.
+    /// </summary>
+    private byte[] Routine(uint tx, byte[] r)
+    {
+        if (r.Length < 4) return new byte[] { 0x7F, 0x31, 0x13 };
+        if (!_session.TryGetValue(tx, out var s) || s != 0x03) return new byte[] { 0x7F, 0x31, 0x7F };
+        if ((r[2] << 8 | r[3]) != DemoRoutineId) return new byte[] { 0x7F, 0x31, 0x31 };
+        var head = new byte[] { 0x71, (byte)(r[1] & 0x7F), r[2], r[3] };
+        switch (r[1] & 0x7F)
+        {
+            case 0x01: _routinePolls[tx] = 0; return head.Append((byte)0x01).ToArray();
+            case 0x02: _routinePolls.Remove(tx); return head;
+            case 0x03:
+                if (!_routinePolls.TryGetValue(tx, out var n)) return new byte[] { 0x7F, 0x31, 0x24 };
+                _routinePolls[tx] = n + 1;
+                return n == 0 ? head.Append((byte)0x01).ToArray() : head.Concat(new byte[] { 0x00, 0x55 }).ToArray();
+            default: return new byte[] { 0x7F, 0x31, 0x12 };
+        }
+    }
+
     /// <summary>Modules whose 0x2E answers NRC 0x33 (securityAccessDenied) until unlocked with 0x27.</summary>
     public HashSet<uint> SecuredModules { get; } = new();
 

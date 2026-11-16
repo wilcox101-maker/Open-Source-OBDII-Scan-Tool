@@ -1,3 +1,25 @@
+## v0.11.0
+
+**Ford Enhanced UDS, first write-side service: RoutineControl (31), with session keep-alive.** Includes v0.10.0 and earlier, plus the UDS protocol core, read-side services and routine control in Core (PRs #17, #19-#21). Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+**Download `ObdLinkApp-win-x64-v0.11.0.zip`** (normal Intel/AMD PCs).
+
+New **Routines** tab:
+- **Extended session (10 03)** / **Default session (10 01)** for the selected module. Allowed in read-only mode. While a module is in a non-default session the app sends a silent TesterPresent (3E 80) whenever the module has been idle for 2 s, so the session does not time out (S3 = 5 s) between clicks. The line under the buttons shows which modules are being kept alive. If a keep-alive fails, the list says so and the module is treated as back in its default session.
+- **Start… (31 01)**, **Results (31 03)**, **Stop… (31 02)** for a 2-byte routine ID you type, with an optional hex option record. All three need writes enabled (Settings). Start also checks the battery voltage and asks you to type **RUN**. Replies are listed with their status bytes; a refusal shows the NRC with its meaning. Routines never try another bus.
+- **Always refused**, whatever the settings: airbag/pretensioner deployment routines (**E200-E2FF**, also blocked in the raw console and on every internal path) and flashing routines (**FF00/FF01**).
+- The app ships **no Ford routine IDs**. It does not know what a routine does; only run IDs from a source you trust.
+- DEMO modules accept routine **1234** only, and only in the extended session: Start → status 01 (running), first Results → 01, next Results → 00 55 (done), Stop → accepted.
+
+Internal: `UdsSessionHost` (one client per module per connection, keep-alive under the shared adapter lock), `UdsRoutines`, `RoutineCommand`; simulator: suppressed 3E 80 is silent (as on real modules), 31 routine 1234, ECU reset returns to the default session.
+
+### Windows + truck verify
+1. DEMO, read-only ON: Routines tab, select PCM, Extended session → the list shows "session Extended confirmed (P2 50 ms, P2* 5000 ms)" and the line below says "Kept alive … 0x7E0 Extended". Adapter traffic shows `3E80` about every 2 s and nothing else while idle. Start… with ID 1234 → blocked by read-only mode, nothing sent.
+2. DEMO, writes ON: Start… 1234 → battery check, two confirmations, type RUN → "start 0x1234: status 01". Results twice → 01, then 0055. Stop… → "accepted". Default session → keep-alive stops (no more 3E80 in traffic).
+3. DEMO: ID E200 or FF00 → refused with a message, nothing in adapter traffic. Console with writes on: `3101E200` is blocked.
+4. DEMO: Start 1234 without the extended session → NRC 0x7F line in the list. Disconnect while in extended session → no errors; reconnect → no module listed as kept alive.
+5. Truck (read-only ON): PCM → Extended session, watch traffic for 30 s: 3E80 every ~2 s, no errors, Live Data still works alongside. Default session afterwards. **Do not start routines on the truck** until a routine ID comes from a trusted, documented source.
+
 ## v0.10.0
 
 **Phase 2: live-data browser. Read-only.** Includes v0.9.0 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not yet run by hand on Windows or on the truck. Unsigned. Ford products only.

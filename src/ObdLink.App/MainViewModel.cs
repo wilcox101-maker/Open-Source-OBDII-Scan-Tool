@@ -194,6 +194,10 @@ public sealed class MainViewModel : ObservableObject
     private readonly SemaphoreSlim _bus = new(1, 1);
     public DashboardViewModel Dashboard { get; }
     public LiveDataViewModel LiveData { get; }
+    public RoutinesViewModel Routines { get; }
+    /// <summary>Per-module UDS clients for this connection; keeps non-default sessions alive (3E 80) under <see cref="_bus"/>.</summary>
+    private UdsSessionHost? _sessions;
+    private CancellationTokenSource? _keepAlive;
     private void SyncDashboard() => Dashboard?.Update(Dashboard.WindowOpen, IsConnected && _ch != null);
     public RelayCommand OpenDashboardCommand { get; }
     public event Action? DashboardOpenRequested;
@@ -495,6 +499,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex) { EventLog.Message(LogEventLevel.Warning, "Theme", "Theme load failed; using built-in default", ex); }
         Dashboard = new DashboardViewModel(EventLog, () => _settings, () => _ch, async () => _session is null ? null : await _session.ReadBatteryVoltageAsync(), _bus, LogDir, Paths.DataDir, SaveSettings);
         LiveData = new LiveDataViewModel(EventLog, () => _settings, () => _ch, _bus, LogDir, Paths.DataDir);
+        Routines = new RoutinesViewModel(EventLog, () => _sessions, () => SelectedModule, (m, f, fallback) => OnBus(m, f, fallback), _bus, Safety, Err);
         OpenDashboardCommand = new("Open dashboard", EventLog, _ => DashboardOpenRequested?.Invoke());
         InitFirmwareCommands(Err);
         InitSeedKey(Err);
@@ -848,6 +853,7 @@ public sealed class MainViewModel : ObservableObject
     private async Task DisconnectAsync()
     {
         LiveData.Stop();
+        StopSessions();
         if (_session != null) await _session.Link.DisposeAsync();
         _session = null; _ch = null; _console = null; _asBuilt = null; _router = null;
         Connection = ConnectionStatus.Disconnected; Baud = ""; MsCanAvailable = false;
@@ -884,6 +890,7 @@ public sealed class MainViewModel : ObservableObject
             _console = new RawConsoleService(link, _session.Invalidate) { AllowWrites = ConsoleAllowWrites, ReadOnlyMode = ReadOnlyTestMode };
             _asBuilt = new AsBuiltService(m => new UdsClient(Ch, m) { SeedKey = _seedKey }, Safety(), Paths.BackupsDir);
             _router = new BusRouter(_session, () => CanSwitchBus, (lvl, ch, msg) => EventLog.Message(lvl, ch, msg));
+            StartSessions();
             ApplySeedKey();
             if (_session.IsStn) await _session.SelectProtocolAsync(StnProtocol.HsCan11_500);
             Connection = ConnectionStatus.Connected(sel, info, _session.Profile);
@@ -896,11 +903,46 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            StopSessions();
             if (_session != null) { try { await _session.Link.DisposeAsync(); } catch (Exception closeEx) { EventLog.Message(LogEventLevel.Debug, "Adapter", "Closing the old link failed: " + closeEx.Message); } }
             _session = null; _ch = null; _console = null; _asBuilt = null; _router = null;
             Connection = ConnectionStatus.Failed(ex.Message);
             throw;
         }
+    }
+
+    /// <summary>
+    /// New connection: per-module clients share the adapter channel, the write gate and the seed/key providers, and route through
+    /// the bus router without fallback. The keep-alive loop runs in the background and takes <see cref="_bus"/> only when a
+    /// module in a non-default session is due. Called with the bus lock held (from Connect).
+    /// </summary>
+    private void StartSessions()
+    {
+        StopSessions();
+        var router = _router!;
+        var host = new UdsSessionHost(tx => new UdsClient(Ch, tx) { SeedKey = _seedKey, Gate = Gate }, _bus,
+            (t, work, ct) => router.RunAsync(t, work, allowFallback: false, ct: ct));
+        host.SessionLost += (tx, why) =>
+        {
+            EventLog.Message(LogEventLevel.Warning, "Session", $"0x{tx:X3}: keep-alive failed ({why}); the module is back in its default session");
+            Application.Current?.Dispatcher.BeginInvoke(() => Routines.NoteSessionLost(tx, why));
+        };
+        _sessions = host;
+        _keepAlive = new CancellationTokenSource();
+        _ = host.RunAsync(TimeProvider.System, _keepAlive.Token,
+            onError: ex => EventLog.Message(LogEventLevel.Warning, "Session", "Keep-alive loop error", ex));
+        Application.Current?.Dispatcher.BeginInvoke(Routines.Refresh);
+    }
+
+    /// <summary>
+    /// Stops the keep-alive loop and forgets the clients without traffic: the link is about to close, and each module returns to
+    /// its default session on its own after S3 (5 s) without TesterPresent.
+    /// </summary>
+    private void StopSessions()
+    {
+        _keepAlive?.Cancel(); _keepAlive?.Dispose(); _keepAlive = null;
+        _sessions?.Clear(); _sessions = null;
+        Application.Current?.Dispatcher.BeginInvoke(Routines.Refresh);
     }
 
     private async Task ScanAsync()
