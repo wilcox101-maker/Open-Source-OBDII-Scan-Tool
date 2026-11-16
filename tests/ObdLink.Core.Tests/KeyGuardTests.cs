@@ -96,8 +96,8 @@ public class KeyGuardTests
     {
         var root = Root();
         var files = RepoFiles(root).Select(f => Rel(root, f)).ToList();
-        Assert.Empty(files.Where(f => BinaryExt.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)));
-        Assert.Empty(files.Where(f => f.Contains("/plugins/", StringComparison.OrdinalIgnoreCase) || f.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(files, f => BinaryExt.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase));
+        Assert.DoesNotContain(files, f => f.Contains("/plugins/", StringComparison.OrdinalIgnoreCase) || f.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
