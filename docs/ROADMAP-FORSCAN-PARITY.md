@@ -18,6 +18,30 @@ This file compares what the app does today (v0.10.0) with FORScan's feature grou
 | Programming | Module firmware, PMI (module replacement) | None | Not started |
 | Safety | Backups, prompts | Read-only default, typed WRITE, voltage gate, bus pinning, length/VIN/checksum checks, pre-write and pre-restore backups, read-back verify | Battery-maintainer detection; session keep-alive during long jobs |
 
+## Second reference: UCDS V3
+
+UCDS is a commercial Ford diagnostic and programming tool with its own adapter (UCDS V5). Its public manual
+(https://www.ucdsys.org/documentation/en/index.html, software 3.0.001.007, read 2026-11-15) is used here as a feature and
+behaviour reference only. The manual gives no license terms and no protocol data (no DIDs, routines or addresses), so nothing
+from UCDS goes into `src/ObdLink.Core/Data/` or `community-db/`.
+
+| UCDS feature (manual section) | This app today | Gap / note |
+|---|---|---|
+| Read and clear DTCs per module or all modules (vehicle window) | Same (19 02 / 14, OBD-II 03/07/0A) | None |
+| Direct Config: per-module named parameter list, keyword search, read/changed markers, read/write module, save/load file, module reset, configuration download by VIN | Raw As-Built read/write/verify, .ab/.abt files, factory compare | Phase 3 decoded editor (see notes) |
+| As-built Editor: name/value table with a dropdown of valid values, raw HEX override, changed rows highlighted, writes central configuration to BCM (main) or IPC (backup) | Raw As-Built grid, safe write path | Phase 3 items 1-3 |
+| Datalogger: one module's parameters, text table plus graphs, per-signal colour, time cursor after stop | Live-data browser with min/max/avg and CSV, no charts | Phase 2 charts |
+| CAN bus analyzer: up to three buses, per-ID rate, changed-bit highlighting, send a single frame | None | Phase 2 item 4 (bus monitor); sending frames is state-changing |
+| CAN bus logger with ID filter (all, 7xx only, pattern + mask), timing columns, playback of recorded logs | Adapter traffic log only | Phase 2 item 4; playback transmits, so state-changing |
+| Periodic CAN messages (user frames, 5 ms minimum period) | None | Not started; state-changing |
+| PCM/TCM special functions (FLASH/EEPROM block read/write through a custom loader), VBF Loader, Update Wizard, VBF-to-BIN converter | None | Programming row: not started |
+| PATS functions (licensed adapter only) | None | Not started |
+| Sony ACM radio PIN generator | None | Not planned |
+| Mirror auto-fold programming (Focus 2 / Kuga 1 / C-Max) | None | Not applicable to the F-150 |
+
+The manual pages read do not describe backups, read-back verification, typed confirmation or a voltage check before writes.
+This app already has all four, and they stay mandatory for every write-type feature added from this list.
+
 ## Phases
 
 Each phase ships with tests against `SimulatedAdapter` and a written Windows + truck check list, like the current
@@ -34,12 +58,25 @@ release notes. Nothing that writes is called done until it has been verified on 
 1. **Done in v0.10.0:** live-data browser — pick any supported OBD-II PID or Ford enhanced DID, watch it live with running min/max/avg and sample count. Reuses the dashboard's poll engine (services 01/22 only). The enhanced-DID catalog is the editable `ford-enhanced-pids.json`.
 2. CSV export **done in v0.10.0** (per-cycle, base units). Still open: multi-signal **charts**, replay, triggers.
 3. Faster polling: STN batch requests where supported; per-signal rates in `PollScheduler`.
+4. Bus monitor (read-only): passive capture on HS-CAN and MS-CAN with per-ID rate and changed-bit highlighting, plus a logger
+   with an ID filter (all / diagnostic 7xx / pattern + mask) and frame timing. Sending, replaying or periodic frames are
+   separate, state-changing features behind the write gate. **Open:** MX+ monitor throughput not measured.
+
+Design notes from UCDS for charts (item 2): a signal table beside the graph with one colour per signal; after Stop, a time
+cursor that shows every signal's value at one instant; right-click to remove one signal or clear all. Unlike the UCDS manual's
+Datalogger, which works on one module at a time, allow signals from several modules in one chart.
 
 ### Phase 3: Configuration editor (decoded As-Built)
 1. Decode profiles per module/firmware: named options mapped to bits (the community-db schema already exists; add an editor).
 2. Edit by option name, show the resulting raw lines and checksums, write through the v0.6.1 safe path (length, checksum, backup, read-back).
 3. Central configuration (CCC): read and edit, with module reset/relearn steps after changes.
 4. Undo stack per session, and a change history saved next to the backups.
+
+Design notes from UCDS for the editor: choose the decode profile from the module's own part number (read F188/F111 first, as
+UCDS's "Read HWSW" does), not from the model year alone. Show each option's state as not read / read / changed, with keyword
+search. Offer a dropdown of valid values per option plus a raw hex override, and highlight changed rows. For central
+configuration, UCDS documents the BCM as the main copy and the IPC as a backup, reversed on some models; confirm which module
+holds the primary copy on the 2017 F-150 from a capture before writing either. **[UNVERIFIED for the F-150]**
 
 ### Phase 4: Service procedures
 Implement one at a time, each from published Ford service information the user owns or from documented community captures:
