@@ -1,3 +1,18 @@
+## v0.23.8
+
+**No bus quieting when flashing SYNC (KB-R1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only (nothing flashed on the truck yet). Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- Before a flash the app tells the other modules on the bus to stop sending (functional 10 83 / 85 82 / 28 83 01), like FORScan's default "Stop activity on buses". FORScan's module firmware update guide says some **SYNC3 modules are bricked with that option on** and tells users to turn it off for SYNC (https://forum.forscan.org/viewtopic.php?p=70209).
+- Now a flash of the **APIM (SYNC, 0x7D0)**, or any module the table calls SYNC, leaves the bus as it is. The conditions step says so, and the flash log has a line explaining why. Every other module keeps the quiet bus.
+- Which SYNC generations are affected isn't stated by FORScan, so this applies to every APIM (conservative).
+
+Internal: `Flash/FlashBusPolicy` (`QuietBus(tx, acronym)`, `NotQuietReason`); `FlashWarnings.For(plan, adapter, quietBus)`; `FlashViewModel` uses the policy for both the warning and `FlashEngine.QuietBus`. Tests `FlashBusPolicyTests` (8; the wiring test fails with `QuietBus = true` put back). The engine side was already covered by `Without_QuietBus_nothing_is_sent_functionally`.
+
+### Windows + truck verify
+1. **DEMO:** Flash tab → module APIM (0x7D0) → load any test VBF → Flash…: the conditions step says *SYNC module (APIM) … leaves the bus as it is*; the flash log shows the "Bus quieting is off" line; no functional 28 83 in the console log.
+2. **DEMO:** same with the BCM: the conditions step still says the other modules are told to stop sending.
+3. **Truck:** none (no SYNC flash planned).
+
 ## v0.23.7
 
 **Routine journal (R1).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
