@@ -43,6 +43,8 @@ public sealed class FlashEngine
     private FlashPhase _phase;
     private int _segment;
     private long _bytesDone;
+    /// <summary>Set once an erase or a download request has been sent: from then on the module's software may be incomplete.</summary>
+    private bool _memoryTouched;
 
     public FlashEngine(FlashPlan plan, IFlashJournal journal) { _plan = plan; _journal = journal; }
 
@@ -75,10 +77,11 @@ public sealed class FlashEngine
         if (ReadVoltage is null) throw new FlashFailedException("Flashing needs a battery voltage reading; none is available.", "Start", false);
         if (!resume && Backup is null) throw new FlashFailedException("Flashing needs a backup step; none was supplied.", "Start", false);
         if (uds.Gate is { ReadOnly: true }) throw new FlashFailedException("Read-only mode is on. Turn on writes for this session before flashing.", "Start", false);
+        if (FlashImageChecks.Layout(_plan) is string layout) throw new FlashFailedException($"The flash file cannot be sent safely: {layout}.", "Start", resume);
         if (uds.TargetTxId != _plan.TxId) throw new ArgumentException($"Client targets 0x{uds.TargetTxId:X3}, plan targets 0x{_plan.TxId:X3}", nameof(uds));
 
         using var awake = Host.KeepAwake();
-        _retries = 0; _segment = 0; _bytesDone = 0;
+        _retries = 0; _segment = 0; _bytesDone = 0; _memoryTouched = false;
         bool inBootloader = resume;
         try
         {
@@ -112,6 +115,7 @@ public sealed class FlashEngine
                 foreach (var region in _plan.EraseRegions)
                 {
                     SetPhase(FlashPhase.Erase, $"erasing 0x{region.Address:X8} (+{region.Length:N0} bytes)");
+                    _memoryTouched = true;
                     await RoutineAsync(uds, "erase", _plan.EraseRoutineId, _plan.BuildEraseOption(region), _plan.Retry.EraseTimeout);
                 }
 
@@ -149,18 +153,52 @@ public sealed class FlashEngine
             return new FlashResult(confirmed, after, _retries, sw.Elapsed, resume ? st.Attempts + 1 : 1, msg);
         }
         catch (OperationCanceledException) when (_phase < FlashPhase.ExtendedSession) { throw; } // stopped before anything was sent
-        catch (FlashInterruptedException ex) { Write(FlashJournalKind.Interrupted, detail: ex.Message); Report(ex.Message); throw; }
-        catch (FlashFailedException ex) { Record(ex, inBootloader); throw; }
         catch (Exception ex)
         {
-            var fault = FlashFaults.Classify(ex);
-            FlashFailedException wrapped = fault.Action == FlashFaultAction.LinkLost
-                ? new FlashInterruptedException($"{_phase}: {fault.Reason}", _phase.ToString(), fault, ex)
-                : new FlashFailedException($"{_phase}: {fault.Reason}", _phase.ToString(), inBootloader, fault, ex);
-            if (wrapped is FlashInterruptedException) Write(FlashJournalKind.Interrupted, detail: wrapped.Message); else Record(wrapped, inBootloader);
-            Report(wrapped.Message);
-            throw wrapped;
+            FlashFailedException failed = ex as FlashFailedException ?? Wrap(ex, inBootloader);
+            // Nothing erased or written on a fresh job: the module's own software is intact. Reset it back into that software
+            // and close the job, instead of leaving it open as "may be in the bootloader".
+            if (!resume && inBootloader && !_memoryTouched && await ReturnToApplicationAsync(uds))
+            {
+                string msg = failed.Message + " Nothing was erased or written; the module was reset back to its normal software.";
+                Write(FlashJournalKind.Abandoned, detail: "failed before erase; module unchanged and reset to its application: " + failed.Message);
+                Report(msg);
+                throw new FlashFailedException(msg, failed.Phase, false, failed.Fault, ex);
+            }
+            if (failed is FlashInterruptedException) Write(FlashJournalKind.Interrupted, detail: failed.Message); else Record(failed, inBootloader);
+            Report(failed.Message);
+            if (ReferenceEquals(failed, ex)) throw;
+            throw failed;
         }
+    }
+
+    private FlashFailedException Wrap(Exception ex, bool inBootloader)
+    {
+        var fault = FlashFaults.Classify(ex);
+        return fault.Action == FlashFaultAction.LinkLost
+            ? new FlashInterruptedException($"{_phase}: {fault.Reason}", _phase.ToString(), fault, ex)
+            : new FlashFailedException($"{_phase}: {fault.Reason}", _phase.ToString(), inBootloader, fault, ex);
+    }
+
+    /// <summary>
+    /// Best effort after a failure before any erase: ECU reset (11 01) so the module leaves the programming session and runs
+    /// its own software again, then TesterPresent until it answers. Returns false when the module cannot be reached; the job
+    /// then stays open as before. Never throws.
+    /// </summary>
+    private async Task<bool> ReturnToApplicationAsync(UdsClient uds)
+    {
+        Log.Information("Flash: failure before erase; resetting module 0x{Tx:X3} back to its application", _plan.TxId);
+        try { await uds.EcuResetAsync(ResetType.Hard, CancellationToken.None); }
+        catch (Exception e) when (e is not OperationCanceledException) { Log.Warning("Flash: reset after early failure: {Err}", e.Message); }
+        try { await Delay(_plan.Retry.PostResetDelay); } catch (Exception e) when (e is not OperationCanceledException) { /* delay hook failed: probe anyway */ }
+        for (int i = 0; i < 3; i++)
+        {
+            try { await uds.TesterPresentAsync(CancellationToken.None); return true; }
+            catch (UdsNegativeResponseException) { return true; } // an NRC still proves the module is up and talking
+            catch (Exception e) when (e is not OperationCanceledException) { Log.Warning("Flash: module not answering after reset ({Err})", e.Message); }
+            try { await Delay(_plan.Retry.Backoff); } catch (Exception e) when (e is not OperationCanceledException) { /* keep probing */ }
+        }
+        return false;
     }
 
     private void Record(FlashFailedException ex, bool inBootloader)
@@ -174,6 +212,7 @@ public sealed class FlashEngine
         int n = index + 1, count = _plan.Image.Segments.Count;
         SetPhase(FlashPhase.Download, $"segment {n}/{count}: request download 0x{seg.Address:X8} ({seg.Length:N0} bytes)");
         Write(FlashJournalKind.SegmentStarted, segment: n, detail: $"0x{seg.Address:X8} +{seg.Length}");
+        _memoryTouched = true;
         var req = FlashMessages.RequestDownload(_plan.Image.DataFormat, _plan.AddressAndLengthFormat, seg.Address, seg.Length);
         // 0x22/0x70/0x21 right after an erase that could not be polled usually means "not ready yet": retry with a longer pause.
         var resp = await StepAsync(uds, "RequestDownload", req, r => r[0] == 0x74, slowNrcs: new byte[] { 0x21, 0x22, 0x70 });

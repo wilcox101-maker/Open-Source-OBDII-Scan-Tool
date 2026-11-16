@@ -234,9 +234,10 @@ public class J2534ChannelTests
     [Fact]
     public async Task A_first_frame_indication_extends_the_wait_for_a_long_reply()
     {
-        // A 12-byte (multi-frame) reply that completes 400 ms after the request; the caller only waits 200 ms for a first sign.
+        // A 12-byte (multi-frame) reply that completes 1.5 s after the request; the caller only waits 200 ms for a first sign.
+        // The wide gap keeps the "gives up" half reliable on a loaded CI machine (400 ms was flaky under parallel test runs).
         var (api, ch) = Make((c, id, req) => id == 0x7E0
-            ? new[] { new SimReply(0x7E8, new byte[] { 0x59, 0x02, 0xFF, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, DelayMs: 400) }
+            ? new[] { new SimReply(0x7E8, new byte[] { 0x59, 0x02, 0xFF, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, DelayMs: 1500) }
             : Array.Empty<SimReply>());
         await ch.SetTargetAsync(0x7E0, 0x7E8);
         // No early sign of a reply: the request gives up after 200 ms.

@@ -137,7 +137,7 @@ public class SimulatedFlashEcu : IDiagChannel
                 return new byte[] { 0x77 };
             case 0x11 when r.Length >= 2:
                 Resets++;
-                ApplicationValid = CheckImage();
+                if (!ApplicationValid) ApplicationValid = CheckImage(); // untouched software stays valid; erased/written software must match the image
                 InBootloader = !ApplicationValid; Session = 0x01; Unlocked = false; _erased.Clear();
                 return new byte[] { 0x51, r[1] };
             case 0x22 when InBootloader: return Neg(0x22, 0x22); // bootloader: no application data

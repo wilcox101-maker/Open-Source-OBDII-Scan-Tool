@@ -150,7 +150,12 @@ public static class FlashPreflight
         // Image
         if (plan.Image.EcuTxId is uint fileTx && fileTx != plan.TxId)
             items.Add(new("Image target", PreflightStatus.Fail, $"The file is for module 0x{fileTx:X3}, not the selected 0x{plan.TxId:X3}"));
+        else if (plan.Image.EcuTxId is null)
+            items.Add(new("Image target", PreflightStatus.Warn, $"The file does not say which module it is for. Check yourself that it belongs to 0x{plan.TxId:X3}."));
         else items.Add(new("Image target", PreflightStatus.Pass, $"0x{plan.TxId:X3}, {plan.Image.Segments.Count} segment(s), {plan.Image.TotalBytes:N0} bytes"));
+        items.Add(FlashImageChecks.Layout(plan) is string layoutProblem
+            ? new("Image layout", PreflightStatus.Fail, layoutProblem)
+            : new("Image layout", PreflightStatus.Pass, $"{plan.Image.Segments.Count} segment(s) inside {plan.EraseRegions.Count} erase region(s), no overlaps"));
         foreach (var w in plan.Image.Warnings) items.Add(new("Image checksum", PreflightStatus.Warn, w));
 
         // Voltage, sampled a few times
@@ -194,7 +199,9 @@ public static class FlashPreflight
             try { have = await readModulePart(uds, ct); } catch (Exception ex) when (ex is not OperationCanceledException) { have = null; }
             items.Add(have is null
                 ? new("Module part number", PreflightStatus.Warn, $"Could not read the module's part number to compare with the file ({want})")
-                : new("Module part number", PreflightStatus.Pass, $"module reports {have}; file is {want}"));
+                : FlashImageChecks.SameProgram(have, want)
+                    ? new("Module part number", PreflightStatus.Pass, $"module reports {have}; file is {want}")
+                    : new("Module part number", PreflightStatus.Warn, $"module reports {have}; file is {want}. The first four characters (the vehicle program code) differ: make sure the file is meant for this module."));
         }
 
         // Adapter and host
@@ -208,6 +215,59 @@ public static class FlashPreflight
             null => new("PC power", PreflightStatus.Warn, "could not tell whether the PC is on AC power. Plug it in."),
         });
         return new FlashPreflightReport(items);
+    }
+}
+
+/// <summary>Static checks on a flash image against the plan. No module traffic.</summary>
+public static class FlashImageChecks
+{
+    /// <summary>
+    /// Returns the first layout problem, or null when the image can be sent as planned: every segment and erase region fits the
+    /// 32-bit address space and the plan's addressAndLengthFormatIdentifier, segments do not overlap, and every segment lies inside
+    /// an erase region (a write to unerased flash fails part-way through and leaves the module in its bootloader).
+    /// </summary>
+    public static string? Layout(FlashPlan plan)
+    {
+        int aBytes = plan.AddressAndLengthFormat & 0x0F, lBytes = plan.AddressAndLengthFormat >> 4;
+        if (aBytes is < 1 or > 4 || lBytes is < 1 or > 4)
+            return $"Address/length format 0x{plan.AddressAndLengthFormat:X2} is not supported (1-4 bytes each)";
+        static bool Fits(ulong v, int bytes) => bytes >= 8 || v < 1UL << (bytes * 8);
+
+        var segs = plan.Image.Segments.OrderBy(x => x.Address).ToList();
+        for (int i = 0; i < segs.Count; i++)
+        {
+            var s = segs[i];
+            ulong end = (ulong)s.Address + s.Length;
+            if (end > 1UL << 32) return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) runs past the end of the 32-bit address space";
+            if (!Fits(s.Address, aBytes) || !Fits(s.Length, lBytes))
+                return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) does not fit address/length format 0x{plan.AddressAndLengthFormat:X2}";
+            if (i + 1 < segs.Count && end > segs[i + 1].Address)
+                return $"Segments 0x{s.Address:X8} and 0x{segs[i + 1].Address:X8} overlap";
+        }
+        if (plan.Image.Erase.Count > 0)
+        {
+            foreach (var r in plan.Image.Erase)
+            {
+                if ((ulong)r.Address + r.Length > 1UL << 32) return $"Erase region 0x{r.Address:X8} (+{r.Length:N0} bytes) runs past the end of the 32-bit address space";
+                if (plan.EraseOption is null && (!Fits(r.Address, aBytes) || !Fits(r.Length, lBytes)))
+                    return $"Erase region 0x{r.Address:X8} (+{r.Length:N0} bytes) does not fit address/length format 0x{plan.AddressAndLengthFormat:X2}";
+            }
+            foreach (var s in segs)
+                if (!plan.Image.Erase.Any(r => s.Address >= r.Address && (ulong)s.Address + s.Length <= (ulong)r.Address + r.Length))
+                    return $"Segment 0x{s.Address:X8} (+{s.Length:N0} bytes) is not inside any erase region in the file";
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// True when two Ford part numbers share the first four characters (the vehicle program code, e.g. "JL3A"), or when either is
+    /// too short to tell. A heuristic: a mismatch is a warning, not a refusal, because superseding software can change the code.
+    /// </summary>
+    public static bool SameProgram(string module, string file)
+    {
+        static string Key(string p) => new string(p.Where(char.IsLetterOrDigit).Take(4).ToArray()).ToUpperInvariant();
+        string a = Key(module), b = Key(file);
+        return a.Length < 4 || b.Length < 4 || a == b;
     }
 }
 
