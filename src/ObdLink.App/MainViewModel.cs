@@ -395,7 +395,8 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         if (!had) Vehicles.Add(p.Label);
     }
     public const string MotorcraftAsBuiltUrl = "https://www.motorcraftservice.com/AsBuilt";
-    private static string DescribeProfile(VehicleProfile p)
+    private string DescribeProfile(VehicleProfile p) => DescribeProfile(p, AsBuiltPage.Factory);
+    private static string DescribeProfile(VehicleProfile p, FordAbFile? factory)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"{p.DisplayName}   VIN {p.VinRedacted}");
@@ -405,6 +406,9 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
         foreach (var m in p.Modules)
             sb.AppendLine($"  {m.Bus,-5} 0x{m.TxId:X3} {m.Acronym,-6} {m.Name}" + string.Concat(m.Dids.Where(d => d.Key != "F190").Select(d => $"  {d.Key}={d.Value}")) + (m.HasAsBuiltDe00 ? "  [As-Built]" : ""));
         if (p.FactoryAbFile != null) sb.AppendLine($"Factory .ab: {p.FactoryAbFile}");
+        // W5 v1: installed module IDs vs the factory record, offline; differences only, never "newer".
+        if (factory is not null && p.Modules.Any(m => m.Dids.Count > 0) && (factory.Vin.Length != 17 || p.Vin.Length != 17 || factory.Vin == p.Vin))
+            sb.AppendLine(CalibrationCheck.Report(CalibrationCheck.Compare(p.Modules, factory)));
         return sb.ToString();
     }
 
@@ -612,7 +616,7 @@ public sealed class MainViewModel : ObservableObject, IAsBuiltHost
             {
                 cur.FactoryAbFile = Path.GetFileName(dest);
                 if (cur.Vin.Length == 17) cur.Save(Paths.VehiclesDir);
-                VehicleInfo = DescribeProfile(cur);
+                VehicleInfo = DescribeProfile(cur, ab);
             }
             AsBuiltPage.FactoryInfo = $"Factory .ab: VIN …{AsBuiltPageViewModel.VinTail(ab.Vin)}, {ab.AsBuiltModules.Count()} modules, {ab.Lines.Count} lines (copied to {dest})";
             EventLog.Message(LogEventLevel.Information, "Import .ab", AsBuiltPage.FactoryInfo);

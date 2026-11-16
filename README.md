@@ -177,6 +177,7 @@ Roadmap toward FORScan-level features: `docs/ROADMAP-FORSCAN-PARITY.md`.
 | Windows | v0.23.11 | CI (windows-latest) build + unit tests | Writes/restores that change BdyCM shared configuration (VIN, tire/axle, steering) need a typed RELEARN (see v0.23.11 release notes) |
 | Windows | v0.23.12 | CI (windows-latest) build + unit tests | Re-apply my As-Built changes after a dealer update or OTA reload (see v0.23.12 release notes) |
 | Windows | v0.23.13 | CI (windows-latest) build + unit tests | IPMB writes/restores need a typed IPMB; IPMB backups are flagged as unverified (see v0.23.13 release notes) |
+| Windows | v0.23.14 | CI (windows-latest) build + unit tests | Module software/part numbers vs the factory .ab record, offline (differences only) (see v0.23.14 release notes) |
 | Windows | v0.23.15 | CI (windows-latest) build + unit tests + `obdcli selftest` on the published exe | `obdcli vbf-info` checks a whole Ford software set; new `obdcli selftest` (see v0.23.15 release notes) |
 | Real vehicle (2017 F-150, OBDLink MX+/EX) | TPMS DIDs 2813-2816 | Read | Verified by Dale. OSS DID 1E13 is still UNVERIFIED |
 
