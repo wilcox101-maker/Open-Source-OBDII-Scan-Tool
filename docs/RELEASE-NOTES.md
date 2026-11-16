@@ -1,3 +1,22 @@
+## v0.23.0
+
+**Service procedures: a sourced catalog, and a way to capture what's missing.** Built and unit-tested on Linux and by GitHub Actions on Windows. No UI yet; nothing run on the truck. Unsigned. Ford products only.
+
+- **`docs/SERVICE-PROCEDURES.md`** (generated from Core): BMS reset, TPMS training, PCM KAM, TCM KAM / adaptive tables, steering angle calibration, PSCM pull-drift reset, ABS service bleed. Each lists when to use it and when not, conditions, what to do afterwards, Ford's tool-free method where one exists, and **where every identifier comes from**. Confidence per procedure: Verified / Community / Synthesized / NeedsCapture.
+  - **BMS reset** (BCM 0x726: `10 03`, `31 01 20 1A`): Community. A Ford Diagnostic Engineering Tool procedure quoted on F-150, Focus and Escape forums; not verified on a 2017 BCM. Only for a new battery (it clears learned battery data); charger disconnected first; it does not set the battery type.
+  - The other six have no public identifiers: listed as NeedsCapture, **not runnable**, never guessed.
+  - Running needs writes on, the battery check, and the phrase UNVERIFIED (RUN only once verified). Pyrotechnic and programming routines are refused by the catalog check as everywhere.
+- **`obdcli proxy`**: relays another diagnostic program (set to a Wi-Fi/TCP adapter at 127.0.0.1:35000) to your adapter and logs every command and reply, so the requests a working tool sends for a procedure on your truck can be recorded. Pyrotechnic routines are never forwarded. The log has raw data (VIN): keep it private.
+- **`obdcli capture-summary`**: the shareable part of a capture: per module, the session changes and state-changing requests with what each module answered, accepted routines listed as candidates. Seeds and keys left out, VINs masked. Understands `ATSH`, `ATCAF0` frames and STN `STPX`.
+- `docs/CLI.md`: "Capturing a service procedure" steps.
+
+Internal: `Service/ServiceProcedures`, `ServiceProcedureRunner`, `ServiceProceduresDoc`; `Capture/AdapterProxy`, `CaptureParser`, `CaptureSummary`. Tests `ServiceProcedureTests` (10), `CaptureTests` (12, including a live loopback proxy run).
+
+### Windows + truck verify
+1. **Windows, no truck:** `obdcli proxy --port COM5 --log t.txt` with the EX plugged in (ignition off is fine), then point a program that supports TCP/Wi-Fi ELM adapters at 127.0.0.1:35000 and let it connect. `t.txt` shows its AT commands. `obdcli capture-summary --log t.txt` runs.
+2. **Truck (optional, when you want a procedure added):** follow `docs/CLI.md` → "Capturing a service procedure" for one procedure; send the summary.
+3. **Truck: BMS reset only after an actual battery replacement**, not as a test.
+
 ## v0.22.2
 
 **Dashboard DID write cards never guess.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only, not pressed on the truck. Unsigned. Ford products only.
