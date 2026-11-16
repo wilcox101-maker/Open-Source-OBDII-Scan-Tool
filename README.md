@@ -1,4 +1,4 @@
-# OBDLink EX / MX+ Scan / Diagnose / Repair (SDR) tool for Ford (open source, MIT)
+# OBDLink EX / MX+ Scan / Diagnose / Repair (SDR) tool for Ford (source-available, PolyForm Noncommercial)
 
 A Windows **Scan / Diagnose / Repair (SDR)** tool for the **OBDLink EX** (USB) and **OBDLink MX+** (Bluetooth) STN-based adapters. It started as a diagnostic app and now covers all three steps:
 
@@ -15,7 +15,8 @@ The app is **Ford-only**; the priority vehicle is the **2017 Ford F-150** (HS-CA
 - **For personal use only, on a Ford vehicle you own.** The project is built and tested for an owner working on their own vehicle. It is not intended for servicing other people's vehicles or for commercial shop use.
 - **No security keys or algorithms are included, now or later.** Features that need UDS SecurityAccess (0x27) use a seed/key plug-in that you supply yourself (Settings → Security access; template in `tools/SeedKeyPluginSample`). The project never ships, collects or stores keys or algorithms.
 - **Never built:** airbag/pyrotechnic deployment routines and immobilizer (anti-theft) bypass.
-- **License note:** the code is released under the MIT license (`LICENSE`), and that license itself does not restrict how the code is used. This section states the use the project is designed and tested for.
+- **License:** from 2026-11-16 the code is under the **PolyForm Noncommercial License 1.0.0** (`LICENSE`): personal and other noncommercial use, changes and sharing under the same terms are allowed; commercial use is not. The source stays public, but this is no longer an OSI "open source" license. Copies obtained earlier under the previous MIT license keep that license.
+- **Your own vehicle:** the license allows personal, noncommercial use; "on your own Ford" is the intended use this project is built and tested for, not an extra license term.
 
 ## Screenshots
 
