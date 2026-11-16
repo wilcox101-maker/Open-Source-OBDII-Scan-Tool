@@ -116,10 +116,10 @@ public partial class MainWindow : Window
             case "dtcs": Go("DTCs"); Run(_vm.Dtc.ReadObdDtcsCommand); break;
             case "dtcsAll": Go("DTCs"); Run(_vm.Dtc.ReadAllModuleDtcsCommand); break;
             case "clearDtcs": Run(_vm.Dtc.ClearModuleDtcsCommand); break;   // confirmation + read-only gate inside the command
-            case "readAb": Go("As-Built"); Run(_vm.ReadAsBuiltCommand); break;
-            case "readAllAb": Go("As-Built"); Run(_vm.ReadAllModulesAsBuiltCommand); break;
-            case "backup": Run(_vm.BackupAsBuiltCommand); break;
-            case "write": Run(_vm.WriteAsBuiltCommand); break;           // confirmation + read-only gate inside the command
+            case "readAb": Go("As-Built"); Run(_vm.AsBuiltPage.ReadAsBuiltCommand); break;
+            case "readAllAb": Go("As-Built"); Run(_vm.AsBuiltPage.ReadAllModulesAsBuiltCommand); break;
+            case "backup": Run(_vm.AsBuiltPage.BackupAsBuiltCommand); break;
+            case "write": Run(_vm.AsBuiltPage.WriteAsBuiltCommand); break;           // confirmation + read-only gate inside the command
             case "open": Run(_vm.AsBuiltPage.ImportFactoryAbCommand); break;
             case "export": Run(_vm.AsBuiltPage.ExportFactoryAbCommand); break;
             case "capture": Run(_vm.DiagnosticsCaptureCommand); break;
