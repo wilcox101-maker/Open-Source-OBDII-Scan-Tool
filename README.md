@@ -73,6 +73,7 @@ Not built, by decision: airbag/pretensioner deployment routines (E200-E2FF) and 
 | `docs/RELEASE-NOTES.md` | Every version, with its Windows + truck check list |
 | `docs/ROADMAP-FORSCAN-PARITY.md` | Feature comparison with FORScan / UCDS and the phased plan |
 | `docs/ENHANCED-UDS.md` | Every UDS service, DID and routine the app sends, generated from the code |
+| `docs/UDS-0x27-SECURITY-ACCESS.md` | SecurityAccess (0x27) reference: parameters, sub-functions, NRCs, timing, display design |
 | `docs/FLASHING.md` | Flash engine, error handling, what is UNVERIFIED for real Ford modules |
 | `docs/ADAPTERS.md` | OBDLink EX / MX+ detection, buses, timeouts, other adapters |
 | `docs/CLI.md` | `obdcli` reference |
