@@ -53,7 +53,38 @@ public class ServiceProcedureTests
         Assert.Equal("UNVERIFIED", steps[^1].TypedPhrase);
         Assert.Contains("NOT been verified", steps[^1].Message);
         Assert.Contains("f150forum.com", steps[^1].Message);
-        Assert.Contains("new battery", steps[0].Message);
+        Assert.Contains("new battery", steps[1].Message);
+    }
+
+    [Fact]
+    public void BMS_reset_asks_the_battery_question_first_and_a_No_stops_before_anything_is_sent()
+    {
+        var bms = ServiceProcedures.Find("bcm-bms-reset")!;
+        var steps = bms.ConfirmSteps("BCM (0x726)");
+        Assert.StartsWith("Did you disconnect and re-connect battery recently?", steps[0].Message);
+        Assert.Null(steps[0].TypedPhrase); // a Yes/No question, not a typed phrase
+        Assert.Equal(4, steps.Count);
+        // Only the BMS reset carries the question; procedures without a gate keep their three steps.
+        Assert.All(ServiceProcedures.All.Where(p => p.Key != "bcm-bms-reset"), p => Assert.Null(p.Gate));
+    }
+
+    [Fact]
+    public async Task Answering_No_to_the_BMS_question_aborts_with_nothing_sent()
+    {
+        var bms = ServiceProcedures.Find("bcm-bms-reset")!;
+        var asked = new List<string>();
+        var guard = new ObdLink.Core.Safety.SafetyGuard(null!, new FirstNo(asked)); // RequireAsync never touches the adapter
+        await Assert.ThrowsAsync<ObdLink.Core.Safety.UserDeclinedException>(() => guard.RequireAsync(bms.ConfirmSteps("BCM (0x726)")));
+        Assert.Single(asked);
+    }
+
+    private sealed class FirstNo(List<string> asked) : ObdLink.Core.Safety.IConfirmationProvider
+    {
+        public Task<bool> ConfirmAsync(ObdLink.Core.Safety.ConfirmationStep step, CancellationToken ct = default)
+        {
+            asked.Add(step.Title);
+            return Task.FromResult(false);
+        }
     }
 
     [Fact]
