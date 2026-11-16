@@ -16,8 +16,9 @@ public sealed record IdentifyOptions
     public bool SweepMsCan { get; init; } = true;
     public int ProbeTimeoutMs { get; init; } = 100;
     public bool OnlineDecode { get; init; }
-    /// <summary>Identification DIDs read from each responding module (all ReadDataByIdentifier, read-only).</summary>
-    public IReadOnlyList<ushort> Dids { get; init; } = new ushort[] { 0xF190, 0xF188, 0xF111, 0xF113, 0xF124, 0xF18C, 0xF17F };
+    /// <summary>Identification DIDs read from each responding module (all ReadDataByIdentifier, read-only). Also listed in docs/ENHANCED-UDS.md.</summary>
+    public static readonly IReadOnlyList<ushort> DefaultDids = new ushort[] { 0xF190, 0xF188, 0xF111, 0xF113, 0xF124, 0xF18C, 0xF17F };
+    public IReadOnlyList<ushort> Dids { get; init; } = DefaultDids;
 }
 
 /// <summary>
