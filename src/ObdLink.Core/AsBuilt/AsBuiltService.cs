@@ -87,7 +87,8 @@ public sealed class AsBuiltService
         CheckLength(where, current.Data, newBlock.Data);
         int changed = AsBuiltWritePlan.CountChanges(current.Data, newBlock.Data);
         if (changed == 0) return new AsBuiltWriteResult(null, 0, false, "No bytes differ from the module; nothing was written.");
-        await _safety.RequireAsync(SafetyGuard.WriteSteps($"As-Built {where} ({changed} of {newBlock.Data.Length} bytes change)"), ct);
+        await _safety.RequireAsync(SafetyGuard.WriteSteps($"As-Built {where} ({changed} of {newBlock.Data.Length} bytes change)")
+            .Concat(AsBuiltWritePolicy.ExtraSteps(newBlock.Module, $"Writing As-Built {where}")), ct);
         var backup = await SaveBackupAsync(vin, newBlock.Module, new[] { current }, "", ct);
         var note = await WriteVerifyAsync(newBlock, current, backup, "write", vin, "", ct);
         return new AsBuiltWriteResult(backup, changed, true, note);
@@ -228,7 +229,8 @@ public sealed class AsBuiltService
         var todo = wanted.Where((w, i) => !w.Data.AsSpan().SequenceEqual(current[i].Data)).ToList();
         int changed = wanted.Select((w, i) => AsBuiltWritePlan.CountChanges(current[i].Data, w.Data)).Sum();
         if (todo.Count == 0) return new AsBuiltWriteResult(null, 0, false, "The module already matches this backup; nothing was written.");
-        await _safety.RequireAsync(SafetyGuard.WriteSteps($"RESTORE of {bk.Module:X3} from {Path.GetFileName(backupPath)} ({todo.Count} block(s), {changed} byte(s) change)"), ct);
+        await _safety.RequireAsync(SafetyGuard.WriteSteps($"RESTORE of {bk.Module:X3} from {Path.GetFileName(backupPath)} ({todo.Count} block(s), {changed} byte(s) change)")
+            .Concat(AsBuiltWritePolicy.ExtraSteps(bk.Module, $"Restoring {bk.Module:X3}")), ct);
         var pre = await SaveBackupAsync(connectedVin, bk.Module, current, "_pre-restore", ct);
         var notes = new List<string>();
         int done = 0;

@@ -1,3 +1,17 @@
+## v0.21.1
+
+**Configuration write safety brought to FORScan's level.** Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
+
+- **PCM / TCM As-Built writes and restores need an extra typed confirmation (`POWERTRAIN`).** Their configuration can hold checksum-protected vehicle ID data (VIN, tire size, axle ratio) and transmission characterization, which FORScan only changes through dedicated functions that recalculate the checksums. This app has no such function yet, so a raw write there is spelled out first. Applies to every path (As-Built page, Options apply, restore, undo, recovery).
+- **After every verified write, restore or undo**, the result says what to do next: ignition off at least 30 s, on, Read again; and that U2100 / U2101 in other modules means the shared settings need a relearn (not in this app yet) or the backup restored.
+
+Internal: Core `AsBuiltWritePolicy` (`ExtraSteps`, `AfterWriteAdvice`), used by `AsBuiltService.WriteBlockAsync` / `RestoreAsync`; tests `AsBuiltWritePolicyTests`.
+
+### Windows + truck verify
+1. **DEMO:** write an As-Built block of the PCM (DEMO-EX, writes enabled): after WRITE the app asks to type POWERTRAIN; Cancel there → nothing written. Repeat and type it → written, and the result shows the ignition-cycle advice.
+2. **DEMO:** write a BCM block: no POWERTRAIN step; advice shown.
+3. **Truck (Phase 2):** after your one-block BCM test write, follow the advice (ignition cycle, Read again) and confirm the block kept the value.
+
 ## v0.21.0
 
 **As-Built write recovery: every write is journaled, and a write that did not finish is found and fixed.** Includes v0.20.1 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows; not run by hand on Windows or on the truck. Unsigned. Ford products only.
