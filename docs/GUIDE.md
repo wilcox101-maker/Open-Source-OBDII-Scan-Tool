@@ -1,5 +1,7 @@
 # FORScan / As-Built programming guide (community)
 
+> This app is a **Scan / Diagnose / Repair (SDR)** tool for **personal use only, on your own Ford vehicle** (README, "Intended use"). No security keys or algorithms are included; anything that needs SecurityAccess uses a seed/key plug-in you supply.
+
 Adapted from **Livnitup's "FORScan Tutorial"** (updated 6/14/26): https://docs.google.com/document/d/1-8dKaS_Spu4Zw4hV_CrKC4tLoP9G8yejqegF1wxIqxY/. All credit goes to Livnitup. This is a summary for Ford trucks. Read the original for full detail. Tips are community-reported (UNVERIFIED on Dale's truck).
 
 ## Portable app, supported Windows
@@ -172,7 +174,7 @@ The **Flash** page reprograms a module from a VBF file. **It has only been run a
 2. **Open file…** (a VBF; a block with a bad checksum refuses the file) or, on a DEMO port, **DEMO image** (it loads a synthetic SBL too). Check a real file first with `obdcli vbf-info --file x.vbf`. Ford software usually comes with a **secondary bootloader** file (its header says `sw_part_type = SBL`): load it with **SBL file…** (opening it with Open file… also loads it as the SBL). It is sent to the module's RAM and started before the erase. **No SBL** removes it.
 3. **Run checks**: file vs module, battery window (12.5-15.0 V), link health (8 probes), the module's part number, adapter, PC on AC power. A failed check blocks the flash; a warning does not.
 4. **Flash…** (writes must be enabled in Settings): the checks run again, the warnings are shown, then type **FLASH**. Every As-Built block of the module is backed up first.
-5. While it runs: keep the charger on, don't turn the key, don't unplug anything. Lost replies are resent; low voltage pauses the flash. **Stop after this segment** stops at a safe point.
+5. While it runs: keep the charger on, don't turn the key, don't unplug anything. The app refuses to close (and refuses a Windows log-off) while it runs. Lost replies are resent; low voltage pauses the flash. **Stop after this segment** stops at a safe point.
 6. If it fails before anything was erased (no key, wrong key, SBL missing), the module is reset back into its own software and the job is closed: the status says *Nothing was erased*. If the module drops out of the programming session mid-flash, the app starts again from the erase once by itself. If the module rejects the security key, a **security hold** appears: no further key is sent until you fix the seed/key provider and press **Clear security hold…** (each wrong key counts toward the module locking itself). After a lockout the hold lifts by itself after 10 minutes.
 7. If it stops later (link lost, a module error), the module may be left in its bootloader. Nothing resets it. Reconnect (EX or MX+), open the **same file**, and press **Resume…**. **Abandon job…** closes an open job without finishing it (asks first; the journal and backup are kept).
 The journal of every flash is `Data\flash\flash-<module>.jsonl`. Details: `docs/FLASHING.md`.

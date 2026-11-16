@@ -14,6 +14,35 @@ Internal: `Uds/RoutineJournal` (`RecordAsync`, `Unfinished`, `MarkChecked`; appe
 2. **DEMO:** Start routine 1234 and close the app (or pull the DEMO link) before the answer, if you can time it; else add a pending line by hand. Restart: the routine results list starts with *UNFINISHED: start of BCM (0x726) routine 0x1234 …*. Results (31 03) for 1234 → "1 unfinished request(s) … marked checked"; restart again: no UNFINISHED line.
 3. **Truck:** none needed beyond the routine tests already planned (Phase 3).
 
+## v0.23.6
+
+**Ignition-cycle advice on every As-Built path (A4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.
+
+- A read-back proves the module **stored** the data, not that it **uses** it: most modules apply As-Built after an ignition cycle. Write, restore and undo already said so (v0.21.1: "turn the ignition OFF for at least 30 s, then ON, and Read the block again"; U2100 / U2101 note; PCM / TCM DTC check).
+- Now also **Recover** (restoring the backup after an unfinished write) and **Check unfinished write** when it finds the new data. The app never resets a module by itself.
+- (v0.23.5 is the close-guard PR from the OUIE lane.)
+
+Internal: `AsBuiltPageViewModel` recover / check texts call `AsBuiltWritePolicy.AfterWriteAdvice`; a source test requires it on all five "new data is in the module" messages (checked to fail on the old file).
+
+### Windows + truck verify
+1. **DEMO:** Writes on → As-Built → write one byte → the result ends with the ignition OFF 30 s / Read again advice (as before).
+2. **DEMO:** start a write, pull the simulated link (or use a journal with an unfinished entry) → Check unfinished write → "holds the NEW data" now ends with the same advice; Recover → the restore result ends with it too.
+3. **Truck (Phase 2):** after the one-block write, follow the advice: ignition OFF 30 s, ON, Read the block: same bytes, and the feature behaves as changed.
+
+## v0.23.5
+
+**Medium-risk items from the 2026-11-16 risk review.** Includes v0.23.4 and earlier. Built and unit-tested on Linux and by GitHub Actions on Windows. Unsigned. Ford products only.
+
+- **The app can't be closed mid-flash.** Closing the main window while a module is being flashed is refused with an explanation (the process would cut the link mid-transfer and leave the module in its bootloader). Use *Stop after this segment* and close once it has stopped. A Windows log-off or shutdown is refused too while a flash runs (Windows may still force it after its own timeout; the flash journal then lets the job resume). Sleep was already blocked.
+- **Held outputs are handed back before the app exits.** If a dashboard write card is holding an output (2F) when you close the app, the app now sends the release to each module and waits for the answers (at most 3 s) before the windows close and the adapter disconnects. Before, the release was sent without waiting and the module's own ~5 s session timeout was the real backstop.
+- Bus quieting during a flash (risk 4) shipped in v0.22.1.
+
+Internal: `DashboardViewModel.HoldingOutputs/ReleaseAllAsync`, `MainWindow.ReleaseHoldsThenCloseAsync`, `App.OnSessionEnding`; tests `ShutdownSafetyTests`.
+
+### Windows verify
+1. DEMO flash: while it downloads, close the main window: a *Flash in progress* message appears and the app stays open.
+2. DEMO dashboard: an OutputHold card (DID D100) → HOLD; close the whole app: the log shows *output returned to the module (app closing)* before exit.
+
 ## v0.23.4
 
 **Back to the default session after writes.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Unsigned. Ford products only.

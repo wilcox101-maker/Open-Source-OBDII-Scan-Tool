@@ -368,7 +368,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         _host.RefreshBackups();
         _host.Info("Check unfinished write", r.Outcome switch
         {
-            AsBuiltOutcome.Verified => $"{c.Where} holds the NEW data ({Convert.ToHexString(r.Now)}): the write did take effect. Nothing else to do.",
+            AsBuiltOutcome.Verified => $"{c.Where} holds the NEW data ({Convert.ToHexString(r.Now)}): the write did take effect.\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)c.Module)}",
             AsBuiltOutcome.NotWritten => $"{c.Where} holds the OLD data ({Convert.ToHexString(r.Now)}): the write did not take effect. The module is as it was.",
             _ => $"{c.Where} holds {Convert.ToHexString(r.Now)}: neither the old nor the new data. Use Restore to put back the backup taken before the write ({c.BackupFile}).",
         });
@@ -385,7 +385,7 @@ public sealed class AsBuiltPageViewModel : ObservableObject
         await OnBus(row, async () => res = await AsBuilt.RecoverAttemptAsync(c, _vin), allowFallback: false);
         _host.RefreshBackups();
         _host.Info("Recover", res.Written
-            ? $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).\nBackup taken before the restore: {res.BackupPath}"
+            ? $"Restored and verified by read-back ({res.BytesChanged} byte(s) changed).\nBackup taken before the restore: {res.BackupPath}\n\n{AsBuiltWritePolicy.AfterWriteAdvice((ushort)row.Def.TxId)}"
             : "The module already held the backup's data; the unfinished write did not take effect. Nothing was written.");
     }
 
