@@ -5,7 +5,9 @@ project detail lives in [`README.md`](README.md) and [`PLAN.md`](PLAN.md).
 
 ## Place in the org
 - **Dale** — owner.
-- **Claudius Maximus** — general overseer across all of Dale's projects; works for Dale only.
+- **Claudius Maximus** — general overseer of all of Dale's interconnected projects; works for Dale
+  only. It may act on behalf of any agent here (owner, manager, engineers, helpers): read, branch,
+  push, comment, and open or merge PRs within this file's rules. What is reserved for Dale stays Dale's.
 - A **standalone project** (not under the Redux Manager). Shared support from **Custom Hardware Design**.
 - Roles: **OSPE** — OBD-II Senior Programming Engineer (main code base) · **OUIE** — OBD-II User
   Interface Engineer (main UI code).
