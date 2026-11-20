@@ -16,7 +16,7 @@ public class WriteFaultMatrixTests
     private const string Vin = "1FTEW1EP7HFA00000";
     private static readonly byte[] Old = { 1, 2, 3, 4, 5, 6, 7 }, New = { 1, 2, 3, 4, 5, 6, 9 };
 
-    public enum Fault { Positive, PendingThenPositive, PendingOnly, NoReply, RejectNotStored, LinkDropAfterStore, ReadBackMismatch }
+    public enum Fault { Positive, PendingThenPositive, PendingOnly, NoReply, RejectNotStored, LinkDropAfterStore, ReadBackMismatch, StrayNegative }
 
     private static void Apply(SimulatedAdapter sim, Fault f)
     {
@@ -44,7 +44,7 @@ public class WriteFaultMatrixTests
     private static (bool Throws, string Outcome, bool HoldsWanted, bool Open) Expected(Fault f) => f switch
     {
         // The module answered or stored it: an uncertain reply is settled by the read-back, never reported as a failure.
-        Fault.Positive or Fault.PendingThenPositive or Fault.PendingOnly or Fault.NoReply => (false, AsBuiltOutcome.Verified, true, false),
+        Fault.Positive or Fault.PendingThenPositive or Fault.PendingOnly or Fault.NoReply or Fault.StrayNegative => (false, AsBuiltOutcome.Verified, true, false),
         Fault.RejectNotStored => (true, AsBuiltOutcome.Rejected, false, false),
         Fault.LinkDropAfterStore => (true, AsBuiltOutcome.Unknown, true, true),
         Fault.ReadBackMismatch => (true, AsBuiltOutcome.Mismatch, false, true),
@@ -79,7 +79,7 @@ public class WriteFaultMatrixTests
         Assert.Equal(outcome, c.Outcome);
         Assert.Equal(Convert.ToHexString(Old), c.Before);
         Assert.True(File.Exists(svc.History.BackupPathOf(c)), "the backup taken before the write is on disk");
-        if (f is Fault.PendingOnly or Fault.NoReply) Assert.Contains("read-back below decided", c.Note);
+        if (f is Fault.PendingOnly or Fault.NoReply or Fault.StrayNegative) Assert.Contains("read-back below decided", c.Note);
         if (f == Fault.LinkDropAfterStore) Assert.Contains("UNKNOWN", ex!.Message);
         if (f == Fault.ReadBackMismatch) Assert.Contains("mismatch", ex!.Message, StringComparison.OrdinalIgnoreCase);
         if (f != Fault.ReadBackMismatch) Assert.Equal(holdsNew ? New : Old, sim.Dids[0x726][0xDE00]);

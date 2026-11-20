@@ -221,6 +221,7 @@ public sealed class AsBuiltService
         UdsNegativeResponseException n => n.Nrc is 0x78 or 0x21,
         TimeoutException => true,
         Elm.LinkDroppedException => true,
+        UdsStrayResponseException => true, // v0.23.20: a late answer to something else; our write may or may not have been stored
         _ => false,
     };
 
