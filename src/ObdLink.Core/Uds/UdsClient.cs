@@ -25,6 +25,12 @@ public sealed class UdsNegativeResponseException : Exception
     }
 }
 
+/// <summary>
+/// v0.23.20: the module answered, but its negative response names another service (a late answer to an earlier request), so the
+/// outcome of the request that was sent is unknown. Write paths treat this like a timeout: settle, then read back.
+/// </summary>
+public sealed class UdsStrayResponseException(string message) : Exception(message);
+
 public static class UdsNrc
 {
     // ISO 14229-1 negative response codes. 0x94-0xEF and 0xF0-0xFE are ranges (specific / manufacturer conditions not correct).
@@ -200,7 +206,7 @@ public sealed class UdsClient
                 // v0.23.19: a negative response names the service it answers. One for another service (a late answer to an
                 // earlier request) is not this request's outcome: never report its NRC, or treat its 0x78 as "pending", as ours.
                 if (r[1] != req[0])
-                    throw new InvalidDataException($"Module 0x{TargetTxId:X3} sent a negative response for service 0x{r[1]:X2} ({UdsNrc.ServiceName(r[1])}) while 0x{req[0]:X2} was outstanding; the outcome of {Convert.ToHexString(req)} is unknown: {Convert.ToHexString(r)}");
+                    throw new UdsStrayResponseException($"Module 0x{TargetTxId:X3} sent a negative response for service 0x{r[1]:X2} ({UdsNrc.ServiceName(r[1])}) while 0x{req[0]:X2} was outstanding; the outcome of {Convert.ToHexString(req)} is unknown: {Convert.ToHexString(r)}");
                 if (r[2] == 0x78 && _ch is IDiagReceiveChannel listen)
                 {
                     if (pending >= MaxPendingReplies)

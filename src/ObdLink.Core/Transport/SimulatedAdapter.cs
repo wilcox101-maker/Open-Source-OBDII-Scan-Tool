@@ -6,7 +6,9 @@ namespace ObdLink.Core.Transport;
 /// </summary>
 public enum SimProfile { MxPlus, Ex, GenericElm }
 /// <summary>Simulated answers to WriteDataByIdentifier.</summary>
-public enum SimWriteReply { Positive, PendingThenPositive, PendingOnly, NoReply, RejectNotStored }
+/// <summary>How the simulated module answers 0x2E. <see cref="StrayNegative"/> (v0.23.20): stores the data, but the only reply the
+/// adapter shows is a late negative response to another service (7F 31 22), as if left over from an earlier routine.</summary>
+public enum SimWriteReply { Positive, PendingThenPositive, PendingOnly, NoReply, RejectNotStored, StrayNegative }
 
 public sealed class SimulatedAdapter
 {
@@ -278,6 +280,7 @@ public sealed class SimulatedAdapter
                 SimWriteReply.PendingThenPositive => Multi(rx, new byte[] { 0x7F, 0x2E, 0x78 }, padded) + "\r" + Multi(rx, resp, padded),
                 SimWriteReply.PendingOnly => Multi(rx, new byte[] { 0x7F, 0x2E, 0x78 }, padded),
                 SimWriteReply.NoReply => "NO DATA",
+                SimWriteReply.StrayNegative => Multi(rx, new byte[] { 0x7F, 0x31, 0x22 }, padded),
                 _ => Multi(rx, resp, padded),
             };
         return Multi(rx, resp, padded);

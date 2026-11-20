@@ -1,3 +1,16 @@
+## v0.23.20
+
+**A stray reply during an As-Built write or restore now ends in a read-back, as the v0.23.19 notes said it would.** Built and unit-tested on Linux and by GitHub Actions on Windows; simulators only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- **Correction to v0.23.19.** Its notes said a negative response for another service is handled like a timeout (settle, then read the block back). In v0.23.19 it was actually reported as "the write was sent but the link failed … result UNKNOWN", with no automatic read-back. That was safe (nothing was claimed) but less useful.
+- **Now** an As-Built write or restore that gets only such a stray reply waits the usual settle time, reads the block back, and reports what the module actually holds (verified or a mismatch), exactly like a write answered only with "response pending".
+- No change to what is sent to a vehicle.
+
+Internal: `UdsStrayResponseException` (thrown by `UdsClient` for a `7F` naming another service) counts as an uncertain write outcome in `AsBuiltService.IsUncertainWriteOutcome`. Simulator: `SimWriteReply.StrayNegative` (stores the data, shows only `7F 31 22`). `WriteFaultMatrixTests` gains the `StrayNegative` row for write and restore (verified by read-back, ends in the default session). Mutation: dropping it from the uncertain list fails both rows.
+
+### Windows + truck verify
+1. **Truck:** none extra (part of Phase 2).
+
 ## v0.23.19
 
 **A module's late answer to an earlier request is no longer reported as the current request's error.** Built and unit-tested on Linux and by GitHub Actions on Windows; simulators only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
