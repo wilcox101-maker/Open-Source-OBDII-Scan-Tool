@@ -197,6 +197,10 @@ public sealed class UdsClient
                 if (r[0] == req[0] + 0x40) { OnPositive(req, r); return r; }
                 if (r[0] != 0x7F || r.Length < 3)
                     throw new InvalidDataException($"Unexpected response from 0x{TargetTxId:X3} to {Convert.ToHexString(req)}: {Convert.ToHexString(r)}");
+                // v0.23.19: a negative response names the service it answers. One for another service (a late answer to an
+                // earlier request) is not this request's outcome: never report its NRC, or treat its 0x78 as "pending", as ours.
+                if (r[1] != req[0])
+                    throw new InvalidDataException($"Module 0x{TargetTxId:X3} sent a negative response for service 0x{r[1]:X2} ({UdsNrc.ServiceName(r[1])}) while 0x{req[0]:X2} was outstanding; the outcome of {Convert.ToHexString(req)} is unknown: {Convert.ToHexString(r)}");
                 if (r[2] == 0x78 && _ch is IDiagReceiveChannel listen)
                 {
                     if (pending >= MaxPendingReplies)

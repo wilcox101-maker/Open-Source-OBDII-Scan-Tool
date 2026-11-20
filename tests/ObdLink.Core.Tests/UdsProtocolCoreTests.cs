@@ -45,6 +45,47 @@ public class UdsProtocolCoreTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
+    // ---- v0.23.19: a negative response for another service is never this request's outcome ---------------------
+
+    [Fact]
+    public async Task Negative_response_for_another_service_is_not_reported_as_this_requests_NRC()
+    {
+        // A late "7F 31 22" (answer to an earlier routine) arrives while 2E is outstanding: the write's outcome is unknown, not "conditionsNotCorrect".
+        var ch = new Scripted(new[] { R(0x7F, 0x31, 0x22) });
+        var uds = new UdsClient(ch, Tx);
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => uds.RequestAsync(new byte[] { 0x2E, 0xDE, 0x00, 0x01 }));
+        Assert.Contains("negative response for service 0x31", ex.Message);
+        Assert.Contains("outcome of 2EDE0001 is unknown", ex.Message);
+    }
+
+    [Fact]
+    public async Task Stray_pending_for_another_service_is_not_taken_as_pending_for_this_request()
+    {
+        var ch = new Listening(new[] { R(0x7F, 0x31, 0x78) }, new[] { R(0x6E, 0xDE, 0x00) });
+        var uds = new UdsClient(ch, Tx);
+        await Assert.ThrowsAsync<InvalidDataException>(() => uds.RequestAsync(new byte[] { 0x2E, 0xDE, 0x00, 0x01 }));
+        Assert.Empty(ch.Waits); // did not start listening on someone else's "pending"
+    }
+
+    [Fact]
+    public async Task Stray_busy_for_another_service_does_not_trigger_a_resend()
+    {
+        var ch = new Scripted(new[] { R(0x7F, 0x19, 0x21) }, new[] { R(0x62, 0xF1, 0x90, 0x41) });
+        var uds = new UdsClient(ch, Tx) { PendingRetryDelay = TimeSpan.Zero };
+        await Assert.ThrowsAsync<InvalidDataException>(() => uds.RequestAsync(new byte[] { 0x22, 0xF1, 0x90 }));
+        Assert.Single(ch.Sent);
+    }
+
+    [Fact]
+    public async Task Negative_response_for_this_service_is_still_reported()
+    {
+        var ch = new Scripted(new[] { R(0x7F, 0x2E, 0x22) });
+        var uds = new UdsClient(ch, Tx);
+        var ex = await Assert.ThrowsAsync<UdsNegativeResponseException>(() => uds.RequestAsync(new byte[] { 0x2E, 0xDE, 0x00, 0x01 }));
+        Assert.Equal(0x22, ex.Nrc);
+        Assert.Equal(0x2E, ex.Service);
+    }
+
     // ---- Service table -------------------------------------------------------------------------------------------
 
     [Fact]

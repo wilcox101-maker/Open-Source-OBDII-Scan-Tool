@@ -1,3 +1,16 @@
+## v0.23.19
+
+**A module's late answer to an earlier request is no longer reported as the current request's error.** Built and unit-tested on Linux and by GitHub Actions on Windows; simulators only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- A UDS negative response names the service it answers (ISO 14229-1: `7F <service> <code>`). The app checked only the first byte, so a late `7F` meant for an earlier request could be shown as the current request's refusal, for example a write reported as "conditions not correct" when the module had said that about something else. A stray "busy" or "response pending" could also make the app resend or wait on the wrong request.
+- Now such a reply is reported as **"the outcome is unknown"**. Write paths already treat an unknown outcome by reading the module back before saying anything (as after a timeout). A negative response for the request itself is reported exactly as before.
+- No change to what is sent to a vehicle.
+
+Internal: `UdsClient.SendAsync` checks `r[1] == req[0]` before NRC handling (incl. 0x78/0x21). Tests in `UdsProtocolCoreTests` (4): wrong-service NRC → `InvalidDataException`, stray pending doesn't start a P2* wait, stray busy doesn't resend, own NRC unchanged. Mutation: removing the check fails three.
+
+### Windows + truck verify
+1. **Truck:** none extra; part of Phase 1 / 2 (a normal read and the one-block write show no change).
+
 ## v0.23.18
 
 **As-Built backups are flushed to disk and checked before a write; "Last backup" finds all of them.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.

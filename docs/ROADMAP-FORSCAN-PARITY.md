@@ -3,9 +3,9 @@
 Goal set by Dale (2026-11-15): Ford Enhanced UDS plus the full feature set of FORScan for Windows 11, no install.
 Since 2026-11-16 the project is a **Scan / Diagnose / Repair (SDR)** tool, for personal use only on your own Ford vehicle (see README, "Intended use").
 No security keys or algorithms are part of the tool; SecurityAccess uses a seed/key plug-in the user supplies.
-This file compares what the app does today (v0.23.18) with FORScan's feature groups and orders the work.
+This file compares what the app does today (v0.23.19) with FORScan's feature groups and orders the work.
 
-## Where we are (v0.23.18)
+## Where we are (v0.23.19)
 
 | FORScan area | FORScan | This app today | Gap |
 |---|---|---|---|
