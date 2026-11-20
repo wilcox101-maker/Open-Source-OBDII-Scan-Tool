@@ -52,24 +52,42 @@ public static class AsBuiltBatch
         var bk = new AsBuiltBackup(vinMasked, new DateTimeOffset(now), module, blocks.ToDictionary(b => b.Block.ToString("X2"), b => Convert.ToHexString(b.Data)));
         var path = Path.Combine(dir, FileName(vinMasked, module, now));
         if (!SafePaths.IsUnder(dir, path)) throw new InvalidOperationException("As-Built backup path escaped the destination folder");
-        await File.WriteAllTextAsync(path, bk.Serialize(), ct);
+        path = Storage.DurableFile.Unique(path, ".asbuilt.json"); // v0.23.18: two backups in the same second no longer overwrite each other
+        await Storage.DurableFile.WriteNewAsync(path, bk.Serialize(), ct);
         return path;
     }
 
-    /// <summary>Newest backup per module address found under the given folders (recursive), from file names "*_XXX_yyyyMMdd_HHmmss.asbuilt.json".</summary>
+    /// <summary>
+    /// Newest backup per module address found under the given folders (recursive). v0.23.18: recognises every name the app writes:
+    /// batch "*_XXX_yyyyMMdd_HHmmss.asbuilt.json", pre-write "*_XXX_yyyyMMdd_HHmmss_fff.asbuilt.json", pre-flash / pre-restore "…_fff_preflash…" / "…_fff_pre-restore…",
+    /// and a "_2"/"_3" suffix for same-second files. Before, the pre-write and pre-flash backups were never found.
+    /// </summary>
     public static Dictionary<uint, (DateTime When, string Path)> FindBackups(params string[] dirs)
     {
         var res = new Dictionary<uint, (DateTime, string)>();
         foreach (var dir in dirs.Where(Directory.Exists))
             foreach (var f in Directory.EnumerateFiles(dir, "*.asbuilt.json", SearchOption.AllDirectories))
             {
-                var parts = Path.GetFileName(f)[..^".asbuilt.json".Length].Split('_');
-                if (parts.Length < 4) continue;
-                if (!uint.TryParse(parts[^3], System.Globalization.NumberStyles.HexNumber, null, out var m)) continue;
-                if (!DateTime.TryParseExact(parts[^2] + parts[^1], "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var when)) continue;
+                if (!TryParseBackupName(Path.GetFileName(f), out var m, out var when)) continue;
                 if (!res.TryGetValue(m, out var cur) || when > cur.Item1) res[m] = (when, f);
             }
         return res;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex BackupName = new(
+        @"_(?<m>[0-9A-Fa-f]{3})_(?<d>\d{8})_(?<t>\d{6})(?:_(?<ms>\d{3}))?(?:_[A-Za-z][A-Za-z-]*)?(?:_\d+)?\.asbuilt\.json$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Module address and time from a backup file name written by this app; false for anything else.</summary>
+    public static bool TryParseBackupName(string fileName, out uint module, out DateTime when)
+    {
+        module = 0; when = default;
+        var m = BackupName.Match(fileName);
+        if (!m.Success) return false;
+        module = Convert.ToUInt32(m.Groups["m"].Value, 16);
+        var ms = m.Groups["ms"].Success ? m.Groups["ms"].Value : "000";
+        return DateTime.TryParseExact(m.Groups["d"].Value + m.Groups["t"].Value + ms, "yyyyMMddHHmmssfff",
+            System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out when);
     }
 
     /// <summary>

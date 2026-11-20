@@ -69,7 +69,10 @@ public sealed class AsBuiltService
         var name = $"{SafePaths.Token(vin)}_{module:X3}_{DateTime.Now:yyyyMMdd_HHmmss_fff}{tag}.asbuilt.json";
         var path = Path.Combine(_backupDir, name);
         if (!SafePaths.IsUnder(_backupDir, path)) throw new InvalidOperationException("Backup path escaped the backup folder");
-        await File.WriteAllTextAsync(path, bk.Serialize(), ct);
+        path = Storage.DurableFile.Unique(path, ".asbuilt.json");
+        // v0.23.18: flushed to disk, renamed into place and read back before the module is touched (a power loss mid-write must not
+        // leave an empty backup of the data being replaced).
+        await Storage.DurableFile.WriteNewAsync(path, bk.Serialize(), ct);
         Log.Information("As-Built backup {Path}", path);
         return path;
     }

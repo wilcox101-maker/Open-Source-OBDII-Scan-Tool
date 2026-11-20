@@ -1,3 +1,18 @@
+## v0.23.18
+
+**As-Built backups are flushed to disk and checked before a write; "Last backup" finds all of them.** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- **Durable backup before a write.** The backup taken just before an As-Built write, restore or flash is now written to a temporary file with write-through, flushed to the disk, renamed into place, and read back and compared before the module is touched. Before, it was a plain file write: a laptop losing power during the module write could leave an empty or missing backup of exactly the data being replaced. If the read-back differs, the write stops before anything is sent to the module.
+- **Never overwritten.** A backup file is never replaced. Two batch backups of the same module in the same second used to overwrite each other; the second now gets `_2`.
+- **"Last backup" was missing most backups.** The module list's Last backup date only recognised the batch backup name, so backups taken before a write, a restore or a flash (names with milliseconds and `_preflash` / `_pre-restore`) were ignored, and the list could show an older date or none. It now recognises every name the app writes and picks the newest.
+- No change to what is sent to a vehicle.
+
+Internal: `Storage/DurableFile` (`WriteNewAsync`: temp file, `WriteThrough` + `Flush(true)`, `File.Move` without overwrite, byte-for-byte read-back; `Unique`); `AsBuiltService.SaveBackupAsync` and `AsBuiltBatch.SaveAsync` use it; `AsBuiltBatch.TryParseBackupName` (one regex for all name forms) behind `FindBackups`. Tests `DurableBackupTests` (18). Mutation: dropping the same-second counter fails a test.
+
+### Windows + truck verify
+1. **Windows (DEMO):** As-Built → back up a module twice quickly: two files in `Data\asbuilt\<date>\`. Write a DEMO block: the module list's Last backup shows the time of that write's backup.
+2. **Truck:** none beyond Phase 2 (the one-block write already takes this backup).
+
 ## v0.23.17
 
 **A silent adapter now times out instead of freezing the app.** Built and unit-tested on Linux and by GitHub Actions on Windows; simulators and fakes only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
