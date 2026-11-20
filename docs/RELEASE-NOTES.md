@@ -1,3 +1,18 @@
+## v0.23.17
+
+**A silent adapter now times out instead of freezing the app.** Built and unit-tested on Linux and by GitHub Actions on Windows; simulators and fakes only. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
+
+- **The bug.** On Windows, .NET's serial port ignores cancellation and its read timeout on its async read (dotnet/corefx#36040, dotnet/runtime#28968). If the adapter stopped answering in the middle of a command (Bluetooth half-dropped, adapter hung, cable pulled at the wrong moment), the command's timeout could never fire: the app kept waiting for the `>` prompt, held the adapter for good, and every later request waited behind it.
+- **The fix.** The COM port is now read by a small background reader that uses short (50 ms) blocking reads; the app's own wait can always be cancelled, and no received bytes are lost. Writes are synchronous with the port's 2 s write timeout, and a timed-out write is reported as a link error, so the existing reconnect logic applies. The timeouts and the "never resend a vehicle request after a link drop" rule are unchanged.
+- No change to what is sent to a vehicle.
+
+Internal: `Transport/SerialReadPump` (one background thread, `Channel` queue, read failures kept in order, `Discard` keeps a failure); `SerialPortTransport` uses it (`ReadTimeout = 50 ms`, no `BaseStream` async calls). Tests `SerialReadPumpTests` (8): a silent device's read is cancelled within the bound and later data still arrives; order; failure → `IOException` then "closed"; discard; stop; `ElmLink` over a silent fake adapter throws `ElmTimeoutException` and the next command works; a source check that the transport never goes back to the stream's async calls. Mutation: a pump read that ignores cancellation fails two tests (bounded, so CI can't hang).
+
+### Windows + truck verify
+1. **Windows (adapter, engine off):** connect, then unplug the adapter (or switch the MX+ off) while Live data is polling: within a few seconds the message log shows a timeout / link error and the app stays responsive; plug it back and Connect works.
+2. **Windows:** normal Connect, Identify vehicle and a DTC read behave as before (no extra delay).
+3. **Truck:** part of the Phase 1 read-only check; nothing extra.
+
 ## v0.23.16
 
 **As-Built Options: sheet tab picked from the module's part number; "not read" / "read" / "changed" per option (W4).** Built and unit-tested on Linux and by GitHub Actions on Windows; DEMO only. Read-only and offline: nothing is sent to a module, and the write, verify and backup path is unchanged. Source-available (PolyForm Noncommercial 1.0.0). Ford products only.
